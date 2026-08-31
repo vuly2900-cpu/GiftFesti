@@ -1338,7 +1338,8 @@ function goTo(pageName) {
 }
 
 function avatarFallback(name) {
-  return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" rx="30" fill="%231D2027"/><text x="50%" y="55%" font-size="24" fill="%238E93A0" text-anchor="middle" font-family="sans-serif">${(name||'?').charAt(0).toUpperCase()}</text></svg>`;
+  const letter = (name||'?').charAt(0).toUpperCase();
+  return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><rect width='60' height='60' rx='30' fill='%231D2027'/><text x='50%25' y='55%25' font-size='24' fill='%238E93A0' text-anchor='middle' font-family='sans-serif'>${letter}</text></svg>`;
 }
 
 function renderLeaderboard(leaderboard) {

@@ -684,6 +684,7 @@ const MINES_ALLOWED_SIZES = [25, 30, 35, 40];
 const MINES_ALLOWED_BOMBS = [1, 2, 3];
 const MINES_BOT_MOVE_DELAY_MS = 900;
 const MINES_ROOM_PREFIX = 'mines_';
+const MINES_TURN_TIMEOUT_MS = 30000; // 30 soniya — shu vaqtda katak tanlamasa avtomatik yutqizadi
 
 function getSocketUser(initData) {
   const tgUser = getTgUserFromInitData(initData);
@@ -734,6 +735,7 @@ function sanitizeMinesRoom(room) {
     status: room.status,
     revealed: room.revealed,
     turn: room.turn,
+    turnDeadline: room.turnDeadline || null,
     winner: room.winner || null,
     players: room.players.map(p => ({ id: p.id, username: p.username, photo_url: p.photo_url })),
   };
@@ -764,12 +766,46 @@ function removeMinesRoom(room) {
   minesRooms.delete(room.id);
 }
 
+function clearMinesTurnTimer(room) {
+  if (room.turnTimer) {
+    clearTimeout(room.turnTimer);
+    room.turnTimer = null;
+  }
+  room.turnDeadline = null;
+}
+
+function startMinesTurnTimer(room) {
+  clearMinesTurnTimer(room);
+  // Bot navbatida odam kutmaydi — bot baribir tez yuradi, taymer shart emas
+  const turnPlayer = room.players[room.turn];
+  if (!turnPlayer || turnPlayer.id === 'bot') return;
+
+  room.turnDeadline = Date.now() + MINES_TURN_TIMEOUT_MS;
+  room.turnTimer = setTimeout(() => {
+    const current = minesRooms.get(room.id);
+    if (!current || current.status !== 'playing') return;
+    handleMinesTurnTimeout(current);
+  }, MINES_TURN_TIMEOUT_MS);
+}
+
+function handleMinesTurnTimeout(room) {
+  clearMinesTurnTimer(room);
+  const loser = room.players[room.turn];
+  const winner = room.players[room.turn === 0 ? 1 : 0];
+  if (!loser || !winner) return;
+  io.to(MINES_ROOM_PREFIX + room.id).emit('mines:timeout', {
+    loserId: loser.id, winnerId: winner.id,
+  });
+  finishMinesRoom(room, winner, loser);
+}
+
 function startMinesRound(room) {
   room.bombIndices = pickMinesBombs(room.totalCells, room.bombCount);
   room.revealed = new Array(room.totalCells).fill(false);
   room.turn = 0;
   room.status = 'playing';
   room.winner = null;
+  startMinesTurnTimer(room);
   emitMinesRoom(room);
   if (room.vsBot && room.turn === 1) scheduleMinesBotMove(room);
 }
@@ -787,6 +823,7 @@ function scheduleMinesBotMove(room) {
 }
 
 function finishMinesRoom(room, winnerPlayer, loserPlayer) {
+  clearMinesTurnTimer(room);
   room.status = 'finished';
   room.winner = { id: winnerPlayer.id, username: winnerPlayer.username };
   const winnerUser = users.get(String(winnerPlayer.id));
@@ -818,6 +855,7 @@ function resolveMinesReveal(room, idx, requesterId) {
     finishMinesRoom(room, winner, loser);
   } else {
     room.turn = room.turn === 0 ? 1 : 0;
+    startMinesTurnTimer(room);
     io.to(MINES_ROOM_PREFIX + room.id).emit('mines:reveal', { idx, bomb: false, nextTurn: room.turn });
     emitMinesRoom(room);
     if (room.vsBot && room.turn === 1) scheduleMinesBotMove(room);

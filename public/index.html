@@ -560,6 +560,9 @@
   #page-mines .mn-vs{ color:var(--mn-muted); font-size:12.5px; padding:0 6px; }
   #page-mines .mn-turn-banner{ text-align:center; font-size:13.5px; color:var(--mn-muted); }
   #page-mines .mn-turn-banner b{ color:var(--mn-gold-bright); }
+  #page-mines .mn-turn-timer{ display:inline-block; min-width:26px; margin-left:4px; font-weight:700; color:var(--mn-gold-bright); }
+  #page-mines .mn-turn-timer.mn-turn-timer-warn{ color:#ff5b5b; animation:mnTimerPulse .8s ease-in-out infinite; }
+  @keyframes mnTimerPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.45; } }
   #page-mines .mn-extremal-badge{ text-align:center; font-weight:700; font-size:12px; letter-spacing:1.5px; color:var(--mn-danger-bright); }
   #page-mines .mn-board{ background:var(--mn-felt); border:1px solid var(--mn-felt-light); border-radius:16px; padding:12px; }
   #page-mines .mn-grid{ display:grid; grid-template-columns:repeat(5, 1fr); gap:7px; }
@@ -905,7 +908,7 @@
         <span class="mn-label">🏦 Bank:</span>
         <span class="mn-amt" id="mn-bank">200 <span class="coin-ico"></span></span>
       </div>
-      <div class="mn-turn-banner" id="mnTurnBanner">Navbat: <b id="mnTurnName">Siz</b></div>
+      <div class="mn-turn-banner" id="mnTurnBanner">Navbat: <b id="mnTurnName">Siz</b> <span id="mnTurnTimer" class="mn-turn-timer"></span></div>
       <div class="mn-extremal-badge" id="mnExtremalBadge" style="display:none;">🔥 EXTREMAL REJIM</div>
       <div class="mn-board">
         <div class="mn-grid" id="mnGrid"></div>
@@ -3174,8 +3177,36 @@ const mnState = {
   roomId: null,
   myIndex: null, // 0 yoki 1 - joriy o'yinchining room.players ichidagi indeksi
   listenersBound: false,
+  turnInterval: null,
 };
 let mnToastTimer = null;
+
+function mnStopTurnCountdown() {
+  if (mnState.turnInterval) {
+    clearInterval(mnState.turnInterval);
+    mnState.turnInterval = null;
+  }
+  const el = document.getElementById('mnTurnTimer');
+  if (el) { el.textContent = ''; el.classList.remove('mn-turn-timer-warn'); }
+}
+
+function mnStartTurnCountdown(deadline) {
+  mnStopTurnCountdown();
+  if (!deadline) return;
+  const el = document.getElementById('mnTurnTimer');
+  if (!el) return;
+  const tick = () => {
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    el.textContent = `· ${remaining}s`;
+    el.classList.toggle('mn-turn-timer-warn', remaining <= 10);
+    if (remaining <= 0) {
+      clearInterval(mnState.turnInterval);
+      mnState.turnInterval = null;
+    }
+  };
+  tick();
+  mnState.turnInterval = setInterval(tick, 250);
+}
 
 function mnShow(name) {
   Object.values(mnScreens).forEach(s => s.classList.remove('mn-active'));
@@ -3340,6 +3371,11 @@ function mnUpdateTurnUI(room) {
   document.getElementById('mn-pbox1').classList.toggle('mn-turn', mnState.myIndex !== room.turn);
   const turnPlayer = room.players[room.turn];
   document.getElementById('mnTurnName').textContent = myTurn ? 'Siz' : (turnPlayer ? (turnPlayer.username || 'Raqib') : 'Raqib');
+  if (room.status === 'playing' && room.turnDeadline) {
+    mnStartTurnCountdown(room.turnDeadline);
+  } else {
+    mnStopTurnCountdown();
+  }
 }
 
 function mnOnCellClick(e) {
@@ -3351,11 +3387,13 @@ function mnOnCellClick(e) {
   });
 }
 
-function mnShowResult(loserName, winnerName, isMeWinner, bank) {
-  document.getElementById('mnResultSub').textContent = `${loserName} bombani bosdi`;
+function mnShowResult(loserName, winnerName, isMeWinner, bank, reason) {
+  document.getElementById('mnResultSub').textContent = reason === 'timeout'
+    ? `${loserName} 30 soniyada katak tanlamadi`
+    : `${loserName} bombani bosdi`;
   document.getElementById('mnWinnerName').textContent = winnerName;
   document.getElementById('mnWinnerAmt').innerHTML = `+${bank} <span class="coin-ico"></span>`;
-  document.getElementById('mnResultIcon').textContent = isMeWinner ? '🏆' : '💥';
+  document.getElementById('mnResultIcon').textContent = isMeWinner ? '🏆' : (reason === 'timeout' ? '⏱️' : '💥');
   mnShow('result');
 }
 
@@ -3382,6 +3420,7 @@ function mnBindSocketListeners() {
     if (!mnState.roomId) return;
     const cellEl = document.querySelector(`#mnGrid .mn-cell[data-idx="${data.idx}"]`);
     if (data.bomb) {
+      mnStopTurnCountdown();
       const isMeLoser = String(data.loserId) === String(tgUser.id);
       const isMeWinner = String(data.winnerId) === String(tgUser.id);
       if (cellEl) { cellEl.classList.add('mn-bomb'); cellEl.textContent = '💣'; }
@@ -3411,12 +3450,31 @@ function mnBindSocketListeners() {
     const isMeWinner = String(data.winnerId) === String(tgUser.id);
     if (isMeWinner) mnToast("Raqib chiqib ketdi — siz yutdingiz!");
   });
+
+  socket.on('mines:timeout', (data) => {
+    if (!mnState.roomId) return;
+    mnStopTurnCountdown();
+    const isMeLoser = String(data.loserId) === String(tgUser.id);
+    const isMeWinner = String(data.winnerId) === String(tgUser.id);
+    document.querySelectorAll('#mnGrid .mn-cell').forEach(c => c.classList.add('mn-disabled'));
+    const loserName = isMeLoser ? 'Siz' : (document.getElementById(mnState.myIndex === 0 ? 'mn-p1name' : 'mn-p0name').textContent);
+    const winnerName = isMeWinner ? 'Siz' : (document.getElementById(mnState.myIndex === 0 ? 'mn-p1name' : 'mn-p0name').textContent);
+    const bankTxt = document.getElementById('mn-bank').textContent;
+    const bankNum = parseInt(bankTxt, 10) || 0;
+    if (isMeWinner) {
+      currentUserData.balance += bankNum;
+      currentUserData.total_won = (currentUserData.total_won || 0) + bankNum;
+      document.getElementById('topBalance').textContent = currentUserData.balance;
+    }
+    setTimeout(() => mnShowResult(loserName, winnerName, isMeWinner, bankNum, 'timeout'), 400);
+  });
 }
 
 function initMinesPage() {
   mnBindSocketListeners();
   mnState.roomId = null;
   mnState.myIndex = null;
+  mnStopTurnCountdown();
   mnShow('start');
   document.getElementById('mnRoomList').innerHTML = '<div class="mn-empty">Yuklanmoqda...</div>';
   socket.emit('mines:get_rooms');

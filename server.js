@@ -202,7 +202,7 @@ async function postVoucherToChannel(voucher) {
   if (!username) { console.error('Voucher kanalga post qilinmadi: bot username aniqlanmadi'); return; }
   if (!WEBAPP_URL) { console.error('Voucher kanalga post qilinmadi: WEBAPP_URL sozlanmagan (rasm uchun kerak)'); return; }
 
-  const deepLink = `https://t.me/${username}?startapp=voucher_${voucher.id}`;
+  const deepLink = `https://t.me/${username}?start=voucher_${voucher.id}`;
   const photoUrl = `${WEBAPP_URL}/voucher.png`;
   const reqLabel = voucherRequireLabel(voucher);
   const caption =

@@ -1284,7 +1284,9 @@ let pendingVoucherId = null;
 let pendingVoucherRequire = null;
 
 function checkVoucherStartParam() {
-  const sp = tg?.initDataUnsafe?.start_param?.trim() || '';
+  const sp = (tg?.initDataUnsafe?.start_param?.trim())
+    || (new URLSearchParams(window.location.search).get('startapp') || '').trim()
+    || (new URLSearchParams(window.location.search).get('tgWebAppStartParam') || '').trim();
   if (sp.startsWith('voucher_')) {
     showVoucherOverlay(sp.slice('voucher_'.length));
   }

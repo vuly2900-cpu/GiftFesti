@@ -209,10 +209,6 @@ async function handleStart(msg) {
   const parts = msg.text.split(' ');
   const startParam = parts[1] || '';
 
-  if (startParam.startsWith('voucher_')) {
-    return handleVoucherStart(msg, startParam.slice('voucher_'.length));
-  }
-
   let url = WEBAPP_URL;
   if (startParam) url += (url.includes('?') ? '&' : '?') + `startapp=${encodeURIComponent(startParam)}`;
 

@@ -248,17 +248,17 @@ function refreshPhotoAsync(user) {
 
 /* ---- Kunlik case sovrinlari (server-authoritative) ---- */
 const CASE_ITEMS = [
-  { emoji: '🧸', value: 15, tier: 15 },
-  { emoji: '💝', value: 15, tier: 15 },
-  { emoji: '🎁', value: 25, tier: 25 },
-  { emoji: '🌹', value: 25, tier: 25 },
-  { emoji: '🎂', value: 50, tier: 50 },
-  { emoji: '💐', value: 50, tier: 50 },
-  { emoji: '🚀', value: 50, tier: 50 },
-  { emoji: '🍾', value: 50, tier: 50 },
-  { emoji: '🏆', value: 100, tier: 100 },
-  { emoji: '💍', value: 100, tier: 100 },
-  { emoji: '💎', value: 100, tier: 100 },
+  { emoji: '🧸', img: 'teddy', value: 15, tier: 15 },
+  { emoji: '💝', img: 'heart_gift', value: 15, tier: 15 },
+  { emoji: '🎁', img: 'gift_box', value: 25, tier: 25 },
+  { emoji: '🌹', img: 'rose', value: 25, tier: 25 },
+  { emoji: '🎂', img: 'cake', value: 50, tier: 50 },
+  { emoji: '💐', img: 'bouquet', value: 50, tier: 50 },
+  { emoji: '🚀', img: 'rocket', value: 50, tier: 50 },
+  { emoji: '🍾', img: 'champagne', value: 50, tier: 50 },
+  { emoji: '🏆', img: 'trophy', value: 100, tier: 100 },
+  { emoji: '💍', img: 'ring', value: 100, tier: 100 },
+  { emoji: '💎', img: 'diamond', value: 100, tier: 100 },
 ];
 const CASE_TIER_WEIGHTS = { 100: 0.1, 50: 1, 25: 5, 15: 10 };
 const CASE_STAR_WEIGHTS = { 10: 20, 7: 30, 5: 35, 3: 40, 1: 80, 0: 70 };
@@ -267,7 +267,7 @@ function pickCaseReward() {
   CASE_ITEMS.forEach(i => { tierCounts[i.tier] = (tierCounts[i.tier] || 0) + 1; });
   const outcomes = [];
   CASE_ITEMS.forEach(item => {
-    outcomes.push({ stars: item.value, emoji: item.emoji, isGift: true, tier: item.tier, weight: CASE_TIER_WEIGHTS[item.tier] / tierCounts[item.tier] });
+    outcomes.push({ stars: item.value, emoji: item.emoji, img: item.img, isGift: true, tier: item.tier, weight: CASE_TIER_WEIGHTS[item.tier] / tierCounts[item.tier] });
   });
   Object.entries(CASE_STAR_WEIGHTS).forEach(([stars, weight]) => {
     outcomes.push({ stars: Number(stars), emoji: null, isGift: false, weight });

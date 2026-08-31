@@ -172,6 +172,9 @@
   .case-items-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:18px;}
   .case-item{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:10px 2px; text-align:center;}
   .case-item .emoji{font-size:20px; line-height:1;}
+  .gift-ico{ width:28px; height:28px; object-fit:contain; display:inline-block; vertical-align:middle; }
+  .gift-ico-lg{ width:56px; height:56px; object-fit:contain; }
+  .case-reel-item .gift-ico{ width:32px; height:32px; }
   .case-item .val{font-size:11px; color:var(--text-dim); font-weight:700; margin-top:4px; font-family:'JetBrains Mono',monospace;}
   .case-item.tier-15{border-color:#3A4550;}
   .case-item.tier-25{border-color:#3D5A4A;}
@@ -598,6 +601,40 @@
   #page-mines .mn-cell.mn-bomb{ background:linear-gradient(180deg, var(--mn-danger-bright), var(--mn-danger)); box-shadow:0 3px 0 #7a2a1c, inset 0 1px 0 rgba(255,255,255,0.15); animation:mnPop .3s ease; }
   #page-mines .mn-cell.mn-dim{ opacity:.55; }
   @keyframes mnPop{ 0%{ transform:scale(0.7);} 60%{ transform:scale(1.12);} 100%{ transform:scale(1);} }
+  #page-mines .mn-board.mn-shake{ animation:mnBoardShake .45s ease; }
+  @keyframes mnBoardShake{
+    0%,100%{ transform:translate(0,0); }
+    20%{ transform:translate(-6px,3px); }
+    40%{ transform:translate(6px,-3px); }
+    60%{ transform:translate(-4px,2px); }
+    80%{ transform:translate(4px,-2px); }
+  }
+  #page-mines .mn-cell.mn-countdown{
+    background:linear-gradient(180deg,#3a2f1a,#201808); border-color:var(--mn-gold-dim);
+    font-weight:700; font-size:20px; color:var(--mn-gold-bright);
+    animation:mnCountdownPulse 1s ease-in-out infinite;
+  }
+  @keyframes mnCountdownPulse{
+    0%,100%{ box-shadow:0 3px 0 #0c2417, inset 0 1px 0 rgba(255,255,255,0.08), 0 0 0 0 rgba(227,185,76,0.4); }
+    50%{ box-shadow:0 3px 0 #0c2417, inset 0 1px 0 rgba(255,255,255,0.08), 0 0 0 9px rgba(227,185,76,0); }
+  }
+  #page-mines .mn-cell.mn-check-pop{ animation:mnCheckPop .4s ease; }
+  @keyframes mnCheckPop{
+    0%{ transform:scale(0.4); opacity:0; }
+    55%{ transform:scale(1.2); opacity:1; }
+    100%{ transform:scale(1); opacity:1; }
+  }
+  #page-mines .mn-cell.mn-boom-shake{ animation:mnBoomShake .5s ease; }
+  @keyframes mnBoomShake{
+    0%{ transform:translate(0,0) scale(1); }
+    15%{ transform:translate(-3px,2px) scale(1.06); }
+    30%{ transform:translate(3px,-2px) scale(1.1); }
+    45%{ transform:translate(-2px,2px) scale(1.05); }
+    60%{ transform:translate(2px,-1px) scale(1.02); }
+    100%{ transform:translate(0,0) scale(1); }
+  }
+  #page-mines .mn-extremal-badge{ animation:mnBadgeGlow 1.6s ease-in-out infinite; }
+  @keyframes mnBadgeGlow{ 0%,100%{ opacity:.75; } 50%{ opacity:1; } }
   #page-mines .mn-result{ text-align:center; padding:26px 18px; }
   #page-mines .mn-result .mn-icon{ font-size:42px; margin-bottom:6px; }
   #page-mines .mn-result h2{ font-size:24px; margin:4px 0; color:var(--mn-cream); }
@@ -1433,27 +1470,32 @@ let caseCountdownInterval = null;
 // Har bir gift o'z "tier"iga ega, har tier uchun UMUMIY vazn (shans) belgilangan,
 // tier ichidagi giftlar o'sha umumiy vaznni teng bo'lishadi.
 const CASE_ITEMS = [
-  { emoji: '🧸', value: 15, tier: 15 },
-  { emoji: '💝', value: 15, tier: 15 },
-  { emoji: '🎁', value: 25, tier: 25 },
-  { emoji: '🌹', value: 25, tier: 25 },
-  { emoji: '🎂', value: 50, tier: 50 },
-  { emoji: '💐', value: 50, tier: 50 },
-  { emoji: '🚀', value: 50, tier: 50 },
-  { emoji: '🍾', value: 50, tier: 50 },
-  { emoji: '🏆', value: 100, tier: 100 },
-  { emoji: '💍', value: 100, tier: 100 },
-  { emoji: '💎', value: 100, tier: 100 }
+  { emoji: '🧸', img: 'teddy', value: 15, tier: 15 },
+  { emoji: '💝', img: 'heart_gift', value: 15, tier: 15 },
+  { emoji: '🎁', img: 'gift_box', value: 25, tier: 25 },
+  { emoji: '🌹', img: 'rose', value: 25, tier: 25 },
+  { emoji: '🎂', img: 'cake', value: 50, tier: 50 },
+  { emoji: '💐', img: 'bouquet', value: 50, tier: 50 },
+  { emoji: '🚀', img: 'rocket', value: 50, tier: 50 },
+  { emoji: '🍾', img: 'champagne', value: 50, tier: 50 },
+  { emoji: '🏆', img: 'trophy', value: 100, tier: 100 },
+  { emoji: '💍', img: 'ring', value: 100, tier: 100 },
+  { emoji: '💎', img: 'diamond', value: 100, tier: 100 }
 ];
 const CASE_TIER_WEIGHTS = { 100: 0.1, 50: 1, 25: 5, 15: 10 };
 const CASE_STAR_WEIGHTS = { 10: 20, 7: 30, 5: 35, 3: 40, 1: 80, 0: 70 };
+
+function giftIconHTML(item, cssClass) {
+  if (item.img) return `<img class="${cssClass || 'gift-ico'}" src="/gifts/${item.img}.png" alt="${item.emoji || ''}">`;
+  return `<span class="${cssClass || 'gift-ico'}">${item.emoji || ''}</span>`;
+}
 
 function renderCaseItems() {
   const grid = document.getElementById('caseItemsGrid');
   if (!grid) return;
   grid.innerHTML = CASE_ITEMS.map(item => `
     <div class="case-item tier-${item.tier}">
-      <div class="emoji">${item.emoji}</div>
+      <div class="emoji">${giftIconHTML(item)}</div>
       <div class="val">${item.value} <span class="coin-ico"></span></div>
     </div>
   `).join('');
@@ -1469,7 +1511,7 @@ function pickCaseReward() {
 
   const outcomes = [];
   CASE_ITEMS.forEach(item => {
-    outcomes.push({ stars: item.value, emoji: item.emoji, isGift: true, tier: item.tier, weight: CASE_TIER_WEIGHTS[item.tier] / tierCounts[item.tier] });
+    outcomes.push({ stars: item.value, emoji: item.emoji, img: item.img, isGift: true, tier: item.tier, weight: CASE_TIER_WEIGHTS[item.tier] / tierCounts[item.tier] });
   });
   Object.entries(CASE_STAR_WEIGHTS).forEach(([stars, weight]) => {
     outcomes.push({ stars: Number(stars), emoji: null, isGift: false, weight });
@@ -1494,12 +1536,12 @@ const CASE_REEL_WIN_INDEX = 38;
 
 function reelItemHTML(item, extraClass) {
   const tierClass = item.isGift ? `tier-${item.tier}` : '';
-  const emoji = item.isGift ? item.emoji : '<span class="coin-ico"></span>';
-  return `<div class="case-reel-item ${tierClass} ${extraClass || ''}"><div class="emoji">${emoji}</div><div class="rv">${item.stars} <span class="coin-ico"></span></div></div>`;
+  const iconHtml = item.isGift ? giftIconHTML(item) : '<span class="coin-ico"></span>';
+  return `<div class="case-reel-item ${tierClass} ${extraClass || ''}"><div class="emoji">${iconHtml}</div><div class="rv">${item.stars} <span class="coin-ico"></span></div></div>`;
 }
 
 function buildReelFillerPool() {
-  const pool = CASE_ITEMS.map(item => ({ stars: item.value, emoji: item.emoji, isGift: true, tier: item.tier }));
+  const pool = CASE_ITEMS.map(item => ({ stars: item.value, emoji: item.emoji, img: item.img, isGift: true, tier: item.tier }));
   Object.keys(CASE_STAR_WEIGHTS).forEach(stars => {
     pool.push({ stars: Number(stars), emoji: null, isGift: false });
   });
@@ -1597,7 +1639,7 @@ function showCaseResult(reward) {
   const banner = document.getElementById('caseResultBanner');
   if (!banner) return;
   if (reward.isGift) {
-    banner.innerHTML = `<div class="case-result-emoji">${reward.emoji}</div><div>Siz <b>${reward.emoji} ${reward.stars} <span class="coin-ico"></span></b> lik gift yutdingiz! Avtomatik sotildi va balansga tushdi.</div>`;
+    banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'gift-ico-lg')}</div><div>Siz <b>${reward.emoji || ''} ${reward.stars} <span class="coin-ico"></span></b> lik gift yutdingiz! Avtomatik sotildi va balansga tushdi.</div>`;
   } else if (reward.stars > 0) {
     banner.innerHTML = `<div class="case-result-emoji"><span class="coin-ico"></span></div><div>Siz <b>${reward.stars} <span class="coin-ico"></span></b> yutdingiz!</div>`;
   } else {

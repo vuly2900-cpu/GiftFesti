@@ -474,6 +474,29 @@
   }
   .sub-icon { font-size: 40px; margin-bottom: 10px; }
 
+  /* VOUCHER (KANAL POST) OVERLAY */
+  .voucher-overlay {
+    position: fixed; inset: 0; background: rgba(10,11,14,.95); z-index: 1001;
+    display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+  }
+  .voucher-box {
+    background: var(--surface); border: 1px solid var(--border); padding: 24px;
+    border-radius: 16px; width: 100%; max-width: 340px; text-align: center;
+  }
+  .voucher-icon { font-size: 40px; margin-bottom: 10px; }
+  .voucher-reward { font-size: 28px; font-weight: 800; color: var(--gold); margin: 10px 0; }
+  .voucher-status { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; min-height: 16px; }
+  .voucher-btn {
+    width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 700;
+    font-size: 15px; cursor: pointer; background: var(--gold); color: #1a1400; margin-top: 6px;
+  }
+  .voucher-btn:disabled { opacity: .5; cursor: default; }
+  .voucher-btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  .voucher-close {
+    margin-top: 14px; background: none; border: none; color: var(--text-dim);
+    font-size: 13px; cursor: pointer; text-decoration: underline;
+  }
+
   /* ADMIN MODAL */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.85);
@@ -622,6 +645,21 @@
     </p>
     <button class="btn" style="width:100%; margin-bottom:8px; padding:12px;" onclick="window.open(CHANNEL_URL, '_blank')">📢 Kanalga o'tish</button>
     <button class="btn secondary" style="width:100%; padding:12px;" onclick="recheckCaseSubscription()" id="caseSubCheckBtn">✅ Tekshirish</button>
+  </div>
+</div>
+
+<div class="voucher-overlay" id="voucherOverlay">
+  <div class="voucher-box">
+    <div class="voucher-icon">🎁</div>
+    <h2 style="font-size:18px; margin-bottom:4px;">Voucher</h2>
+    <div class="voucher-reward" id="voucherRewardAmt">—</div>
+    <div class="voucher-status" id="voucherStatus"></div>
+    <div id="voucherRequireBox" style="display:none; margin-bottom:6px;">
+      <p style="font-size:13px; color:var(--text-dim); margin-bottom:10px;" id="voucherRequireText"></p>
+      <button class="voucher-btn secondary" id="voucherOpenChannelBtn" style="margin-bottom:8px;">📢 O'tish</button>
+    </div>
+    <button class="voucher-btn" id="voucherClaimBtn" onclick="claimVoucherFromOverlay()">🎁 Olish</button>
+    <button class="voucher-close" onclick="closeVoucherOverlay()">Yopish</button>
   </div>
 </div>
 
@@ -1237,6 +1275,136 @@ async function initUser() {
   }
 
   document.getElementById('topBalance').textContent = currentUserData.balance;
+
+  checkVoucherStartParam();
+}
+
+/* ==================== VOUCHER (kanaldan "Olish" tugmasi orqali) ==================== */
+let pendingVoucherId = null;
+let pendingVoucherRequire = null;
+
+function checkVoucherStartParam() {
+  const sp = tg?.initDataUnsafe?.start_param?.trim() || '';
+  if (sp.startsWith('voucher_')) {
+    showVoucherOverlay(sp.slice('voucher_'.length));
+  }
+}
+
+async function showVoucherOverlay(voucherId) {
+  pendingVoucherId = voucherId;
+  const overlay = document.getElementById('voucherOverlay');
+  const statusEl = document.getElementById('voucherStatus');
+  const rewardEl = document.getElementById('voucherRewardAmt');
+  const claimBtn = document.getElementById('voucherClaimBtn');
+  const reqBox = document.getElementById('voucherRequireBox');
+
+  overlay.style.display = 'flex';
+  rewardEl.textContent = '—';
+  statusEl.textContent = 'Yuklanmoqda...';
+  reqBox.style.display = 'none';
+  claimBtn.disabled = true;
+  claimBtn.textContent = '🎁 Olish';
+
+  let data;
+  try {
+    const res = await fetch(`/api/voucher_info?id=${encodeURIComponent(voucherId)}`);
+    data = await res.json();
+  } catch (e) {
+    statusEl.textContent = "Yuklashda xatolik. Qayta urinib ko'ring.";
+    return;
+  }
+
+  if (data.error === 'NOT_FOUND') {
+    rewardEl.textContent = '❌';
+    statusEl.textContent = 'Bu voucher topilmadi yoki bekor qilingan.';
+    return;
+  }
+
+  rewardEl.textContent = `+${data.reward} ⭐`;
+  if (data.used >= data.maxUses) {
+    statusEl.textContent = "Bu voucherning barcha aktivatsiyalari tugagan.";
+    claimBtn.disabled = true;
+    claimBtn.textContent = 'Tugagan';
+    return;
+  }
+
+  statusEl.textContent = `Qolgan: ${data.maxUses - data.used}/${data.maxUses}`;
+  claimBtn.disabled = false;
+}
+
+async function claimVoucherFromOverlay() {
+  if (!pendingVoucherId) return;
+  const claimBtn = document.getElementById('voucherClaimBtn');
+  const statusEl = document.getElementById('voucherStatus');
+  const reqBox = document.getElementById('voucherRequireBox');
+  const reqText = document.getElementById('voucherRequireText');
+  const openBtn = document.getElementById('voucherOpenChannelBtn');
+
+  claimBtn.disabled = true;
+  claimBtn.textContent = 'Tekshirilmoqda...';
+
+  let data;
+  try {
+    const res = await fetch('/api/claim_voucher', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', voucherId: pendingVoucherId }),
+    });
+    data = await res.json();
+  } catch (e) {
+    statusEl.textContent = "Xatolik yuz berdi. Qayta urinib ko'ring.";
+    claimBtn.disabled = false;
+    claimBtn.textContent = '🎁 Olish';
+    return;
+  }
+
+  if (data.error === 'NOT_SUBSCRIBED') {
+    statusEl.textContent = "Avval quyidagiga a'zo bo'ling:";
+    reqText.textContent = data.requireLabel || data.requireTarget;
+    reqBox.style.display = 'block';
+    const target = String(data.requireTarget || '').replace(/^@/, '');
+    openBtn.onclick = () => window.open(`https://t.me/${target}`, '_blank');
+    claimBtn.disabled = false;
+    claimBtn.textContent = '✅ Tekshirish';
+    return;
+  }
+  if (data.error === 'ALREADY_USED') {
+    statusEl.textContent = 'Siz bu voucherni allaqachon ishlatgansiz.';
+    claimBtn.disabled = true;
+    claimBtn.textContent = 'Ishlatilgan';
+    return;
+  }
+  if (data.error === 'EXHAUSTED') {
+    statusEl.textContent = "Bu voucherning barcha aktivatsiyalari tugagan.";
+    claimBtn.disabled = true;
+    claimBtn.textContent = 'Tugagan';
+    return;
+  }
+  if (data.error === 'NOT_FOUND') {
+    statusEl.textContent = 'Bu voucher topilmadi yoki bekor qilingan.';
+    claimBtn.disabled = true;
+    return;
+  }
+  if (data.error) {
+    statusEl.textContent = "Xatolik yuz berdi. Qayta urinib ko'ring.";
+    claimBtn.disabled = false;
+    claimBtn.textContent = '🎁 Olish';
+    return;
+  }
+
+  // Muvaffaqiyatli
+  reqBox.style.display = 'none';
+  statusEl.textContent = `🎉 +${data.reward} ⭐ hisobingizga qo'shildi!`;
+  claimBtn.disabled = true;
+  claimBtn.textContent = 'Olindi ✅';
+  if (currentUserData) currentUserData.balance = data.balance;
+  document.getElementById('topBalance').textContent = data.balance;
+  setTimeout(closeVoucherOverlay, 2200);
+}
+
+function closeVoucherOverlay() {
+  document.getElementById('voucherOverlay').style.display = 'none';
+  pendingVoucherId = null;
 }
 
 const REFERRAL_REWARD = 10; // "Do'st taklif qiling va 10 ⭐ oling" (faqat ko'rsatish uchun; haqiqiy qiymat serverda)

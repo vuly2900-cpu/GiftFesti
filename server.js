@@ -202,7 +202,7 @@ async function postVoucherToChannel(voucher) {
   if (!username) { console.error('Voucher kanalga post qilinmadi: bot username aniqlanmadi'); return; }
   if (!WEBAPP_URL) { console.error('Voucher kanalga post qilinmadi: WEBAPP_URL sozlanmagan (rasm uchun kerak)'); return; }
 
-  const deepLink = `https://t.me/${username}?start=voucher_${voucher.id}`;
+  const deepLink = `https://t.me/${username}?startapp=voucher_${voucher.id}`;
   const photoUrl = `${WEBAPP_URL}/voucher.png`;
   const reqLabel = voucherRequireLabel(voucher);
   const caption =
@@ -566,6 +566,42 @@ app.get('/api/internal_voucher_info', (req, res) => {
     id: voucher.id, reward: voucher.reward, maxUses: voucher.maxUses, used: voucher.used,
     requireType: voucher.requireType, requireTarget: voucher.requireTarget, requireLabel: voucher.requireLabel,
   });
+});
+
+/* ---- Mini App uchun ochiq voucher endpointlari (initData bilan autentifikatsiya) ---- */
+app.get('/api/voucher_info', (req, res) => {
+  const voucher = vouchers.find(v => v.id === String(req.query.id || ''));
+  if (!voucher) return res.json({ error: 'NOT_FOUND' });
+  res.json({
+    id: voucher.id, reward: voucher.reward, maxUses: voucher.maxUses, used: voucher.used,
+    requireType: voucher.requireType, requireTarget: voucher.requireTarget, requireLabel: voucher.requireLabel,
+  });
+});
+
+app.post('/api/claim_voucher', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { voucherId } = req.body || {};
+  const voucher = vouchers.find(v => v.id === String(voucherId || ''));
+  if (!voucher) return res.json({ error: 'NOT_FOUND' });
+  if (voucher.used >= voucher.maxUses) return res.json({ error: 'EXHAUSTED' });
+
+  const uid = String(user.id);
+  if (voucher.usedBy.has(uid)) return res.json({ error: 'ALREADY_USED' });
+
+  if (voucher.requireType === 'channel' || voucher.requireType === 'chat') {
+    const subscribed = await isSubscribed(uid, voucher.requireTarget);
+    if (!subscribed) {
+      return res.json({
+        error: 'NOT_SUBSCRIBED',
+        requireType: voucher.requireType, requireTarget: voucher.requireTarget, requireLabel: voucher.requireLabel,
+      });
+    }
+  }
+
+  user.balance += voucher.reward;
+  voucher.used += 1;
+  voucher.usedBy.add(uid);
+  res.json({ ok: true, reward: voucher.reward, balance: user.balance });
 });
 
 app.post('/api/internal_voucher_claim', async (req, res) => {

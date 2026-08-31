@@ -56,6 +56,133 @@ function answerCallback(id, text) {
 }
 function isAdmin(userId) { return ADMIN_IDS.includes(String(userId)); }
 
+/* ---- server.js dagi ichki API bilan gaplashish (voucherlar uchun) ---- */
+function internalApiGet(pathName) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(pathName, SERVER_URL);
+    const lib = url.protocol === 'https:' ? require('https') : require('http');
+    const req = lib.request(url, { headers: { 'x-internal-key': INTERNAL_KEY } }, (res) => {
+      let body = '';
+      res.on('data', (c) => body += c);
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+function internalApiPost(pathName, payload) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(pathName, SERVER_URL);
+    const lib = url.protocol === 'https:' ? require('https') : require('http');
+    const data = JSON.stringify(payload);
+    const req = lib.request(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data), 'x-internal-key': INTERNAL_KEY },
+    }, (res) => {
+      let body = '';
+      res.on('data', (c) => body += c);
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
+/* ---- Telegram kanal/chatga a'zolikni tekshirish (voucher shartlari uchun) ---- */
+function toTelegramChatId(target) {
+  if (!target) return target;
+  const m = String(target).match(/t\.me\/([A-Za-z0-9_]+)/);
+  if (m) return '@' + m[1];
+  return target;
+}
+async function isUserSubscribed(target, userId) {
+  try {
+    const res = await apiCall('getChatMember', { chat_id: toTelegramChatId(target), user_id: userId });
+    if (!res.ok) return false;
+    return ['creator', 'administrator', 'member'].includes(res.result.status);
+  } catch (e) { return false; }
+}
+
+function voucherDisplayName(from) {
+  const parts = [from.first_name, from.last_name].filter(Boolean).join(' ');
+  return parts || (from.username ? '@' + from.username : `user${from.id}`);
+}
+
+function voucherRequireButton(v) {
+  const target = String(v.requireTarget || '');
+  let url;
+  if (target.startsWith('http')) url = target;
+  else if (target.startsWith('@')) url = `https://t.me/${target.slice(1)}`;
+  else url = `https://t.me/${target}`;
+  const labelMap = { channel: "📢 Kanalga o'tish", chat: "💬 Chatga o'tish", bot: "🤖 Botni ishga tushirish" };
+  return { text: labelMap[v.requireType] || "O'tish", url };
+}
+
+async function sendVoucherRequirement(chatId, voucherId, v) {
+  await sendMessage(chatId,
+    `🎁 Voucherni olish uchun avval quyidagi shartni bajaring:\n\n${v.requireLabel || ''}\n\nBajargach "✅ Tekshirish" tugmasini bosing.`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [voucherRequireButton(v)],
+          [{ text: '✅ Tekshirish', callback_data: `voucher:check:${voucherId}` }],
+        ],
+      },
+    });
+}
+
+async function claimVoucherNow(chatId, userId, username, voucherId) {
+  let result;
+  try {
+    result = await internalApiPost('/api/internal_voucher_claim', { voucherId, userId, username });
+  } catch (e) {
+    return sendMessage(chatId, "⚠️ Xatolik yuz berdi, birozdan so'ng qayta urinib ko'ring.");
+  }
+  if (!result || result.error === 'NOT_FOUND') return sendMessage(chatId, "⚠️ Bu voucher topilmadi yoki muddati o'tgan.");
+  if (result.error === 'EXHAUSTED') return sendMessage(chatId, "😔 Afsuski, bu voucherning barcha aktivatsiyalari tugagan.");
+  if (result.error === 'ALREADY_USED') return sendMessage(chatId, "ℹ️ Siz bu voucherni allaqachon ishlatgansiz.");
+  if (result.error === 'NOT_SUBSCRIBED') {
+    return sendVoucherRequirement(chatId, voucherId, result);
+  }
+  if (result.ok) {
+    return sendMessage(chatId,
+      `🎉 Tabriklaymiz! Sizga *${result.reward} coin* berildi.\n\n💰 Joriy balansingiz: *${result.balance}*`,
+      { parse_mode: 'Markdown' });
+  }
+  return sendMessage(chatId, "⚠️ Xatolik yuz berdi, birozdan so'ng qayta urinib ko'ring.");
+}
+
+async function handleVoucherStart(msg, voucherId) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const username = voucherDisplayName(msg.from);
+
+  const info = await internalApiGet(`/api/internal_voucher_info?id=${encodeURIComponent(voucherId)}`);
+  if (!info || info.error) return sendMessage(chatId, "⚠️ Bu voucher topilmadi yoki muddati o'tgan.");
+  if (info.used >= info.maxUses) return sendMessage(chatId, "😔 Afsuski, bu voucherning barcha aktivatsiyalari tugagan.");
+
+  if (info.requireType) return sendVoucherRequirement(chatId, voucherId, info);
+  return claimVoucherNow(chatId, userId, username, voucherId);
+}
+
+async function handleVoucherCheck(chatId, userId, username, voucherId) {
+  const info = await internalApiGet(`/api/internal_voucher_info?id=${encodeURIComponent(voucherId)}`);
+  if (!info || info.error) return sendMessage(chatId, "⚠️ Bu voucher topilmadi yoki muddati o'tgan.");
+  if (info.used >= info.maxUses) return sendMessage(chatId, "😔 Afsuski, bu voucherning barcha aktivatsiyalari tugagan.");
+
+  if (info.requireType === 'channel' || info.requireType === 'chat') {
+    const subscribed = await isUserSubscribed(info.requireTarget, userId);
+    if (!subscribed) {
+      await sendMessage(chatId, "❗️ Hali shart bajarilmadi. Iltimos avval qo'shiling, so'ngra qayta tekshiring.");
+      return sendVoucherRequirement(chatId, voucherId, info);
+    }
+  }
+  // requireType 'bot' — tashqi botni tekshirib bo'lmaydi, shuning uchun
+  // foydalanuvchi "✅ Tekshirish" bosgani ishonch sifatida qabul qilinadi.
+  return claimVoucherNow(chatId, userId, username, voucherId);
+}
+
 /* ============================================================
    Botga /start yozgan barcha chat ID'lar (broadcast uchun kerak)
    ============================================================ */
@@ -81,6 +208,11 @@ async function handleStart(msg) {
 
   const parts = msg.text.split(' ');
   const startParam = parts[1] || '';
+
+  if (startParam.startsWith('voucher_')) {
+    return handleVoucherStart(msg, startParam.slice('voucher_'.length));
+  }
+
   let url = WEBAPP_URL;
   if (startParam) url += (url.includes('?') ? '&' : '?') + `startapp=${encodeURIComponent(startParam)}`;
 
@@ -138,7 +270,8 @@ async function handleStats(chatId) {
       `⭐ Umumiy yulduzlar: *${s.totalStars}*\n` +
       `🛡 Adminlar: *${s.adminCount}*\n\n` +
       `📋 Vazifalar soni: *${s.tasksCount}*\n` +
-      `🎟 Faol promokodlar: *${s.activePromos}*\n\n` +
+      `🎟 Faol promokodlar: *${s.activePromos}*\n` +
+      `🎁 Faol voucherlar: *${s.activeVouchers ?? 0}*\n\n` +
       `🏒 ${gameLine('Xokkey', s.hockey)}\n` +
       `🥁 ${gameLine('Baraban', s.drum)}\n` +
       `⚔️ ${gameLine('Team Battle', s.teamBattle)}\n\n` +
@@ -200,6 +333,14 @@ async function handleMessage(msg) {
 async function handleCallback(cq) {
   const chatId = cq.message.chat.id;
   const userId = cq.from.id;
+
+  if (cq.data && cq.data.startsWith('voucher:check:')) {
+    await answerCallback(cq.id);
+    const voucherId = cq.data.slice('voucher:check:'.length);
+    const username = voucherDisplayName(cq.from);
+    return handleVoucherCheck(chatId, userId, username, voucherId);
+  }
+
   if (!isAdmin(userId)) return answerCallback(cq.id, "Sizda ruxsat yo'q.");
   await answerCallback(cq.id);
   if (cq.data === 'admin:stats') return handleStats(chatId);

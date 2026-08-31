@@ -3444,6 +3444,79 @@ const mnState = {
 };
 let mnToastTimer = null;
 
+/* ==== EKSTREMAL REJIM: tovush effektlari (Web Audio API, tashqi fayl kerak emas) ==== */
+let mnAudioCtx = null;
+function mnGetCtx() {
+  if (!mnAudioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    mnAudioCtx = new AC();
+  }
+  if (mnAudioCtx.state === 'suspended') mnAudioCtx.resume();
+  return mnAudioCtx;
+}
+function mnPlayTick() {
+  try {
+    const ctx = mnGetCtx(); const t = ctx.currentTime;
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.type = 'square'; osc.frequency.setValueAtTime(920, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.1);
+  } catch (e) {}
+}
+function mnPlaySuccess() {
+  try {
+    const ctx = mnGetCtx(); const t = ctx.currentTime;
+    [660, 990].forEach((freq, i) => {
+      const start = t + i * 0.09;
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.22, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start); osc.stop(start + 0.24);
+    });
+  } catch (e) {}
+}
+function mnPlayBoom() {
+  try {
+    const ctx = mnGetCtx(); const t = ctx.currentTime;
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(160, t);
+    osc.frequency.exponentialRampToValueAtTime(35, t + 0.5);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.65);
+  } catch (e) {}
+}
+
+/* Extremal rejimda katak ochilishidan oldin 3-2-1 kutish animatsiyasi.
+   Natijani server belgilaydi ('mines:reveal'); bu faqat vizual hayajon. */
+function mnStartPendingCountdown(idx) {
+  const cellEl = document.querySelector(`#mnGrid .mn-cell[data-idx="${idx}"]`);
+  if (!cellEl) return;
+  let remaining = 3;
+  cellEl.classList.add('mn-countdown');
+  cellEl.textContent = remaining;
+  mnPlayTick();
+  const interval = setInterval(() => {
+    remaining--;
+    if (remaining > 0) {
+      cellEl.textContent = remaining;
+      mnPlayTick();
+    } else {
+      clearInterval(interval);
+      cellEl.classList.remove('mn-countdown');
+      cellEl.textContent = '';
+    }
+  }, 1000);
+}
+
 function mnStopTurnCountdown() {
   if (mnState.turnInterval) {
     clearInterval(mnState.turnInterval);
@@ -3702,6 +3775,11 @@ function mnBindSocketListeners() {
     mnUpdateTurnUI(room);
   });
 
+  socket.on('mines:pending', (data) => {
+    if (!mnState.roomId) return;
+    mnStartPendingCountdown(data.idx);
+  });
+
   socket.on('mines:reveal', (data) => {
     if (!mnState.roomId) return;
     const cellEl = document.querySelector(`#mnGrid .mn-cell[data-idx="${data.idx}"]`);
@@ -3710,6 +3788,12 @@ function mnBindSocketListeners() {
       const isMeLoser = String(data.loserId) === String(tgUser.id);
       const isMeWinner = String(data.winnerId) === String(tgUser.id);
       if (cellEl) { cellEl.classList.add('mn-bomb'); cellEl.textContent = '💣'; }
+      if (mnState.extremal) {
+        if (cellEl) cellEl.classList.add('mn-boom-shake');
+        mnPlayBoom();
+        const boardEl = document.querySelector('#page-mines .mn-board');
+        if (boardEl) boardEl.classList.add('mn-shake');
+      }
       (data.bombIndices || []).forEach(bIdx => {
         if (bIdx === data.idx) return;
         const c = document.querySelector(`#mnGrid .mn-cell[data-idx="${bIdx}"]`);
@@ -3720,14 +3804,23 @@ function mnBindSocketListeners() {
       const winnerName = isMeWinner ? 'Siz' : (document.getElementById(mnState.myIndex === 0 ? 'mn-p1name' : 'mn-p0name').textContent);
       const bankTxt = document.getElementById('mn-bank').textContent;
       const bankNum = parseInt(bankTxt, 10) || 0;
-      setTimeout(() => mnShowResult(loserName, winnerName, isMeWinner, bankNum, null, data.vsBot), mnState.extremal ? 700 : 450);
+      setTimeout(() => mnShowResult(loserName, winnerName, isMeWinner, bankNum, null, data.vsBot), mnState.extremal ? 900 : 450);
       if (isMeWinner && !data.vsBot) {
         currentUserData.balance += bankNum;
         currentUserData.total_won = (currentUserData.total_won || 0) + bankNum;
         document.getElementById('topBalance').textContent = currentUserData.balance;
       }
     } else {
-      if (cellEl) { cellEl.classList.add('mn-safe'); cellEl.textContent = '🪙'; }
+      if (cellEl) {
+        cellEl.classList.add('mn-safe');
+        if (mnState.extremal) {
+          cellEl.classList.add('mn-check-pop');
+          cellEl.textContent = '✅';
+          mnPlaySuccess();
+        } else {
+          cellEl.textContent = '🪙';
+        }
+      }
     }
   });
 

@@ -853,6 +853,7 @@ const MINES_ALLOWED_BOMBS = [1, 2, 3];
 const MINES_BOT_MOVE_DELAY_MS = 900;
 const MINES_ROOM_PREFIX = 'mines_';
 const MINES_TURN_TIMEOUT_MS = 30000; // 30 soniya — shu vaqtda katak tanlamasa avtomatik yutqizadi
+const MINES_EXTREMAL_DELAY_MS = 3000; // "Extremal" rejimda har bir katak ochilishidan oldingi hayajonli kutish
 
 function getSocketUser(initData) {
   const tgUser = getTgUserFromInitData(initData);
@@ -1010,11 +1011,28 @@ function finishMinesRoom(room, winnerPlayer, loserPlayer) {
 
 function resolveMinesReveal(room, idx, requesterId) {
   if (room.status !== 'playing') return { error: 'NOT_PLAYING' };
+  if (room.pendingReveal) return { error: 'PENDING' };
   if (idx < 0 || idx >= room.totalCells || room.revealed[idx]) return { error: 'INVALID_CELL' };
   const currentPlayer = room.players[room.turn];
   if (String(currentPlayer.id) !== String(requesterId)) return { error: 'NOT_YOUR_TURN' };
 
   room.revealed[idx] = true;
+
+  if (room.extremal) {
+    room.pendingReveal = true;
+    clearMinesTurnTimer(room); // extremal kutish vaqtida navbat taymeri to'xtatiladi
+    io.to(MINES_ROOM_PREFIX + room.id).emit('mines:pending', { idx });
+    setTimeout(() => {
+      room.pendingReveal = false;
+      finalizeMinesReveal(room, idx);
+    }, MINES_EXTREMAL_DELAY_MS);
+  } else {
+    finalizeMinesReveal(room, idx);
+  }
+  return { ok: true };
+}
+
+function finalizeMinesReveal(room, idx) {
   const isBomb = room.bombIndices.includes(idx);
 
   if (isBomb) {
@@ -1032,7 +1050,6 @@ function resolveMinesReveal(room, idx, requesterId) {
     emitMinesRoom(room);
     if (room.vsBot && room.turn === 1) scheduleMinesBotMove(room);
   }
-  return { ok: true };
 }
 
 function handleMinesDisconnect(socketId) {
@@ -1107,7 +1124,7 @@ io.on('connection', (socket) => {
       bet, bank: bet * 2, totalCells, bombCount, extremal, vsBot,
       status: 'waiting',
       players: [{ id: Number(user.id), username: user.username, photo_url: user.photo_url, socketId: socket.id }],
-      bombIndices: [], revealed: [], turn: 0, winner: null,
+      bombIndices: [], revealed: [], turn: 0, winner: null, pendingReveal: false,
       createdAt: Date.now(),
     };
     minesRooms.set(room.id, room);

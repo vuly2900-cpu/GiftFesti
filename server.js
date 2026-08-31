@@ -494,13 +494,14 @@ function startBettingTimer(game) {
 }
 function onBettingTimeout(game) {
   const state = getState(game);
-  if (state.players.length < 2) {
-    // Kamida 2 kishi tikmaguncha kutish davom etadi (vaqt qayta tiklanadi)
-    state.bettingStartedAt = Date.now();
-    startBettingTimer(game);
-    emitState(game);
+  if (state.players.length < 1) {
+    // Hech kim tikmagan bo'lsa, o'yin kutishda qoladi (idle holatiga qaytariladi
+    // emas, chunki status hali 'betting'ga o'tmagan bo'ladi — bu holat aslida
+    // yuzaga kelmaydi, chunki taymer faqat birinchi tikish qilinganda ishga tushadi).
     return;
   }
+  // 1 kishi tikkan bo'lsa ham raund hal qilinadi — pickWeighted bitta o'yinchi
+  // bilan ham to'g'ri ishlaydi va u o'z tikkan summasini yutib oladi.
   resolveRound(game);
 }
 
@@ -671,6 +672,19 @@ io.on('connection', (socket) => {
   socket.emit('hockey:state', hockeyState);
   socket.emit('drum:state', drumState);
   socket.emit('team_battle:state', teamState);
+
+  // MUHIM (bug fix): yuqoridagi emit faqat socket ULANGAN paytda bir marta
+  // yuboriladi. Agar foydalanuvchi keyinroq (masalan, boshqa sahifada bir oz
+  // vaqt o'tkazgach) Hokkey/Baraban/Team Battle sahifasiga o'tsa, o'sha
+  // eventni allaqachon "o'tkazib yuborgan" bo'ladi va navbatdagi haqiqiy
+  // holat o'zgarishigacha (masalan, kimdir tikish qilmaguncha) "Yuklanmoqda..."
+  // holatida qolib ketadi. Shu sababli mijoz sahifaga har safar kirganda
+  // joriy holatni aniq so'rab olishi uchun alohida event qo'shildi.
+  socket.on('get_state', (game) => {
+    if (game === 'hockey') socket.emit('hockey:state', hockeyState);
+    else if (game === 'drum') socket.emit('drum:state', drumState);
+    else if (game === 'team_battle') socket.emit('team_battle:state', teamState);
+  });
 });
 
 /* ============================================================

@@ -1846,18 +1846,23 @@ function initHockeyPage() {
     const cd = document.getElementById('hockeyCountdown');
 
     if (hockeyState.status === 'betting') {
-      if (bettingCountdownInterval) clearInterval(bettingCountdownInterval);
-      // bettingStartedAt server vaqtiga asoslanadi — boshqa o'yinchining
-      // qurilma soati noto'g'ri bo'lsa ham sekundlar noto'g'ri qiymatlarga
-      // sakramaydi.
-      const startedAt = hockeyState.bettingStartedAt || Date.now();
-      const updateBettingCd = () => {
-        const elapsed = (Date.now() - startedAt) / 1000;
-        const remaining = Math.max(0, Math.ceil(BETTING_WAIT_SECONDS - elapsed));
-        cd.textContent = `O'yin ${remaining}s da boshlanadi...`;
-      };
-      updateBettingCd();
-      bettingCountdownInterval = setInterval(updateBettingCd, 250);
+      if (bettingCountdownInterval) { clearInterval(bettingCountdownInterval); bettingCountdownInterval = null; }
+      if (!hockeyState.bettingStartedAt) {
+        // Taймер hali boshlanmagan — kamida 2-o'yinchi tikishini kutamiz.
+        cd.textContent = "Yana 1 o'yinchi kutilmoqda...";
+      } else {
+        // bettingStartedAt server vaqtiga asoslanadi — boshqa o'yinchining
+        // qurilma soati noto'g'ri bo'lsa ham sekundlar noto'g'ri qiymatlarga
+        // sakramaydi.
+        const startedAt = hockeyState.bettingStartedAt;
+        const updateBettingCd = () => {
+          const elapsed = (Date.now() - startedAt) / 1000;
+          const remaining = Math.max(0, Math.ceil(BETTING_WAIT_SECONDS - elapsed));
+          cd.textContent = `O'yin ${remaining}s da boshlanadi...`;
+        };
+        updateBettingCd();
+        bettingCountdownInterval = setInterval(updateBettingCd, 250);
+      }
     } else if (hockeyState.status === 'spinning_visual') {
       if (bettingCountdownInterval) { clearInterval(bettingCountdownInterval); bettingCountdownInterval = null; }
       if (!puckAnimationRunning) {
@@ -2422,15 +2427,19 @@ function initDrumPage() {
     const cd = document.getElementById('drumCountdown');
 
     if (drumState.status === 'betting') {
-      if (drumBettingCountdownInterval) clearInterval(drumBettingCountdownInterval);
-      const startedAt = drumState.bettingStartedAt || Date.now();
-      const updateBettingCd = () => {
-        const elapsed = (Date.now() - startedAt) / 1000;
-        const remaining = Math.max(0, Math.ceil(DRUM_BETTING_WAIT_SECONDS - elapsed));
-        cd.textContent = `O'yin ${remaining}s da boshlanadi...`;
-      };
-      updateBettingCd();
-      drumBettingCountdownInterval = setInterval(updateBettingCd, 250);
+      if (drumBettingCountdownInterval) { clearInterval(drumBettingCountdownInterval); drumBettingCountdownInterval = null; }
+      if (!drumState.bettingStartedAt) {
+        cd.textContent = "Yana 1 o'yinchi kutilmoqda...";
+      } else {
+        const startedAt = drumState.bettingStartedAt;
+        const updateBettingCd = () => {
+          const elapsed = (Date.now() - startedAt) / 1000;
+          const remaining = Math.max(0, Math.ceil(DRUM_BETTING_WAIT_SECONDS - elapsed));
+          cd.textContent = `O'yin ${remaining}s da boshlanadi...`;
+        };
+        updateBettingCd();
+        drumBettingCountdownInterval = setInterval(updateBettingCd, 250);
+      }
     } else if (drumState.status === 'spinning_visual') {
       if (drumBettingCountdownInterval) { clearInterval(drumBettingCountdownInterval); drumBettingCountdownInterval = null; }
       if (prevStatus !== 'spinning_visual') {
@@ -2672,15 +2681,19 @@ function initTeamBattlePage() {
     const cd = document.getElementById('teamCountdown');
 
     if (teamState.status === 'betting') {
-      if (teamBettingCountdownInterval) clearInterval(teamBettingCountdownInterval);
-      const startedAt = teamState.bettingStartedAt || Date.now();
-      const updateBettingCd = () => {
-        const elapsed = (Date.now() - startedAt) / 1000;
-        const remaining = Math.max(0, Math.ceil(TEAM_BETTING_WAIT_SECONDS - elapsed));
-        cd.textContent = `O'yin ${remaining}s da boshlanadi...`;
-      };
-      updateBettingCd();
-      teamBettingCountdownInterval = setInterval(updateBettingCd, 250);
+      if (teamBettingCountdownInterval) { clearInterval(teamBettingCountdownInterval); teamBettingCountdownInterval = null; }
+      if (!teamState.bettingStartedAt) {
+        cd.textContent = "Yana 1 o'yinchi kutilmoqda...";
+      } else {
+        const startedAt = teamState.bettingStartedAt;
+        const updateBettingCd = () => {
+          const elapsed = (Date.now() - startedAt) / 1000;
+          const remaining = Math.max(0, Math.ceil(TEAM_BETTING_WAIT_SECONDS - elapsed));
+          cd.textContent = `O'yin ${remaining}s da boshlanadi...`;
+        };
+        updateBettingCd();
+        teamBettingCountdownInterval = setInterval(updateBettingCd, 250);
+      }
     } else if (teamState.status === 'spinning_visual') {
       if (teamBettingCountdownInterval) { clearInterval(teamBettingCountdownInterval); teamBettingCountdownInterval = null; }
       if (!teamAnimationRunning) {

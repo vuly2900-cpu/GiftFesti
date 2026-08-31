@@ -494,14 +494,11 @@ function startBettingTimer(game) {
 }
 function onBettingTimeout(game) {
   const state = getState(game);
-  if (state.players.length < 1) {
-    // Hech kim tikmagan bo'lsa, o'yin kutishda qoladi (idle holatiga qaytariladi
-    // emas, chunki status hali 'betting'ga o'tmagan bo'ladi — bu holat aslida
-    // yuzaga kelmaydi, chunki taymer faqat birinchi tikish qilinganda ishga tushadi).
-    return;
-  }
-  // 1 kishi tikkan bo'lsa ham raund hal qilinadi — pickWeighted bitta o'yinchi
-  // bilan ham to'g'ri ishlaydi va u o'z tikkan summasini yutib oladi.
+  // Taймер endi faqat 2+ o'yinchi tikkandan keyingina boshlanadi (yuqoridagi
+  // /api/place_bet va /api/place_team_bet ga qarang), shuning uchun bu yerga
+  // 2 kishidan kam bilan kelib qolish odatda mumkin emas. Baribir xavfsizlik
+  // uchun tekshiruv qoldirilgan.
+  if (state.players.length < 2) return;
   resolveRound(game);
 }
 
@@ -625,7 +622,13 @@ app.post('/api/place_bet', (req, res) => {
   state.pot += amt;
 
   if (state.status === 'idle') {
+    // 1-o'yinchi tikkanda o'yin "betting" holatiga o'tadi (pot va o'yinchi
+    // ko'rinadi), LEKIN taймer hali boshlanmaydi — kamida 2-o'yinchi
+    // tikmaguncha kutamiz (pastga qarang).
     state.status = 'betting';
+  }
+  if (state.players.length >= 2 && !state.bettingStartedAt) {
+    // 2-o'yinchi (yoki undan ko'p) tikkanda taймер endi boshlanadi.
     state.bettingStartedAt = Date.now();
     startBettingTimer(game);
   }
@@ -657,7 +660,11 @@ app.post('/api/place_team_bet', (req, res) => {
   state.colorTotals[color] = (state.colorTotals[color] || 0) + amt;
 
   if (state.status === 'idle') {
+    // 1-o'yinchi tikkanda o'yin "betting" holatiga o'tadi, LEKIN taймer
+    // hali boshlanmaydi — kamida 2-o'yinchi tikmaguncha kutamiz.
     state.status = 'betting';
+  }
+  if (state.players.length >= 2 && !state.bettingStartedAt) {
     state.bettingStartedAt = Date.now();
     startBettingTimer('team_battle');
   }

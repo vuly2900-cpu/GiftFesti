@@ -673,6 +673,179 @@ app.post('/api/place_team_bet', (req, res) => {
 });
 
 /* ============================================================
+   MINES 1vs1 — real vaqtli, server-authoritative 2 o'yinchi o'yini
+   (mina joylashuvi hech qachon clientga oldindan yuborilmaydi —
+   faqat ochilgan katak natijasi yuboriladi, shu bilan haqiqiy pul/
+   stars tikiladigan o'yinda firibgarlik oldi olinadi)
+   ============================================================ */
+const minesRooms = new Map(); // roomId -> room
+const MINES_MIN_BET = 10;
+const MINES_ALLOWED_SIZES = [25, 30, 35, 40];
+const MINES_ALLOWED_BOMBS = [1, 2, 3];
+const MINES_BOT_MOVE_DELAY_MS = 900;
+const MINES_ROOM_PREFIX = 'mines_';
+
+function getSocketUser(initData) {
+  const tgUser = getTgUserFromInitData(initData);
+  if (!tgUser) return null;
+  const id = String(tgUser.id);
+  const user = users.get(id);
+  if (!user) return null;
+  user.username = displayName(tgUser) || user.username;
+  return user;
+}
+
+function createMinesRoomId() {
+  let id;
+  do { id = crypto.randomBytes(5).toString('hex'); } while (minesRooms.has(id));
+  return id;
+}
+
+function publicMinesRoomList() {
+  return Array.from(minesRooms.values())
+    .filter(r => r.status === 'waiting' && !r.vsBot)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map(r => ({
+      id: r.id,
+      hostId: r.host.id,
+      hostName: r.host.username,
+      hostPhoto: r.host.photo_url,
+      bet: r.bet,
+      bank: r.bank,
+      totalCells: r.totalCells,
+      bombCount: r.bombCount,
+      extremal: r.extremal,
+    }));
+}
+
+function broadcastMinesRooms() {
+  io.emit('mines:rooms', publicMinesRoomList());
+}
+
+function sanitizeMinesRoom(room) {
+  return {
+    id: room.id,
+    bet: room.bet,
+    bank: room.bank,
+    totalCells: room.totalCells,
+    bombCount: room.bombCount,
+    extremal: room.extremal,
+    vsBot: room.vsBot,
+    status: room.status,
+    revealed: room.revealed,
+    turn: room.turn,
+    winner: room.winner || null,
+    players: room.players.map(p => ({ id: p.id, username: p.username, photo_url: p.photo_url })),
+  };
+}
+
+function emitMinesRoom(room) {
+  io.to(MINES_ROOM_PREFIX + room.id).emit('mines:state', sanitizeMinesRoom(room));
+}
+
+function pickMinesBombs(total, count) {
+  const pool = Array.from({ length: total }, (_, i) => i);
+  const picked = [];
+  const n = Math.min(count, total);
+  for (let k = 0; k < n; k++) {
+    const r = Math.floor(Math.random() * pool.length);
+    picked.push(pool[r]);
+    pool.splice(r, 1);
+  }
+  return picked;
+}
+
+function refundMinesRoom(room) {
+  const host = users.get(String(room.host.id));
+  if (host) host.balance += room.bet;
+}
+
+function removeMinesRoom(room) {
+  minesRooms.delete(room.id);
+}
+
+function startMinesRound(room) {
+  room.bombIndices = pickMinesBombs(room.totalCells, room.bombCount);
+  room.revealed = new Array(room.totalCells).fill(false);
+  room.turn = 0;
+  room.status = 'playing';
+  room.winner = null;
+  emitMinesRoom(room);
+  if (room.vsBot && room.turn === 1) scheduleMinesBotMove(room);
+}
+
+function scheduleMinesBotMove(room) {
+  setTimeout(() => {
+    const current = minesRooms.get(room.id);
+    if (!current || current.status !== 'playing') return;
+    const options = [];
+    current.revealed.forEach((rev, idx) => { if (!rev) options.push(idx); });
+    if (!options.length) return;
+    const idx = options[Math.floor(Math.random() * options.length)];
+    resolveMinesReveal(current, idx, current.players[1].id);
+  }, MINES_BOT_MOVE_DELAY_MS);
+}
+
+function finishMinesRoom(room, winnerPlayer, loserPlayer) {
+  room.status = 'finished';
+  room.winner = { id: winnerPlayer.id, username: winnerPlayer.username };
+  const winnerUser = users.get(String(winnerPlayer.id));
+  if (winnerUser) {
+    winnerUser.balance += room.bank;
+    winnerUser.total_won += room.bank;
+    winnerUser.wins += 1;
+  }
+  emitMinesRoom(room);
+  setTimeout(() => removeMinesRoom(room), 15000);
+}
+
+function resolveMinesReveal(room, idx, requesterId) {
+  if (room.status !== 'playing') return { error: 'NOT_PLAYING' };
+  if (idx < 0 || idx >= room.totalCells || room.revealed[idx]) return { error: 'INVALID_CELL' };
+  const currentPlayer = room.players[room.turn];
+  if (String(currentPlayer.id) !== String(requesterId)) return { error: 'NOT_YOUR_TURN' };
+
+  room.revealed[idx] = true;
+  const isBomb = room.bombIndices.includes(idx);
+
+  if (isBomb) {
+    const loser = room.players[room.turn];
+    const winner = room.players[room.turn === 0 ? 1 : 0];
+    io.to(MINES_ROOM_PREFIX + room.id).emit('mines:reveal', {
+      idx, bomb: true, bombIndices: room.bombIndices,
+      loserId: loser.id, winnerId: winner.id,
+    });
+    finishMinesRoom(room, winner, loser);
+  } else {
+    room.turn = room.turn === 0 ? 1 : 0;
+    io.to(MINES_ROOM_PREFIX + room.id).emit('mines:reveal', { idx, bomb: false, nextTurn: room.turn });
+    emitMinesRoom(room);
+    if (room.vsBot && room.turn === 1) scheduleMinesBotMove(room);
+  }
+  return { ok: true };
+}
+
+function handleMinesDisconnect(socketId) {
+  for (const room of Array.from(minesRooms.values())) {
+    if (room.status === 'waiting' && room.host.socketId === socketId) {
+      refundMinesRoom(room);
+      removeMinesRoom(room);
+      broadcastMinesRooms();
+      continue;
+    }
+    if (room.status === 'playing' && !room.vsBot) {
+      const idx = room.players.findIndex(p => p.socketId === socketId);
+      if (idx !== -1) {
+        const loser = room.players[idx];
+        const winner = room.players[idx === 0 ? 1 : 0];
+        io.to(MINES_ROOM_PREFIX + room.id).emit('mines:opponent_left', { winnerId: winner.id });
+        finishMinesRoom(room, winner, loser);
+      }
+    }
+  }
+}
+
+/* ============================================================
    SOCKET.IO — ulanganda joriy holatni bir marta yuboramiz
    ============================================================ */
 io.on('connection', (socket) => {
@@ -691,6 +864,94 @@ io.on('connection', (socket) => {
     if (game === 'hockey') socket.emit('hockey:state', hockeyState);
     else if (game === 'drum') socket.emit('drum:state', drumState);
     else if (game === 'team_battle') socket.emit('team_battle:state', teamState);
+  });
+
+  /* -------- MINES 1vs1 -------- */
+  socket.on('mines:get_rooms', () => {
+    socket.emit('mines:rooms', publicMinesRoomList());
+  });
+
+  socket.on('mines:create_room', (payload = {}, cb) => {
+    const ack = typeof cb === 'function' ? cb : () => {};
+    const user = getSocketUser(payload.initData);
+    if (!user) return ack({ error: 'invalid_auth' });
+
+    const bet = Number(payload.bet);
+    const totalCells = MINES_ALLOWED_SIZES.includes(Number(payload.totalCells)) ? Number(payload.totalCells) : 25;
+    const bombCount = MINES_ALLOWED_BOMBS.includes(Number(payload.bombCount)) ? Number(payload.bombCount) : 1;
+    const extremal = !!payload.extremal;
+    const vsBot = !!payload.vsBot;
+
+    if (!bet || bet < MINES_MIN_BET) return ack({ error: 'INVALID_AMOUNT' });
+    if (bet > user.balance) return ack({ error: 'INSUFFICIENT_BALANCE' });
+
+    user.balance -= bet;
+
+    const room = {
+      id: createMinesRoomId(),
+      host: { id: Number(user.id), username: user.username, photo_url: user.photo_url, socketId: socket.id },
+      bet, bank: bet * 2, totalCells, bombCount, extremal, vsBot,
+      status: 'waiting',
+      players: [{ id: Number(user.id), username: user.username, photo_url: user.photo_url, socketId: socket.id }],
+      bombIndices: [], revealed: [], turn: 0, winner: null,
+      createdAt: Date.now(),
+    };
+    minesRooms.set(room.id, room);
+    socket.join(MINES_ROOM_PREFIX + room.id);
+
+    if (vsBot) {
+      room.players.push({ id: 'bot', username: 'Bot 🤖', photo_url: null, socketId: null });
+      startMinesRound(room);
+    } else {
+      broadcastMinesRooms();
+    }
+
+    ack({ ok: true, roomId: room.id, balance: user.balance, room: sanitizeMinesRoom(room) });
+  });
+
+  socket.on('mines:cancel_room', (payload = {}, cb) => {
+    const ack = typeof cb === 'function' ? cb : () => {};
+    const user = getSocketUser(payload.initData);
+    if (!user) return ack({ error: 'invalid_auth' });
+    const room = minesRooms.get(payload.roomId);
+    if (!room || room.status !== 'waiting' || String(room.host.id) !== String(user.id)) {
+      return ack({ error: 'NOT_FOUND' });
+    }
+    refundMinesRoom(room);
+    removeMinesRoom(room);
+    broadcastMinesRooms();
+    ack({ ok: true, balance: user.balance });
+  });
+
+  socket.on('mines:join_room', (payload = {}, cb) => {
+    const ack = typeof cb === 'function' ? cb : () => {};
+    const user = getSocketUser(payload.initData);
+    if (!user) return ack({ error: 'invalid_auth' });
+    const room = minesRooms.get(payload.roomId);
+    if (!room || room.status !== 'waiting') return ack({ error: 'NOT_FOUND' });
+    if (String(room.host.id) === String(user.id)) return ack({ error: 'CANT_JOIN_OWN_ROOM' });
+    if (room.bet > user.balance) return ack({ error: 'INSUFFICIENT_BALANCE' });
+
+    user.balance -= room.bet;
+    room.players.push({ id: Number(user.id), username: user.username, photo_url: user.photo_url, socketId: socket.id });
+    socket.join(MINES_ROOM_PREFIX + room.id);
+    broadcastMinesRooms();
+    startMinesRound(room);
+    ack({ ok: true, roomId: room.id, balance: user.balance, room: sanitizeMinesRoom(room) });
+  });
+
+  socket.on('mines:reveal', (payload = {}, cb) => {
+    const ack = typeof cb === 'function' ? cb : () => {};
+    const user = getSocketUser(payload.initData);
+    if (!user) return ack({ error: 'invalid_auth' });
+    const room = minesRooms.get(payload.roomId);
+    if (!room) return ack({ error: 'NOT_FOUND' });
+    const result = resolveMinesReveal(room, Number(payload.idx), user.id);
+    ack(result);
+  });
+
+  socket.on('disconnect', () => {
+    handleMinesDisconnect(socket.id);
   });
 });
 

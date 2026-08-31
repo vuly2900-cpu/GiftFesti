@@ -237,6 +237,7 @@
   .game-card.hockey{background:linear-gradient(135deg,#1B3A34,#0E211D);}
   .game-card.drum{background:linear-gradient(135deg,#3A2A1B,#211508);}
   .game-card.team-battle{background:linear-gradient(135deg,#3A1B24,#1F0E14);}
+  .game-card.mines{background:linear-gradient(135deg,#123524,#0d211a);}
   .game-badge{
     display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
     background:rgba(0,0,0,.35); color:var(--gold); font-size:10px; font-weight:700;
@@ -509,6 +510,77 @@
   .history-player-row .won { width: 60px; text-align: right; font-weight: 600; }
   .history-player-row.is-winner { color: var(--success); }
   .history-player-row .won.zero { color: var(--text-dim); font-weight: 400; }
+
+  /* ============ MINES 1vs1 (mn- prefiksli, boshqa sahifalarga taʼsir qilmaydi) ============ */
+  #page-mines{ --mn-felt-deep:#0d211a; --mn-felt:#123524; --mn-felt-light:#1a4a33; --mn-panel:#17140f;
+    --mn-panel-2:#1f1a13; --mn-line:#362d1e; --mn-gold:#e3b94c; --mn-gold-bright:#f7d478; --mn-gold-dim:#9c7d38;
+    --mn-cream:#f2ecdd; --mn-muted:#a89b7f; --mn-danger:#c4432b; --mn-danger-bright:#ef5b3c; --mn-safe:#3f9a68; --mn-safe-bright:#57c886; }
+  #page-mines{ padding-bottom: 90px; }
+  #page-mines .mn-screen{ display:none; flex-direction:column; gap:14px; animation: fade .3s ease; }
+  #page-mines .mn-screen.mn-active{ display:flex; }
+  #page-mines .mn-card{ background:linear-gradient(180deg, var(--mn-panel-2), var(--mn-panel)); border:1px solid var(--mn-line); border-radius:14px; padding:18px; }
+  #page-mines .mn-card h2{ font-size:17px; font-weight:700; margin:0 0 6px; color:var(--mn-cream); }
+  #page-mines .mn-hint{ margin:0 0 14px; color:var(--mn-muted); font-size:12.5px; line-height:1.5; }
+  #page-mines .mn-field{ margin-bottom:12px; }
+  #page-mines .mn-field label{ display:block; font-size:12px; color:var(--mn-muted); margin-bottom:6px; }
+  #page-mines .mn-field input[type="number"]{ width:100%; background:var(--bg); border:1px solid var(--mn-line); color:var(--mn-cream);
+    font-size:15px; padding:11px 13px; border-radius:9px; outline:none; }
+  #page-mines .mn-chips{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 14px; }
+  #page-mines .mn-chip{ padding:7px 13px; border-radius:999px; border:1px solid var(--mn-line); background:var(--bg); color:var(--mn-muted);
+    font-size:12.5px; cursor:pointer; font-weight:600; }
+  #page-mines .mn-chip.mn-active{ border-color:var(--mn-gold); background:rgba(227,185,76,0.12); color:var(--mn-gold-bright); }
+  #page-mines .mn-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:13px 18px;
+    border-radius:10px; border:none; font-weight:700; font-size:14px; cursor:pointer; }
+  #page-mines .mn-btn:disabled{ opacity:.4; cursor:not-allowed; }
+  #page-mines .mn-btn-gold{ background:linear-gradient(180deg, var(--mn-gold-bright), var(--mn-gold)); color:#241a06; }
+  #page-mines .mn-btn-ghost{ background:transparent; border:1px solid var(--mn-line); color:var(--mn-cream); }
+  #page-mines .mn-btn-small{ width:auto; display:inline-flex; padding:11px 22px; font-size:13px; }
+  #page-mines .mn-err{ color:var(--mn-danger-bright); font-size:12px; margin-top:-6px; margin-bottom:10px; min-height:14px; }
+  #page-mines .mn-start-hero{ text-align:center; padding:36px 10px 26px; }
+  #page-mines .mn-glyph{ font-size:36px; margin-bottom:12px; }
+  #page-mines .mn-back-link{ background:none; border:none; color:var(--mn-muted); font-size:12.5px; cursor:pointer; padding:2px 0 10px; display:block; }
+  #page-mines .mn-empty{ text-align:center; color:var(--mn-muted); font-size:13px; padding:18px 10px; }
+  #page-mines .mn-room-row{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border:1px solid var(--mn-line);
+    border-radius:10px; margin-bottom:8px; background:var(--bg); }
+  #page-mines .mn-room-row .who{ font-size:13px; font-weight:600; color:var(--mn-cream); }
+  #page-mines .mn-room-row .who span{ color:var(--mn-muted); font-weight:400; font-size:11.5px; display:block; margin-top:2px; }
+  #page-mines .mn-room-row .bet{ color:var(--mn-gold-bright); font-weight:700; font-size:15px; }
+  #page-mines .mn-bank-strip{ display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; border-radius:10px;
+    background:var(--mn-felt-deep); border:1px solid var(--mn-felt-light); }
+  #page-mines .mn-label{ font-size:11.5px; color:var(--mn-muted); }
+  #page-mines .mn-amt{ font-size:18px; color:var(--mn-gold-bright); font-weight:700; }
+  #page-mines .mn-players-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  #page-mines .mn-p-box{ flex:1; background:var(--mn-panel); border:1px solid var(--mn-line); border-radius:12px; padding:11px 13px;
+    text-align:center; position:relative; }
+  #page-mines .mn-p-box.mn-turn{ border-color:var(--mn-gold); box-shadow:0 0 0 1px var(--mn-gold) inset, 0 0 16px rgba(227,185,76,0.18); }
+  #page-mines .mn-p-box .mn-name{ font-weight:700; font-size:13px; color:var(--mn-cream); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #page-mines .mn-p-box .mn-coin{ font-size:16px; color:var(--mn-gold-bright); margin-top:3px; }
+  #page-mines .mn-p-box .mn-dot{ width:7px; height:7px; border-radius:50%; background:var(--mn-gold); display:none; position:absolute; top:9px; right:9px; }
+  #page-mines .mn-p-box.mn-turn .mn-dot{ display:block; box-shadow:0 0 6px var(--mn-gold); }
+  #page-mines .mn-vs{ color:var(--mn-muted); font-size:12.5px; padding:0 6px; }
+  #page-mines .mn-turn-banner{ text-align:center; font-size:13.5px; color:var(--mn-muted); }
+  #page-mines .mn-turn-banner b{ color:var(--mn-gold-bright); }
+  #page-mines .mn-extremal-badge{ text-align:center; font-weight:700; font-size:12px; letter-spacing:1.5px; color:var(--mn-danger-bright); }
+  #page-mines .mn-board{ background:var(--mn-felt); border:1px solid var(--mn-felt-light); border-radius:16px; padding:12px; }
+  #page-mines .mn-grid{ display:grid; grid-template-columns:repeat(5, 1fr); gap:7px; }
+  #page-mines .mn-cell{ aspect-ratio:1; border-radius:9px; background:linear-gradient(180deg,#2b6b45,#1e4d31); border:1px solid #0e2d1c;
+    box-shadow:0 3px 0 #0c2417, inset 0 1px 0 rgba(255,255,255,0.08); cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font-size:18px; transition:transform .08s, filter .12s; user-select:none; }
+  #page-mines .mn-cell.mn-disabled{ cursor:default; }
+  #page-mines .mn-cell.mn-safe{ background:linear-gradient(180deg, var(--mn-safe-bright), var(--mn-safe)); box-shadow:0 3px 0 #1f5c3d, inset 0 1px 0 rgba(255,255,255,0.15); }
+  #page-mines .mn-cell.mn-bomb{ background:linear-gradient(180deg, var(--mn-danger-bright), var(--mn-danger)); box-shadow:0 3px 0 #7a2a1c, inset 0 1px 0 rgba(255,255,255,0.15); animation:mnPop .3s ease; }
+  #page-mines .mn-cell.mn-dim{ opacity:.55; }
+  @keyframes mnPop{ 0%{ transform:scale(0.7);} 60%{ transform:scale(1.12);} 100%{ transform:scale(1);} }
+  #page-mines .mn-result{ text-align:center; padding:26px 18px; }
+  #page-mines .mn-result .mn-icon{ font-size:42px; margin-bottom:6px; }
+  #page-mines .mn-result h2{ font-size:24px; margin:4px 0; color:var(--mn-cream); }
+  #page-mines .mn-win{ color:var(--mn-gold-bright); font-size:18px; margin-top:6px; }
+  #page-mines .mn-amount{ font-size:30px; font-weight:700; color:var(--mn-gold-bright); margin:8px 0 20px; }
+  #page-mines .mn-sub{ color:var(--mn-muted); font-size:13px; margin:0 0 18px; }
+  #page-mines .mn-toast{ position:fixed; left:50%; bottom:88px; transform:translateX(-50%) translateY(12px); background:var(--mn-panel-2);
+    border:1px solid var(--mn-danger); color:var(--mn-cream); padding:10px 16px; border-radius:999px; font-size:12.5px; font-weight:600;
+    box-shadow:0 6px 22px rgba(0,0,0,0.4); opacity:0; pointer-events:none; transition:opacity .18s, transform .18s; z-index:50; white-space:nowrap; }
+  #page-mines .mn-toast.mn-show{ opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -578,6 +650,10 @@
     <div class="game-card team-battle" onclick="openGame('team_battle')">
       <span class="game-badge">⚔️ 3 Zona</span>
       <span class="game-name">TEAM BATTLE</span>
+    </div>
+    <div class="game-card mines" onclick="openGame('mines')">
+      <span class="game-badge">💣 1vs1</span>
+      <span class="game-name">MINES</span>
     </div>
     <div class="game-card case" onclick="goTo('case')">
       <span class="game-badge">🎁 24 soatda 1 marta</span>
@@ -729,6 +805,126 @@
       </div>
     </div>
     <div class="hockey-players" id="teamPlayersList"></div>
+  </section>
+
+  <section class="page" id="page-mines">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('play')">‹</button>
+      <div class="game-number-badge mono">MINES 1vs1</div>
+      <div style="width:32px;"></div>
+    </div>
+
+    <!-- START -->
+    <div class="mn-screen mn-active" id="mn-screen-start">
+      <div class="mn-card mn-start-hero">
+        <div class="mn-glyph">💣</div>
+        <h2>MINES 1vs1 o'ynaymizmi?</h2>
+        <button class="mn-btn mn-btn-gold mn-btn-small" onclick="mnOpenCreate(false)">🎰 Xona yaratish</button>
+        <div style="height:10px;"></div>
+        <button class="mn-btn mn-btn-ghost mn-btn-small" onclick="mnOpenCreate(true)">🤖 Bot bilan o'ynash</button>
+      </div>
+      <div class="mn-card">
+        <h2>Ochiq xonalar</h2>
+        <p class="mn-hint">Boshqa o'yinchi yaratgan xonaga qo'shiling.</p>
+        <div id="mnRoomList"><div class="mn-empty">Hozircha ochiq xona yo'q</div></div>
+      </div>
+    </div>
+
+    <!-- CREATE -->
+    <div class="mn-screen" id="mn-screen-lobby">
+      <div class="mn-card">
+        <button class="mn-back-link" onclick="mnShow('start')">← Orqaga</button>
+        <h2>Yangi xona yaratish</h2>
+        <p class="mn-hint">Necha coinga o'ynashni tanla.</p>
+        <div class="mn-field">
+          <label>Necha coinga o'ynaymiz? (minimal 10 <span class="coin-ico"></span>)</label>
+          <input type="number" id="mnBetAmount" placeholder="100" min="10" step="1">
+        </div>
+        <div class="mn-chips">
+          <div class="mn-chip" onclick="document.getElementById('mnBetAmount').value=10">10</div>
+          <div class="mn-chip" onclick="document.getElementById('mnBetAmount').value=50">50</div>
+          <div class="mn-chip" onclick="document.getElementById('mnBetAmount').value=100">100</div>
+          <div class="mn-chip" onclick="document.getElementById('mnBetAmount').value=250">250</div>
+          <div class="mn-chip" onclick="document.getElementById('mnBetAmount').value=500">500</div>
+        </div>
+        <div class="mn-field"><label>Maydon kattaligi (kataklar soni)</label></div>
+        <div class="mn-chips" id="mnSizeChips">
+          <div class="mn-chip mn-active" data-v="25" onclick="mnSelectChip(this,'mnSizeChips','totalCells',25)">5×5 · 25</div>
+          <div class="mn-chip" data-v="30" onclick="mnSelectChip(this,'mnSizeChips','totalCells',30)">6×5 · 30</div>
+          <div class="mn-chip" data-v="35" onclick="mnSelectChip(this,'mnSizeChips','totalCells',35)">7×5 · 35</div>
+          <div class="mn-chip" data-v="40" onclick="mnSelectChip(this,'mnSizeChips','totalCells',40)">8×5 · 40</div>
+        </div>
+        <div class="mn-field"><label>Mina soni</label></div>
+        <div class="mn-chips" id="mnBombChips">
+          <div class="mn-chip mn-active" data-v="1" onclick="mnSelectChip(this,'mnBombChips','bombCount',1)">💣 1 ta</div>
+          <div class="mn-chip" data-v="2" onclick="mnSelectChip(this,'mnBombChips','bombCount',2)">💣 2 ta</div>
+          <div class="mn-chip" data-v="3" onclick="mnSelectChip(this,'mnBombChips','bombCount',3)">💣 3 ta</div>
+        </div>
+        <div class="mn-field"><label>O'yin rejimi</label></div>
+        <div class="mn-chips" id="mnModeChips">
+          <div class="mn-chip mn-active" data-v="normal" onclick="mnSelectMode(this,false)">🎮 Oddiy</div>
+          <div class="mn-chip" data-v="extremal" onclick="mnSelectMode(this,true)">🔥 Extremal</div>
+        </div>
+        <div class="mn-err" id="mnLobbyErr"></div>
+        <button class="mn-btn mn-btn-gold" id="mnCreateRoomBtn" onclick="mnCreateRoom()">🎰 Xona yaratish</button>
+      </div>
+    </div>
+
+    <!-- WAITING -->
+    <div class="mn-screen" id="mn-screen-waiting">
+      <div class="mn-card" style="text-align:center;">
+        <h2>Xona tayyor</h2>
+        <p class="mn-hint">Raqib qo'shilishini kutmoqda...</p>
+        <div class="mn-bank-strip">
+          <span class="mn-label">Har biri:</span>
+          <span class="mn-amt" id="mnWaitBetAmt">100</span>
+          <span class="mn-label"><span class="coin-ico"></span> · Bank:</span>
+          <span class="mn-amt" id="mnWaitBankAmt">200</span>
+          <span class="mn-label"><span class="coin-ico"></span></span>
+        </div>
+        <button class="mn-btn mn-btn-ghost" onclick="mnCancelRoom()">Bekor qilish</button>
+      </div>
+    </div>
+
+    <!-- GAME -->
+    <div class="mn-screen" id="mn-screen-game">
+      <div class="mn-players-bar">
+        <div class="mn-p-box" id="mn-pbox0">
+          <div class="mn-dot"></div>
+          <div class="mn-name" id="mn-p0name">Siz</div>
+          <div class="mn-coin" id="mn-p0coin">100 <span class="coin-ico"></span></div>
+        </div>
+        <div class="mn-vs">VS</div>
+        <div class="mn-p-box" id="mn-pbox1">
+          <div class="mn-dot"></div>
+          <div class="mn-name" id="mn-p1name">Raqib</div>
+          <div class="mn-coin" id="mn-p1coin">100 <span class="coin-ico"></span></div>
+        </div>
+      </div>
+      <div class="mn-bank-strip">
+        <span class="mn-label">🏦 Bank:</span>
+        <span class="mn-amt" id="mn-bank">200 <span class="coin-ico"></span></span>
+      </div>
+      <div class="mn-turn-banner" id="mnTurnBanner">Navbat: <b id="mnTurnName">Siz</b></div>
+      <div class="mn-extremal-badge" id="mnExtremalBadge" style="display:none;">🔥 EXTREMAL REJIM</div>
+      <div class="mn-board">
+        <div class="mn-grid" id="mnGrid"></div>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="mn-screen" id="mn-screen-result">
+      <div class="mn-card mn-result">
+        <div class="mn-icon" id="mnResultIcon">💥</div>
+        <h2>BOOM!</h2>
+        <p class="mn-sub" id="mnResultSub">Raqib bombani bosdi</p>
+        <div class="mn-win">🏆 G'olib: <span id="mnWinnerName">Siz</span></div>
+        <div class="mn-amount" id="mnWinnerAmt">+200 <span class="coin-ico"></span></div>
+        <button class="mn-btn mn-btn-gold" onclick="mnShow('start')">🔁 Yangi o'yin</button>
+      </div>
+    </div>
+
+    <div class="mn-toast" id="mnToast">⛔ Hozir sizning yurishingiz emas</div>
   </section>
 
   <section class="page" id="page-case">
@@ -1324,6 +1520,8 @@ function goTo(pageName) {
   if (pageName === 'drum') initDrumPage();
   if (pageName === 'team_battle') initTeamBattlePage();
   if (pageName === 'case') initCasePage();
+  if (pageName === 'mines') initMinesPage();
+  else mnLeavePage();
 
   // Xokkey/Baraban/Team Battle sahifasidan chiqilganda realtime listenerni
   // to'xtatib, fonda keraksiz o'qishlarning oldini olamiz.
@@ -1797,6 +1995,7 @@ function openGame(name) {
   if (name === 'hockey') goTo('hockey');
   else if (name === 'drum') goTo('drum');
   else if (name === 'team_battle') goTo('team_battle');
+  else if (name === 'mines') goTo('mines');
   else alert("Tez orada...");
 }
 
@@ -2957,6 +3156,275 @@ async function finishTeamBattleRound(winnerColor) {
     banner.classList.remove('show');
     resetTeamStoneVisual();
   }, 4000);
+}
+
+// ==================== MINES 1vs1 ====================
+const mnScreens = {
+  start: document.getElementById('mn-screen-start'),
+  lobby: document.getElementById('mn-screen-lobby'),
+  waiting: document.getElementById('mn-screen-waiting'),
+  game: document.getElementById('mn-screen-game'),
+  result: document.getElementById('mn-screen-result'),
+};
+const mnState = {
+  vsBot: false,
+  totalCells: 25,
+  bombCount: 1,
+  extremal: false,
+  roomId: null,
+  myIndex: null, // 0 yoki 1 - joriy o'yinchining room.players ichidagi indeksi
+  listenersBound: false,
+};
+let mnToastTimer = null;
+
+function mnShow(name) {
+  Object.values(mnScreens).forEach(s => s.classList.remove('mn-active'));
+  mnScreens[name].classList.add('mn-active');
+}
+
+function mnToast(msg) {
+  const t = document.getElementById('mnToast');
+  t.textContent = msg;
+  t.classList.add('mn-show');
+  clearTimeout(mnToastTimer);
+  mnToastTimer = setTimeout(() => t.classList.remove('mn-show'), 1400);
+}
+
+function mnSelectChip(el, groupId, key, value) {
+  document.querySelectorAll(`#${groupId} .mn-chip`).forEach(c => c.classList.remove('mn-active'));
+  el.classList.add('mn-active');
+  mnState[key] = value;
+}
+
+function mnSelectMode(el, extremal) {
+  document.querySelectorAll('#mnModeChips .mn-chip').forEach(c => c.classList.remove('mn-active'));
+  el.classList.add('mn-active');
+  mnState.extremal = extremal;
+}
+
+function mnOpenCreate(vsBot) {
+  mnState.vsBot = vsBot;
+  document.getElementById('mnLobbyErr').textContent = '';
+  mnShow('lobby');
+}
+
+function mnRenderRooms(rooms) {
+  const list = document.getElementById('mnRoomList');
+  if (!rooms || !rooms.length) {
+    list.innerHTML = '<div class="mn-empty">Hozircha ochiq xona yo\'q</div>';
+    return;
+  }
+  list.innerHTML = '';
+  rooms.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'mn-room-row';
+    const name = escapeHtmlLocal(r.hostName || "O'yinchi");
+    row.innerHTML = `<div class="who">${name}<span>${r.totalCells} katak · ${r.bombCount} mina${r.extremal ? ' · 🔥 Extremal' : ''}</span></div>` +
+      `<div class="bet">${r.bet} <span class="coin-ico"></span></div>`;
+    row.addEventListener('click', () => mnJoinRoom(r.id));
+    list.appendChild(row);
+  });
+}
+
+function escapeHtmlLocal(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+function mnCreateRoom() {
+  const betInput = document.getElementById('mnBetAmount');
+  const bet = parseInt(betInput.value, 10);
+  const errEl = document.getElementById('mnLobbyErr');
+  if (!bet || isNaN(bet) || bet < 10) {
+    errEl.textContent = "Minimal tikish 10 coin. Iltimos to'g'ri miqdor kiriting.";
+    return;
+  }
+  if (currentUserData && bet > currentUserData.balance) {
+    errEl.textContent = "Balansingiz yetarli emas.";
+    return;
+  }
+  errEl.textContent = '';
+  const btn = document.getElementById('mnCreateRoomBtn');
+  btn.disabled = true;
+  socket.emit('mines:create_room', {
+    initData: tg?.initData || '',
+    bet, totalCells: mnState.totalCells, bombCount: mnState.bombCount,
+    extremal: mnState.extremal, vsBot: mnState.vsBot,
+  }, (res) => {
+    btn.disabled = false;
+    if (!res || res.error) {
+      errEl.textContent = res && res.error === 'INSUFFICIENT_BALANCE' ? 'Balansingiz yetarli emas.' : 'Xatolik yuz berdi, qayta urinib ko\'ring.';
+      return;
+    }
+    if (typeof res.balance === 'number' && currentUserData) {
+      currentUserData.balance = res.balance;
+      document.getElementById('topBalance').textContent = currentUserData.balance;
+    }
+    mnState.roomId = res.roomId;
+    if (mnState.vsBot) {
+      mnState.myIndex = 0;
+      mnRenderGame(res.room);
+      mnShow('game');
+    } else {
+      document.getElementById('mnWaitBetAmt').textContent = bet;
+      document.getElementById('mnWaitBankAmt').textContent = bet * 2;
+      mnShow('waiting');
+    }
+  });
+}
+
+function mnCancelRoom() {
+  if (!mnState.roomId) { mnShow('start'); return; }
+  socket.emit('mines:cancel_room', { initData: tg?.initData || '', roomId: mnState.roomId }, (res) => {
+    if (res && typeof res.balance === 'number' && currentUserData) {
+      currentUserData.balance = res.balance;
+      document.getElementById('topBalance').textContent = currentUserData.balance;
+    }
+    mnState.roomId = null;
+    mnShow('start');
+  });
+}
+
+function mnJoinRoom(roomId) {
+  socket.emit('mines:join_room', { initData: tg?.initData || '', roomId }, (res) => {
+    if (!res || res.error) {
+      if (res && res.error === 'INSUFFICIENT_BALANCE') alert('Balansingiz yetarli emas.');
+      else if (res && res.error === 'CANT_JOIN_OWN_ROOM') alert("O'zingiz yaratgan xonaga qo'shila olmaysiz.");
+      else alert('Bu xona endi mavjud emas.');
+      return;
+    }
+    if (typeof res.balance === 'number' && currentUserData) {
+      currentUserData.balance = res.balance;
+      document.getElementById('topBalance').textContent = currentUserData.balance;
+    }
+    mnState.roomId = res.roomId;
+    const idx = res.room.players.findIndex(p => String(p.id) === String(tgUser.id));
+    mnState.myIndex = idx === -1 ? 1 : idx;
+    mnRenderGame(res.room);
+    mnShow('game');
+  });
+}
+
+function mnRenderGame(room) {
+  mnState.totalCells = room.totalCells;
+  mnState.bombCount = room.bombCount;
+  mnState.extremal = room.extremal;
+
+  const me = room.players[mnState.myIndex];
+  const opp = room.players[mnState.myIndex === 0 ? 1 : 0];
+  document.getElementById('mn-p0name').textContent = me ? (me.username || 'Siz') : 'Siz';
+  document.getElementById('mn-p1name').textContent = opp ? (opp.username || 'Raqib') : 'Raqib';
+  document.getElementById('mn-p0coin').innerHTML = `${room.bet} <span class="coin-ico"></span>`;
+  document.getElementById('mn-p1coin').innerHTML = `${room.bet} <span class="coin-ico"></span>`;
+  document.getElementById('mn-bank').innerHTML = `${room.bank} <span class="coin-ico"></span>`;
+  document.getElementById('mnExtremalBadge').style.display = room.extremal ? 'block' : 'none';
+
+  mnBuildGrid(room.totalCells);
+  mnUpdateTurnUI(room);
+}
+
+function mnBuildGrid(totalCells) {
+  const grid = document.getElementById('mnGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < totalCells; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'mn-cell';
+    cell.dataset.idx = i;
+    cell.addEventListener('click', mnOnCellClick);
+    grid.appendChild(cell);
+  }
+}
+
+function mnUpdateTurnUI(room) {
+  const myTurn = room.turn === mnState.myIndex;
+  document.getElementById('mn-pbox0').classList.toggle('mn-turn', mnState.myIndex === room.turn);
+  document.getElementById('mn-pbox1').classList.toggle('mn-turn', mnState.myIndex !== room.turn);
+  const turnPlayer = room.players[room.turn];
+  document.getElementById('mnTurnName').textContent = myTurn ? 'Siz' : (turnPlayer ? (turnPlayer.username || 'Raqib') : 'Raqib');
+}
+
+function mnOnCellClick(e) {
+  if (!mnState.roomId) return;
+  const idx = parseInt(e.currentTarget.dataset.idx, 10);
+  if (e.currentTarget.classList.contains('mn-disabled')) return;
+  socket.emit('mines:reveal', { initData: tg?.initData || '', roomId: mnState.roomId, idx }, (res) => {
+    if (res && res.error === 'NOT_YOUR_TURN') mnToast('⛔ Hozir sizning yurishingiz emas');
+  });
+}
+
+function mnShowResult(loserName, winnerName, isMeWinner, bank) {
+  document.getElementById('mnResultSub').textContent = `${loserName} bombani bosdi`;
+  document.getElementById('mnWinnerName').textContent = winnerName;
+  document.getElementById('mnWinnerAmt').innerHTML = `+${bank} <span class="coin-ico"></span>`;
+  document.getElementById('mnResultIcon').textContent = isMeWinner ? '🏆' : '💥';
+  mnShow('result');
+}
+
+function mnBindSocketListeners() {
+  if (mnState.listenersBound) return;
+  mnState.listenersBound = true;
+
+  socket.on('mines:rooms', (rooms) => {
+    if (document.getElementById('page-mines').classList.contains('active') && mnScreens.start.classList.contains('mn-active')) {
+      mnRenderRooms(rooms);
+    }
+  });
+
+  socket.on('mines:state', (room) => {
+    if (!mnState.roomId || room.id !== mnState.roomId) return;
+    if (mnState.myIndex === null) {
+      const idx = room.players.findIndex(p => String(p.id) === String(tgUser.id));
+      if (idx !== -1) mnState.myIndex = idx;
+    }
+    mnUpdateTurnUI(room);
+  });
+
+  socket.on('mines:reveal', (data) => {
+    if (!mnState.roomId) return;
+    const cellEl = document.querySelector(`#mnGrid .mn-cell[data-idx="${data.idx}"]`);
+    if (data.bomb) {
+      const isMeLoser = String(data.loserId) === String(tgUser.id);
+      const isMeWinner = String(data.winnerId) === String(tgUser.id);
+      if (cellEl) { cellEl.classList.add('mn-bomb'); cellEl.textContent = '💣'; }
+      (data.bombIndices || []).forEach(bIdx => {
+        if (bIdx === data.idx) return;
+        const c = document.querySelector(`#mnGrid .mn-cell[data-idx="${bIdx}"]`);
+        if (c) { c.classList.add('mn-bomb', 'mn-dim'); c.textContent = '💣'; }
+      });
+      document.querySelectorAll('#mnGrid .mn-cell').forEach(c => c.classList.add('mn-disabled'));
+      const loserName = isMeLoser ? 'Siz' : (document.getElementById(mnState.myIndex === 0 ? 'mn-p1name' : 'mn-p0name').textContent);
+      const winnerName = isMeWinner ? 'Siz' : (document.getElementById(mnState.myIndex === 0 ? 'mn-p1name' : 'mn-p0name').textContent);
+      const bankTxt = document.getElementById('mn-bank').textContent;
+      const bankNum = parseInt(bankTxt, 10) || 0;
+      setTimeout(() => mnShowResult(loserName, winnerName, isMeWinner, bankNum), mnState.extremal ? 700 : 450);
+      if (isMeWinner) {
+        currentUserData.balance += bankNum;
+        currentUserData.total_won = (currentUserData.total_won || 0) + bankNum;
+        document.getElementById('topBalance').textContent = currentUserData.balance;
+      }
+    } else {
+      if (cellEl) { cellEl.classList.add('mn-safe'); cellEl.textContent = '🪙'; }
+    }
+  });
+
+  socket.on('mines:opponent_left', (data) => {
+    if (!mnState.roomId) return;
+    const isMeWinner = String(data.winnerId) === String(tgUser.id);
+    if (isMeWinner) mnToast("Raqib chiqib ketdi — siz yutdingiz!");
+  });
+}
+
+function initMinesPage() {
+  mnBindSocketListeners();
+  mnState.roomId = null;
+  mnState.myIndex = null;
+  mnShow('start');
+  document.getElementById('mnRoomList').innerHTML = '<div class="mn-empty">Yuklanmoqda...</div>';
+  socket.emit('mines:get_rooms');
+}
+
+function mnLeavePage() {
+  // Mines sahifasidan chiqilganda hech narsa to'xtatilmaydi — server o'yin
+  // holatini saqlaydi, foydalanuvchi qaytib kirsa davom etadi.
 }
 
 // Boshlanishida captcha tekshiriladi

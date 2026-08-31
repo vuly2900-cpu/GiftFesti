@@ -16,6 +16,7 @@ const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const MAIN_CHANNEL = process.env.MAIN_CHANNEL || '@GiftFesti';
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
 const INTERNAL_KEY = process.env.INTERNAL_KEY || '';
+const WEBAPP_URL = (process.env.WEBAPP_URL || '').replace(/\/$/, '');
 const DB_FILE = path.join(__dirname, 'db.json');
 const REFERRAL_REWARD = 10;
 const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -27,6 +28,7 @@ const users = new Map();     // id(string) -> user
 const friends = new Map();   // referrerId(string) -> [{id,username,photo_url,joined_at,stars}]
 let tasks = [];              // [{id, channel_link, channel_title, stars_reward}]
 let promos = [];             // [{code, reward, maxUses, used, usedBy:Set}]
+let vouchers = [];           // [{id, reward, maxUses, used, usedBy:Set, requireType, requireTarget, requireLabel, createdAt}]
 const gameHistory = { hockey: [], drum: [], team_battle: [] };
 
 function createUser(id, username) {
@@ -61,6 +63,7 @@ function serializeState() {
     friends: Array.from(friends.entries()),
     tasks,
     promos: promos.map(p => ({ ...p, usedBy: Array.from(p.usedBy) })),
+    vouchers: vouchers.map(v => ({ ...v, usedBy: Array.from(v.usedBy) })),
     gameHistory,
     gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number, team_battle: teamState.game_number },
   };
@@ -79,13 +82,14 @@ function loadDb() {
     (data.friends || []).forEach(([k, v]) => friends.set(k, v));
     tasks = data.tasks || [];
     promos = (data.promos || []).map(p => ({ ...p, usedBy: new Set(p.usedBy || []) }));
+    vouchers = (data.vouchers || []).map(v => ({ ...v, usedBy: new Set(v.usedBy || []) }));
     if (data.gameHistory) Object.assign(gameHistory, data.gameHistory);
     if (data.gameNumbers) {
       hockeyState.game_number = data.gameNumbers.hockey || 1;
       drumState.game_number = data.gameNumbers.drum || 1;
       teamState.game_number = data.gameNumbers.team_battle || 1;
     }
-    console.log(`DB yuklandi: ${users.size} foydalanuvchi, ${tasks.length} vazifa, ${promos.length} promo`);
+    console.log(`DB yuklandi: ${users.size} foydalanuvchi, ${tasks.length} vazifa, ${promos.length} promo, ${vouchers.length} voucher`);
   } catch (e) { console.error('DB yuklashda xatolik:', e.message); }
 }
 
@@ -166,6 +170,62 @@ async function isSubscribed(telegramUserId, channel) {
     if (!data.ok) return false;
     return ['creator', 'administrator', 'member'].includes(data.result.status);
   } catch (e) { return false; }
+}
+
+/* ---- VOUCHER: kanalga post qilish uchun yordamchi funksiyalar ---- */
+let cachedBotUsername = process.env.BOT_USERNAME || null;
+async function getBotUsername() {
+  if (cachedBotUsername) return cachedBotUsername;
+  if (!BOT_TOKEN) return null;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getMe`);
+    const data = await res.json();
+    if (data.ok && data.result && data.result.username) {
+      cachedBotUsername = data.result.username;
+      return cachedBotUsername;
+    }
+  } catch (e) { console.error('getBotUsername xatolik:', e.message); }
+  return null;
+}
+
+function voucherRequireLabel(v) {
+  if (!v.requireType) return null;
+  if (v.requireType === 'channel') return `📢 Kanalga obuna: ${v.requireTarget}`;
+  if (v.requireType === 'chat') return `💬 Chatga a'zolik: ${v.requireTarget}`;
+  if (v.requireType === 'bot') return `🤖 Botni ishga tushirish: ${v.requireTarget}`;
+  return null;
+}
+
+async function postVoucherToChannel(voucher) {
+  if (!BOT_TOKEN) { console.error('Voucher kanalga post qilinmadi: BOT_TOKEN sozlanmagan'); return; }
+  const username = await getBotUsername();
+  if (!username) { console.error('Voucher kanalga post qilinmadi: bot username aniqlanmadi'); return; }
+  if (!WEBAPP_URL) { console.error('Voucher kanalga post qilinmadi: WEBAPP_URL sozlanmagan (rasm uchun kerak)'); return; }
+
+  const deepLink = `https://t.me/${username}?start=voucher_${voucher.id}`;
+  const photoUrl = `${WEBAPP_URL}/voucher.png`;
+  const reqLabel = voucherRequireLabel(voucher);
+  const caption =
+    `🎁 *Yangi voucher yaratildi!*\n\n` +
+    `🎟 Aktivatsiyalar soni: *${voucher.maxUses}*\n` +
+    `⭐ Har bir aktivatsiyaga: *${voucher.reward} coin*` +
+    (reqLabel ? `\n\n📌 Shart: ${reqLabel}` : '');
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: MAIN_CHANNEL,
+        photo: photoUrl,
+        caption,
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: [[{ text: '🎁 Olish uchun bosing', url: deepLink }]] },
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) console.error('Voucherni kanalga post qilishda Telegram xatoligi:', data.description);
+  } catch (e) { console.error('Voucherni kanalga post qilishda xatolik:', e.message); }
 }
 
 /* ---- Telegram profil rasmini olish (fon rejimida, bloklamaydi) ---- */
@@ -409,6 +469,7 @@ app.get('/api/internal_stats', (req, res) => {
     adminCount: allUsers.filter(u => u.isAdmin).length,
     tasksCount: tasks.length,
     activePromos: promos.filter(p => p.used < p.maxUses).length,
+    activeVouchers: vouchers.filter(v => v.used < v.maxUses).length,
     hockey: { status: hockeyState.status, players: hockeyState.players.length, round: hockeyState.game_number },
     drum: { status: drumState.status, players: drumState.players.length, round: drumState.game_number },
     teamBattle: { status: teamState.status, players: teamState.players.length, round: teamState.game_number },
@@ -427,6 +488,24 @@ app.post('/api/admin_action', (req, res) => {
       }
       case 'create_promo': {
         promos.push({ code: payload.code, reward: Number(payload.reward) || 0, maxUses: Number(payload.maxUses) || 1, used: 0, usedBy: new Set() });
+        break;
+      }
+      case 'create_voucher': {
+        const maxUses = Number(payload.maxUses) || 1;
+        const reward = Number(payload.reward) || 0;
+        const requireType = ['channel', 'chat', 'bot'].includes(payload.requireType) ? payload.requireType : null;
+        const requireTarget = requireType ? String(payload.requireTarget || '').trim() : null;
+        if (requireType && !requireTarget) throw new Error('MISSING_REQUIRE_TARGET');
+
+        const voucher = {
+          id: crypto.randomBytes(5).toString('hex'),
+          reward, maxUses, used: 0, usedBy: new Set(),
+          requireType, requireTarget,
+          createdAt: Date.now(),
+        };
+        voucher.requireLabel = voucherRequireLabel(voucher);
+        vouchers.push(voucher);
+        postVoucherToChannel(voucher).catch(e => console.error('postVoucherToChannel xatolik:', e.message));
         break;
       }
       case 'add_task': {
@@ -464,8 +543,61 @@ app.post('/api/admin_action', (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('admin_action xatolik:', e);
-    res.status(500).json({ error: 'server_error' });
+    res.status(400).json({ error: e.message || 'server_error' });
   }
+});
+
+/* ============================================================
+   VOUCHER — bot.js (ichki, INTERNAL_KEY bilan himoyalangan) uchun API
+   ============================================================ */
+function requireInternal(req, res) {
+  if (!INTERNAL_KEY || req.get('x-internal-key') !== INTERNAL_KEY) {
+    res.status(403).json({ error: 'forbidden' });
+    return false;
+  }
+  return true;
+}
+
+app.get('/api/internal_voucher_info', (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const voucher = vouchers.find(v => v.id === String(req.query.id || ''));
+  if (!voucher) return res.json({ error: 'NOT_FOUND' });
+  res.json({
+    id: voucher.id, reward: voucher.reward, maxUses: voucher.maxUses, used: voucher.used,
+    requireType: voucher.requireType, requireTarget: voucher.requireTarget, requireLabel: voucher.requireLabel,
+  });
+});
+
+app.post('/api/internal_voucher_claim', async (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const { voucherId, userId, username } = req.body || {};
+  const voucher = vouchers.find(v => v.id === String(voucherId || ''));
+  if (!voucher) return res.json({ error: 'NOT_FOUND' });
+  if (voucher.used >= voucher.maxUses) return res.json({ error: 'EXHAUSTED' });
+
+  const uid = String(userId);
+  if (voucher.usedBy.has(uid)) return res.json({ error: 'ALREADY_USED' });
+
+  // Xavfsizlik uchun serverda ham qayta tekshiramiz (kanal/chat turi uchun —
+  // "bot" turini tashqi botda tekshirib bo'lmaydi, shuning uchun ishonchga
+  // asoslanadi va bot.js darajasida foydalanuvchiga ko'rsatiladi).
+  if (voucher.requireType === 'channel' || voucher.requireType === 'chat') {
+    const subscribed = await isSubscribed(uid, voucher.requireTarget);
+    if (!subscribed) {
+      return res.json({
+        error: 'NOT_SUBSCRIBED',
+        requireType: voucher.requireType, requireTarget: voucher.requireTarget, requireLabel: voucher.requireLabel,
+      });
+    }
+  }
+
+  let user = users.get(uid);
+  if (!user) { user = createUser(uid, username || `user${uid}`); users.set(uid, user); }
+  user.balance += voucher.reward;
+  voucher.used += 1;
+  voucher.usedBy.add(uid);
+
+  res.json({ ok: true, reward: voucher.reward, balance: user.balance });
 });
 
 /* ============================================================
@@ -794,7 +926,7 @@ function handleMinesTurnTimeout(room) {
   const winner = room.players[room.turn === 0 ? 1 : 0];
   if (!loser || !winner) return;
   io.to(MINES_ROOM_PREFIX + room.id).emit('mines:timeout', {
-    loserId: loser.id, winnerId: winner.id,
+    loserId: loser.id, winnerId: winner.id, vsBot: room.vsBot,
   });
   finishMinesRoom(room, winner, loser);
 }
@@ -826,11 +958,15 @@ function finishMinesRoom(room, winnerPlayer, loserPlayer) {
   clearMinesTurnTimer(room);
   room.status = 'finished';
   room.winner = { id: winnerPlayer.id, username: winnerPlayer.username };
-  const winnerUser = users.get(String(winnerPlayer.id));
-  if (winnerUser) {
-    winnerUser.balance += room.bank;
-    winnerUser.total_won += room.bank;
-    winnerUser.wins += 1;
+  // Bot bilan o'yin — DEMO: real balans va statistikaga tegilmaydi,
+  // faqat ekranda "yutdingiz/yutqazdingiz" natijasi ko'rsatiladi.
+  if (!room.vsBot) {
+    const winnerUser = users.get(String(winnerPlayer.id));
+    if (winnerUser) {
+      winnerUser.balance += room.bank;
+      winnerUser.total_won += room.bank;
+      winnerUser.wins += 1;
+    }
   }
   emitMinesRoom(room);
   setTimeout(() => removeMinesRoom(room), 15000);
@@ -850,7 +986,7 @@ function resolveMinesReveal(room, idx, requesterId) {
     const winner = room.players[room.turn === 0 ? 1 : 0];
     io.to(MINES_ROOM_PREFIX + room.id).emit('mines:reveal', {
       idx, bomb: true, bombIndices: room.bombIndices,
-      loserId: loser.id, winnerId: winner.id,
+      loserId: loser.id, winnerId: winner.id, vsBot: room.vsBot,
     });
     finishMinesRoom(room, winner, loser);
   } else {
@@ -921,9 +1057,13 @@ io.on('connection', (socket) => {
     const vsBot = !!payload.vsBot;
 
     if (!bet || bet < MINES_MIN_BET) return ack({ error: 'INVALID_AMOUNT' });
-    if (bet > user.balance) return ack({ error: 'INSUFFICIENT_BALANCE' });
-
-    user.balance -= bet;
+    // Bot bilan o'ynash — DEMO rejim: real balans tekshirilmaydi va
+    // undan hech narsa yechilmaydi, faqat vizual (o'yin ichidagi) raqamlar
+    // uchun ishlatiladi.
+    if (!vsBot) {
+      if (bet > user.balance) return ack({ error: 'INSUFFICIENT_BALANCE' });
+      user.balance -= bet;
+    }
 
     const room = {
       id: createMinesRoomId(),
@@ -952,8 +1092,14 @@ io.on('connection', (socket) => {
     const user = getSocketUser(payload.initData);
     if (!user) return ack({ error: 'invalid_auth' });
     const room = minesRooms.get(payload.roomId);
-    if (!room || room.status !== 'waiting' || String(room.host.id) !== String(user.id)) {
-      return ack({ error: 'NOT_FOUND' });
+    if (!room) return ack({ error: 'NOT_FOUND' });
+    if (String(room.host.id) !== String(user.id)) return ack({ error: 'NOT_FOUND' });
+    if (room.status !== 'waiting') {
+      // Xona allaqachon boshlangan (raqib bekor qilish bosilgan lahzada
+      // qo'shilib ulgurgan) — pul yechilmaydi, o'yin davom etadi, klientga
+      // joriy holatni qaytaramiz shunda u to'g'ridan-to'g'ri o'yin
+      // ekraniga o'tadi.
+      return ack({ error: 'ALREADY_STARTED', room: sanitizeMinesRoom(room) });
     }
     refundMinesRoom(room);
     removeMinesRoom(room);

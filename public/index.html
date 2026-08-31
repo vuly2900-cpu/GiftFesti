@@ -564,6 +564,7 @@
   #page-mines .mn-turn-timer.mn-turn-timer-warn{ color:#ff5b5b; animation:mnTimerPulse .8s ease-in-out infinite; }
   @keyframes mnTimerPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.45; } }
   #page-mines .mn-extremal-badge{ text-align:center; font-weight:700; font-size:12px; letter-spacing:1.5px; color:var(--mn-danger-bright); }
+  #page-mines .mn-demo-badge{ text-align:center; font-weight:600; font-size:11.5px; letter-spacing:.3px; color:var(--mn-muted); margin-top:2px; }
   #page-mines .mn-board{ background:var(--mn-felt); border:1px solid var(--mn-felt-light); border-radius:16px; padding:12px; }
   #page-mines .mn-grid{ display:grid; grid-template-columns:repeat(5, 1fr); gap:7px; }
   #page-mines .mn-cell{ aspect-ratio:1; border-radius:9px; background:linear-gradient(180deg,#2b6b45,#1e4d31); border:1px solid #0e2d1c;
@@ -825,6 +826,7 @@
         <button class="mn-btn mn-btn-gold mn-btn-small" onclick="mnOpenCreate(false)">🎰 Xona yaratish</button>
         <div style="height:10px;"></div>
         <button class="mn-btn mn-btn-ghost mn-btn-small" onclick="mnOpenCreate(true)">🤖 Bot bilan o'ynash</button>
+        <p class="mn-hint" style="margin-top:6px;">Bot bilan o'yin — demo rejim, haqiqiy balansingiz o'zgarmaydi.</p>
       </div>
       <div class="mn-card">
         <h2>Ochiq xonalar</h2>
@@ -910,6 +912,7 @@
       </div>
       <div class="mn-turn-banner" id="mnTurnBanner">Navbat: <b id="mnTurnName">Siz</b> <span id="mnTurnTimer" class="mn-turn-timer"></span></div>
       <div class="mn-extremal-badge" id="mnExtremalBadge" style="display:none;">🔥 EXTREMAL REJIM</div>
+      <div class="mn-demo-badge" id="mnDemoBadge" style="display:none;">🤖 DEMO REJIM · haqiqiy balansingiz o'zgarmaydi</div>
       <div class="mn-board">
         <div class="mn-grid" id="mnGrid"></div>
       </div>
@@ -1029,6 +1032,21 @@
       <input type="number" id="a_promoReward" placeholder="Qancha stars berishi">
       <input type="number" id="a_promoUses" placeholder="Maksimal aktivatsiyalar soni">
       <button class="btn" style="width:100%;" onclick="adminCreatePromo()">Promokod yaratish</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎁 Yangi Voucher yaratish</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Yaratilgach, bot avtomatik ravishda rasm bilan @GiftFesti kanaliga e'lon qiladi — "Olish uchun bosing" tugmasi orqali botga kirib faollashtiriladi.</p>
+      <input type="number" id="a_voucherUses" placeholder="Aktivatsiyalar soni (nechta odam olishi mumkin)">
+      <input type="number" id="a_voucherReward" placeholder="Har biriga necha coin berilishi">
+      <select id="a_voucherRequireType" onchange="adminVoucherToggleRequireTarget()" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+        <option value="">Shart qo'yilmasin (hamma darhol oladi)</option>
+        <option value="channel">📢 Majburiy kanal</option>
+        <option value="chat">💬 Majburiy chat (guruh)</option>
+        <option value="bot">🤖 Majburiy bot (boshqa botni ishga tushirish)</option>
+      </select>
+      <input type="text" id="a_voucherRequireTarget" placeholder="Masalan: @KanalNomi yoki t.me/... yoki @BotNomi" style="display:none; margin-top:8px;">
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateVoucher()">Voucher yaratish va kanalga joylash</button>
     </div>
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
@@ -1856,6 +1874,39 @@ async function adminCreatePromo() {
     await callAdminAction('create_promo', { code, reward, maxUses });
     alert(`"${code}" promokodi muvaffaqiyatli yaratildi!`);
   } catch (e) { console.error(e); alert("Xatolik yuz berdi!"); }
+}
+
+function adminVoucherToggleRequireTarget() {
+  const type = document.getElementById('a_voucherRequireType').value;
+  const targetInput = document.getElementById('a_voucherRequireTarget');
+  targetInput.style.display = type ? 'block' : 'none';
+  if (!type) targetInput.value = '';
+}
+
+async function adminCreateVoucher() {
+  const maxUses = parseInt(document.getElementById('a_voucherUses').value);
+  const reward = parseInt(document.getElementById('a_voucherReward').value);
+  const requireType = document.getElementById('a_voucherRequireType').value || null;
+  const requireTarget = document.getElementById('a_voucherRequireTarget').value.trim();
+
+  if (!maxUses || maxUses < 1 || !reward || reward < 1) {
+    alert("Aktivatsiyalar sonini va coin miqdorini to'g'ri kiriting!");
+    return;
+  }
+  if (requireType && !requireTarget) {
+    alert("Shart tanlandi — kanal/chat/bot manzilini kiriting!");
+    return;
+  }
+
+  try {
+    await callAdminAction('create_voucher', { maxUses, reward, requireType, requireTarget: requireType ? requireTarget : null });
+    alert(`Voucher yaratildi va @GiftFesti kanaliga joylandi!\n\nAktivatsiyalar: ${maxUses}\nHar biriga: ${reward} coin`);
+    document.getElementById('a_voucherUses').value = '';
+    document.getElementById('a_voucherReward').value = '';
+    document.getElementById('a_voucherRequireType').value = '';
+    document.getElementById('a_voucherRequireTarget').value = '';
+    adminVoucherToggleRequireTarget();
+  } catch (e) { console.error(e); alert("Xatolik yuz berdi! Voucher yaratilmadi."); }
 }
 
 async function adminAddTask() {
@@ -3269,7 +3320,7 @@ function mnCreateRoom() {
     errEl.textContent = "Minimal tikish 10 coin. Iltimos to'g'ri miqdor kiriting.";
     return;
   }
-  if (currentUserData && bet > currentUserData.balance) {
+  if (!mnState.vsBot && currentUserData && bet > currentUserData.balance) {
     errEl.textContent = "Balansingiz yetarli emas.";
     return;
   }
@@ -3306,6 +3357,16 @@ function mnCreateRoom() {
 function mnCancelRoom() {
   if (!mnState.roomId) { mnShow('start'); return; }
   socket.emit('mines:cancel_room', { initData: tg?.initData || '', roomId: mnState.roomId }, (res) => {
+    if (res && res.error === 'ALREADY_STARTED' && res.room) {
+      // Bekor qilish bosilgan lahzada raqib ulgurib qo'shilgan — pul
+      // yechilmaydi, o'yin davom etadi, foydalanuvchini o'yin ekraniga
+      // olib o'tamiz.
+      const idx = res.room.players.findIndex(p => String(p.id) === String(tgUser.id));
+      if (idx !== -1) mnState.myIndex = idx;
+      mnRenderGame(res.room);
+      mnShow('game');
+      return;
+    }
     if (res && typeof res.balance === 'number' && currentUserData) {
       currentUserData.balance = res.balance;
       document.getElementById('topBalance').textContent = currentUserData.balance;
@@ -3348,6 +3409,7 @@ function mnRenderGame(room) {
   document.getElementById('mn-p1coin').innerHTML = `${room.bet} <span class="coin-ico"></span>`;
   document.getElementById('mn-bank').innerHTML = `${room.bank} <span class="coin-ico"></span>`;
   document.getElementById('mnExtremalBadge').style.display = room.extremal ? 'block' : 'none';
+  document.getElementById('mnDemoBadge').style.display = room.vsBot ? 'block' : 'none';
 
   mnBuildGrid(room.totalCells);
   mnUpdateTurnUI(room);
@@ -3387,12 +3449,14 @@ function mnOnCellClick(e) {
   });
 }
 
-function mnShowResult(loserName, winnerName, isMeWinner, bank, reason) {
+function mnShowResult(loserName, winnerName, isMeWinner, bank, reason, vsBot) {
   document.getElementById('mnResultSub').textContent = reason === 'timeout'
     ? `${loserName} 30 soniyada katak tanlamadi`
     : `${loserName} bombani bosdi`;
   document.getElementById('mnWinnerName').textContent = winnerName;
-  document.getElementById('mnWinnerAmt').innerHTML = `+${bank} <span class="coin-ico"></span>`;
+  document.getElementById('mnWinnerAmt').innerHTML = vsBot
+    ? `+${bank} <span class="coin-ico"></span> (demo)`
+    : `+${bank} <span class="coin-ico"></span>`;
   document.getElementById('mnResultIcon').textContent = isMeWinner ? '🏆' : (reason === 'timeout' ? '⏱️' : '💥');
   mnShow('result');
 }
@@ -3412,6 +3476,16 @@ function mnBindSocketListeners() {
     if (mnState.myIndex === null) {
       const idx = room.players.findIndex(p => String(p.id) === String(tgUser.id));
       if (idx !== -1) mnState.myIndex = idx;
+    }
+    // MUHIM (bug fix): host "kutish" ekranida turganda raqib qo'shilib
+    // o'yin boshlansa, avval faqat navbat matni yangilanardi, lekin ekran
+    // hech qachon "o'yin" sahifasiga o'tmasdi — foydalanuvchi "raqib
+    // kutyabmiz" degan holatda qolib ketardi. Endi status 'playing' bo'lib,
+    // hali o'yin ekrani ochilmagan bo'lsa, avtomatik o'sha yerga o'tkazamiz.
+    if (room.status === 'playing' && !mnScreens.game.classList.contains('mn-active')) {
+      mnRenderGame(room);
+      mnShow('game');
+      return;
     }
     mnUpdateTurnUI(room);
   });
@@ -3434,8 +3508,8 @@ function mnBindSocketListeners() {
       const winnerName = isMeWinner ? 'Siz' : (document.getElementById(mnState.myIndex === 0 ? 'mn-p1name' : 'mn-p0name').textContent);
       const bankTxt = document.getElementById('mn-bank').textContent;
       const bankNum = parseInt(bankTxt, 10) || 0;
-      setTimeout(() => mnShowResult(loserName, winnerName, isMeWinner, bankNum), mnState.extremal ? 700 : 450);
-      if (isMeWinner) {
+      setTimeout(() => mnShowResult(loserName, winnerName, isMeWinner, bankNum, null, data.vsBot), mnState.extremal ? 700 : 450);
+      if (isMeWinner && !data.vsBot) {
         currentUserData.balance += bankNum;
         currentUserData.total_won = (currentUserData.total_won || 0) + bankNum;
         document.getElementById('topBalance').textContent = currentUserData.balance;
@@ -3461,12 +3535,12 @@ function mnBindSocketListeners() {
     const winnerName = isMeWinner ? 'Siz' : (document.getElementById(mnState.myIndex === 0 ? 'mn-p1name' : 'mn-p0name').textContent);
     const bankTxt = document.getElementById('mn-bank').textContent;
     const bankNum = parseInt(bankTxt, 10) || 0;
-    if (isMeWinner) {
+    if (isMeWinner && !data.vsBot) {
       currentUserData.balance += bankNum;
       currentUserData.total_won = (currentUserData.total_won || 0) + bankNum;
       document.getElementById('topBalance').textContent = currentUserData.balance;
     }
-    setTimeout(() => mnShowResult(loserName, winnerName, isMeWinner, bankNum, 'timeout'), 400);
+    setTimeout(() => mnShowResult(loserName, winnerName, isMeWinner, bankNum, 'timeout', data.vsBot), 400);
   });
 }
 

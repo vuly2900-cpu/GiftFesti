@@ -288,17 +288,21 @@
   .crash-rocket.crashed{animation:crashBoom .5s ease forwards;}
   @keyframes crashFloat{0%,100%{transform:translate(-50%,-50%) translateY(0px);} 50%{transform:translate(-50%,-50%) translateY(-8px);}}
   @keyframes crashGrow{0%{transform:translate(-50%,-50%) scale(1);} 100%{transform:translate(-50%,-50%) scale(1.18);}}
-  .crash-history-strip{display:flex; gap:6px; overflow-x:auto; padding:2px 1px 10px; margin-bottom:2px;}
-  .crash-history-chip{flex:0 0 auto; padding:5px 9px; border-radius:8px; font-size:11.5px; font-weight:700; font-family:'JetBrains Mono',monospace;
-    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);}
-  .crash-history-chip.win{color:var(--success); border-color:rgba(51,196,129,.3);}
-  .crash-history-chip.lose{color:var(--danger); border-color:rgba(229,84,75,.3);}
   .crash-cashout-btn{background:linear-gradient(180deg,var(--success),#1f8a5c) !important; color:#08251a !important;}
   .crash-cashout-btn:disabled{opacity:.5;}
   .crash-my-status{font-size:12.5px; color:var(--text-dim); text-align:center; margin:-2px 0 10px;}
   .crash-my-status b{color:var(--success);}
   @keyframes crashShake{0%,100%{transform:scale(1);} 50%{transform:scale(1.08);}}
   @keyframes crashBoom{0%{opacity:1; transform:translate(-50%,-50%) scale(1);} 100%{opacity:0; transform:translate(-50%,-50%) scale(1.8) rotate(15deg);}}
+  /* ---- RAKETA "PAS" YO'NALISHI (sozlamalarda tanlansa) ---- */
+  .crash-rocket.dir-down{top:62%;}
+  .crash-rocket.dir-down .fallback-emoji{display:inline-block; transform:rotate(180deg);}
+  .crash-rocket.dir-down{animation:crashFloatDown 2.2s ease-in-out infinite;}
+  .crash-rocket.dir-down.running{animation:crashFloatDown 0.6s ease-in-out infinite, crashGrowDown 1.4s ease forwards;}
+  .crash-rocket.dir-down.crashed{animation:crashBoomDown .5s ease forwards;}
+  @keyframes crashFloatDown{0%,100%{transform:translate(-50%,-50%) rotate(180deg) translateY(0px);} 50%{transform:translate(-50%,-50%) rotate(180deg) translateY(8px);}}
+  @keyframes crashGrowDown{0%{transform:translate(-50%,-50%) rotate(180deg) scale(1);} 100%{transform:translate(-50%,-50%) rotate(180deg) scale(1.18);}}
+  @keyframes crashBoomDown{0%{opacity:1; transform:translate(-50%,-50%) rotate(180deg) scale(1);} 100%{opacity:0; transform:translate(-50%,-50%) rotate(180deg) scale(1.8) rotate(15deg);}}
   .game-badge{
     display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
     background:rgba(0,0,0,.35); color:var(--gold); font-size:10px; font-weight:700;
@@ -808,10 +812,8 @@
     <div class="hockey-topbar">
       <button class="hockey-back" onclick="goTo('play')">‹</button>
       <div class="game-number-badge mono" id="crashRoundLabel">Raund #1</div>
-      <button class="history-btn" onclick="openGameHistory('crash')" title="O'yin tarixi">🕒</button>
+      <button class="history-btn" onclick="openCrashSettings()" title="Sozlamalar">⚙️</button>
     </div>
-
-    <div class="crash-history-strip" id="crashHistoryStrip"></div>
 
     <div class="crash-arena" id="crashArena">
       <div class="crash-stars"></div>
@@ -1192,6 +1194,20 @@
     <div id="historyContent">
       <p class="empty" style="font-size:13px;">Yuklanmoqda...</p>
     </div>
+  </div>
+</div>
+
+<!-- RAKETA SOZLAMALARI MODAL -->
+<div class="modal-overlay" id="crashSettingsModal">
+  <div class="modal-window">
+    <button class="modal-close" onclick="closeCrashSettings()">×</button>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">⚙️ Raketa sozlamalari</h2>
+    <p style="font-size:13px; color:var(--text-dim); margin-bottom:10px;">Grafik yo'nalishi</p>
+    <div class="hockey-amounts">
+      <button class="amt-btn" id="crashDirUpBtn" onclick="setCrashDirection('up')" style="flex:1;">⬆️ Tepa</button>
+      <button class="amt-btn" id="crashDirDownBtn" onclick="setCrashDirection('down')" style="flex:1;">⬇️ Pas</button>
+    </div>
+    <p style="font-size:11.5px; color:var(--text-dim); margin-top:10px;">"Pas" tanlansa, raketa animatsiyasiz oddiy 🚀 ko'rinishida pastga qarab uchadi.</p>
   </div>
 </div>
 
@@ -2593,13 +2609,49 @@ async function initRocketEmoji() {
   }
 }
 
-function mountRocketForRound(roundNumber) {
-  if (!rocketAnimState.ready || !rocketAnimState.assets.length) return;
-  const idx = (Number(roundNumber || 1) - 1) % rocketAnimState.assets.length;
-  if (rocketAnimState.mountedIndex === idx) return;
-  rocketAnimState.mountedIndex = idx;
+/* ---- Raketa grafik yo'nalishi sozlamasi ("Tepa" / "Pas") ---- */
+let crashDirection = localStorage.getItem('crashDirection') || 'up';
+
+function openCrashSettings() {
+  document.getElementById('crashSettingsModal').classList.add('active');
+  updateCrashDirectionButtons();
+}
+function closeCrashSettings() {
+  document.getElementById('crashSettingsModal').classList.remove('active');
+}
+function updateCrashDirectionButtons() {
+  const upBtn = document.getElementById('crashDirUpBtn');
+  const downBtn = document.getElementById('crashDirDownBtn');
+  if (!upBtn || !downBtn) return;
+  upBtn.classList.toggle('active', crashDirection === 'up');
+  downBtn.classList.toggle('active', crashDirection === 'down');
+}
+function setCrashDirection(dir) {
+  if (crashDirection === dir) return;
+  crashDirection = dir;
+  localStorage.setItem('crashDirection', dir);
+  updateCrashDirectionButtons();
+  mountRocketForRound(crashState.round_number || 1, true);
+}
+
+function mountRocketForRound(roundNumber, force) {
   const el = document.getElementById('crashRocket');
   if (!el) return;
+  el.classList.toggle('dir-down', crashDirection === 'down');
+
+  if (crashDirection === 'down') {
+    // "Pas" tanlansa — animatsiyasiz oddiy raketa emoji ko'rsatiladi
+    if (rocketAnimState.mountedIndex !== 'static' || force) {
+      rocketAnimState.mountedIndex = 'static';
+      el.innerHTML = '<span class="fallback-emoji">🚀</span>';
+    }
+    return;
+  }
+
+  if (!rocketAnimState.ready || !rocketAnimState.assets.length) return;
+  const idx = (Number(roundNumber || 1) - 1) % rocketAnimState.assets.length;
+  if (rocketAnimState.mountedIndex === idx && !force) return;
+  rocketAnimState.mountedIndex = idx;
   el.innerHTML = '';
   mountEmojiAsset(el, rocketAnimState.assets[idx]);
 }
@@ -2675,28 +2727,8 @@ function renderCrashState() {
     rocket.classList.add('crashed');
   }
 
-  renderCrashHistoryStrip();
   renderCrashPlayers();
   updateCrashActionBtn();
-}
-
-function renderCrashHistoryStrip() {
-  const strip = document.getElementById('crashHistoryStrip');
-  if (!strip) return;
-  const last = crashState.lastResult;
-  if (!last) { if (!strip.dataset.filled) strip.innerHTML = ''; return; }
-  // Faqat yangi natija kelganda chapga bitta chip qo'shamiz (server bir marta
-  // oxirgi natijani yuboradi, shu sababli takrorlanib qo'shilib ketmasligi
-  // uchun round_number bo'yicha tekshiramiz).
-  if (strip.dataset.lastRound === String(last.round_number)) return;
-  strip.dataset.lastRound = String(last.round_number);
-  strip.dataset.filled = '1';
-  const chip = document.createElement('div');
-  const isWin = last.crashPoint >= 2;
-  chip.className = 'crash-history-chip ' + (isWin ? 'win' : 'lose');
-  chip.textContent = last.crashPoint.toFixed(2) + 'x';
-  strip.prepend(chip);
-  while (strip.children.length > 12) strip.removeChild(strip.lastChild);
 }
 
 function renderCrashPlayers() {

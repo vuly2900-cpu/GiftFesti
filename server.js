@@ -337,7 +337,7 @@ function resetRetiredStarterNfts() {
 }
 
 /* ---- Coin logotipi uchun premium animatsiyali emoji ---- */
-const COIN_CUSTOM_EMOJI_ID = '5197491399796204330';
+const COIN_CUSTOM_EMOJI_ID = '5397902064250545379';
 
 /* ---- Raketa (Crash) o'yini uchun premium animatsiyali emojilar
    (har bir raundda ikkalasi navbat bilan almashib turadi) ---- */
@@ -372,7 +372,12 @@ async function fetchCustomEmojiSticker(customEmojiId) {
 async function getEmojiMeta(customEmojiId) {
   if (emojiMetaCache.has(customEmojiId)) return emojiMetaCache.get(customEmojiId);
   const sticker = await fetchCustomEmojiSticker(customEmojiId);
-  const meta = sticker ? { is_video: !!sticker.is_video, is_animated: !!sticker.is_animated } : { is_video: false, is_animated: true };
+  if (!sticker) {
+    // Muvaffaqiyatsiz urinishni keshlamaymiz — vaqtinchalik xato bo'lishi mumkin,
+    // keyingi so'rovda qayta urinib ko'radi.
+    return { is_video: false, is_animated: true };
+  }
+  const meta = { is_video: !!sticker.is_video, is_animated: !!sticker.is_animated };
   emojiMetaCache.set(customEmojiId, meta);
   return meta;
 }

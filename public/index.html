@@ -274,6 +274,21 @@
       radial-gradient(1px 1px at 60px 140px, rgba(255,255,255,.4), transparent);
     background-repeat:repeat; background-size:280px 180px; opacity:.8;}
   .crash-status-banner{position:absolute; top:10px; left:0; right:0; text-align:center; font-size:12px; color:var(--text-dim); z-index:3;}
+  .crash-wait-ring{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:120px; height:120px; border-radius:50%; z-index:4;
+    display:flex; align-items:center; justify-content:center;
+    opacity:1; transition:opacity .25s ease;
+  }
+  .crash-wait-ring.crash-hidden{opacity:0; pointer-events:none;}
+  .crash-wait-ring svg{position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg);}
+  .crash-wait-ring circle.ring-track{fill:none; stroke:rgba(255,255,255,.1); stroke-width:8;}
+  .crash-wait-ring circle.ring-progress{fill:none; stroke:var(--gold); stroke-width:8; stroke-linecap:round;
+    transition:stroke-dashoffset .45s linear;}
+  .crash-wait-ring .ring-num{
+    position:relative; z-index:1; font-family:'Sora',sans-serif; font-weight:800;
+    font-size:44px; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.5);
+  }
   .crash-mult{position:absolute; left:0; right:0; bottom:26px; display:flex; align-items:center; justify-content:center;
     font-family:'Sora',sans-serif; font-weight:800; font-size:38px; color:var(--text); z-index:2;
     text-shadow:0 0 24px rgba(255,255,255,.18); transition:color .15s ease, opacity .25s ease;}
@@ -866,6 +881,14 @@
     <div class="crash-arena" id="crashArena">
       <div class="crash-stars"></div>
       <div class="crash-status-banner" id="crashStatusBanner">Kutish...</div>
+      <div class="crash-wait-ring crash-hidden" id="crashWaitRing">
+        <svg viewBox="0 0 120 120">
+          <circle class="ring-track" cx="60" cy="60" r="52"></circle>
+          <circle class="ring-progress" id="crashWaitRingCircle" cx="60" cy="60" r="52"
+            stroke-dasharray="326.7" stroke-dashoffset="0"></circle>
+        </svg>
+        <div class="ring-num" id="crashWaitRingNum">7</div>
+      </div>
       <div class="crash-rocket" id="crashRocket"><span class="fallback-emoji">🚀</span></div>
       <div class="crash-mult" id="crashMultDisplay">1.00x</div>
     </div>
@@ -2812,13 +2835,25 @@ function renderCrashState() {
   if (crashState.status === 'waiting') {
     const startedAt = crashState.waitingStartedAt;
     const waitMs = crashState.waitMs || 7000;
-    const remaining = startedAt ? Math.max(0, Math.ceil((waitMs - (Date.now() - startedAt)) / 1000)) : Math.ceil(waitMs / 1000);
+    const elapsed = startedAt ? (Date.now() - startedAt) : 0;
+    const remaining = startedAt ? Math.max(0, Math.ceil((waitMs - elapsed) / 1000)) : Math.ceil(waitMs / 1000);
     banner.textContent = `Tikish ochiq — ${remaining}s`;
     rocket.classList.remove('running', 'crashed');
     // Raund boshlanmaguncha raketa va multiplikator ko'rinmaydi —
-    // faqat "Tikish ochiq — Ns" matni ko'rinadi.
+    // faqat markazdagi katta countdown halqasi ko'rinadi.
     rocket.classList.add('crash-hidden');
     multEl.classList.add('crash-hidden');
+
+    const ring = document.getElementById('crashWaitRing');
+    const ringNum = document.getElementById('crashWaitRingNum');
+    const ringCircle = document.getElementById('crashWaitRingCircle');
+    if (ring) {
+      ring.classList.remove('crash-hidden');
+      const pct = Math.max(0, Math.min(100, 100 - (elapsed / waitMs) * 100));
+      const circumference = 326.7; // 2*PI*52
+      ringCircle.style.strokeDashoffset = (circumference * (1 - pct / 100)).toFixed(1);
+      ringNum.textContent = remaining;
+    }
   } else if (crashState.status === 'running') {
     banner.textContent = "Uchmoqda...";
     multEl.classList.add('running');
@@ -2826,6 +2861,8 @@ function renderCrashState() {
     rocket.classList.remove('crashed');
     rocket.classList.remove('crash-hidden');
     multEl.classList.remove('crash-hidden');
+    const ring = document.getElementById('crashWaitRing');
+    if (ring) ring.classList.add('crash-hidden');
   } else if (crashState.status === 'crashed') {
     banner.textContent = `💥 ${mult.toFixed(2)}x da portladi`;
     multEl.classList.add('crashed');
@@ -2833,6 +2870,8 @@ function renderCrashState() {
     rocket.classList.add('crashed');
     rocket.classList.remove('crash-hidden');
     multEl.classList.remove('crash-hidden');
+    const ring = document.getElementById('crashWaitRing');
+    if (ring) ring.classList.add('crash-hidden');
   }
 
   renderCrashPlayers();

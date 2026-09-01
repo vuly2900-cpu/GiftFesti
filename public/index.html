@@ -2376,10 +2376,14 @@ function mountAnimatedEmoji(container, customEmojiId, isVideo) {
 async function loadEmojiAsset(customEmojiId, isVideo) {
   const mediaUrl = `/api/nft_media/${customEmojiId}`;
   if (isVideo) {
-    const blob = await (await fetch(mediaUrl)).blob();
+    const r = await fetch(mediaUrl);
+    if (!r.ok) throw new Error(`media topilmadi (status ${r.status})`);
+    const blob = await r.blob();
     return { isVideo: true, videoUrl: URL.createObjectURL(blob) };
   }
-  const buf = await (await fetch(mediaUrl)).arrayBuffer();
+  const r = await fetch(mediaUrl);
+  if (!r.ok) throw new Error(`media topilmadi (status ${r.status})`);
+  const buf = await r.arrayBuffer();
   const jsonStr = window.pako ? pako.inflate(new Uint8Array(buf), { to: 'string' }) : null;
   if (!jsonStr) throw new Error('lottie inflate xatolik');
   return { isVideo: false, lottieData: JSON.parse(jsonStr) };

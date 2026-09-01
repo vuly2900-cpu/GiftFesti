@@ -276,6 +276,15 @@ const NFT_CATALOG = [
   { id: 'trophy', name: 'Kubok', custom_emoji_id: '5278692270537739766', sell_price: 1, tier: 100 },
   { id: 'ring', name: 'Uzuk', custom_emoji_id: '5276492074756120077', sell_price: 1, tier: 100 },
   { id: 'diamond', name: 'Olmos', custom_emoji_id: '5278313338458118113', sell_price: 1, tier: 100 },
+
+  // ---- Yangi NFT'lar (hozircha hech kimga berilmaydi — case yoki starter
+  // packga qo'shilmagan, keyinchalik qo'lda (masalan admin panel orqali)
+  // foydalanuvchi inventoriga qo'shiladi) ----
+  { id: 'mood_pack', name: 'Mood Pack', custom_emoji_id: '5278572170367243303', sell_price: 4.4 },
+  { id: 'timeless_book', name: 'Timeless Book', custom_emoji_id: '5278733519403649810', sell_price: 4.4 },
+  { id: 'fine_pen', name: 'Fine Pen', custom_emoji_id: '5278356498584472070', sell_price: 8.4 },
+  { id: 'pool_float', name: 'Pool Float', custom_emoji_id: '5278758099501495237', sell_price: 3.7 },
+  { id: 'surge_board', name: 'Surge Board', custom_emoji_id: '5278537162088812151', sell_price: 6.8 },
 ];
 const NFT_BY_ID = new Map(NFT_CATALOG.map(i => [i.id, i]));
 const CASE_ITEM_IDS = ['teddy', 'heart_gift', 'gift_box', 'rose', 'cake', 'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond'];

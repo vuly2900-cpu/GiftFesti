@@ -1520,7 +1520,7 @@ io.on('connection', (socket) => {
   });
 
   /* -------- RAKETA (CRASH) — "OLISH" real vaqtda, socket orqali -------- */
-  socket.on('crash:cash_out', (payload = {}, cb) => {
+  socket.on('crash:cash_out', async (payload = {}, cb) => {
     const ack = typeof cb === 'function' ? cb : () => {};
     const user = getSocketUser(payload.initData);
     if (!user) return ack({ error: 'invalid_auth' });
@@ -1547,7 +1547,16 @@ io.on('connection', (socket) => {
     let wonNft = null;
     if (nftMatch) {
       grantNftToUser(user, nftMatch.id, wonValue);
-      wonNft = { id: nftMatch.id, name: nftMatch.name, price: wonValue };
+      // Popup'da NFT'ning haqiqiy animatsiyasini ko'rsatish uchun
+      // custom_emoji_id / is_video ma'lumotini ham qo'shib yuboramiz.
+      const nftMeta = await getEmojiMeta(nftMatch.custom_emoji_id);
+      wonNft = {
+        id: nftMatch.id,
+        name: nftMatch.name,
+        price: wonValue,
+        custom_emoji_id: nftMatch.custom_emoji_id,
+        is_video: nftMeta.is_video,
+      };
     } else {
       won = wonValue;
       user.balance = round2(user.balance + won);

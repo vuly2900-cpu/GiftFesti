@@ -579,6 +579,52 @@
     border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;
   }
 
+  /* RAKETA — NFT YUTISH MODALI (alert() o'rniga) */
+  .nft-win-overlay {
+    position: fixed; inset: 0; background: rgba(5, 8, 14, 0.9);
+    z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .nft-win-overlay.active { display: flex; }
+  .nft-win-card {
+    position: relative; width: 100%; max-width: 340px; text-align: center;
+    background: linear-gradient(180deg, rgba(255,215,110,0.10), var(--surface) 40%);
+    border: 1px solid rgba(255, 205, 90, 0.5); border-radius: 22px; padding: 28px 20px 22px;
+    box-shadow: 0 0 60px rgba(255, 200, 80, 0.25);
+    animation: nftWinPop 0.4s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes nftWinPop {
+    0% { transform: scale(0.75); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .nft-win-title {
+    font-size: 15px; font-weight: 700; color: var(--gold, #ffd76e);
+    letter-spacing: 0.02em; margin-bottom: 4px;
+  }
+  .nft-win-mult { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; }
+  .nft-win-anim-wrap {
+    position: relative; width: 190px; height: 190px; margin: 0 auto 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nft-win-anim-glow {
+    position: absolute; inset: -10%; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,205,90,0.35) 0%, rgba(255,205,90,0) 70%);
+    animation: nftWinGlow 1.8s ease-in-out infinite;
+  }
+  @keyframes nftWinGlow {
+    0%, 100% { opacity: 0.6; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+  .nft-win-anim { position: relative; width: 100%; height: 100%; z-index: 1; }
+  .nft-win-anim video, .nft-win-anim .lottie-box { width: 100%; height: 100%; }
+  .nft-win-name { font-size: 19px; font-weight: 800; margin-bottom: 6px; }
+  .nft-win-desc { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 18px; }
+  .nft-win-ok-btn {
+    width: 100%; padding: 13px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, #ffd76e, #ffb238); color: #1a1200;
+    font-weight: 800; font-size: 14px; cursor: pointer;
+  }
+
   /* O'YIN TARIXI */
   .history-btn {
     background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
@@ -1194,6 +1240,21 @@
     <div id="historyContent">
       <p class="empty" style="font-size:13px;">Yuklanmoqda...</p>
     </div>
+  </div>
+</div>
+
+<!-- RAKETA — NFT YUTISH MODALI -->
+<div class="nft-win-overlay" id="nftWinOverlay">
+  <div class="nft-win-card">
+    <div class="nft-win-title">🎉 TABRIKLAYMIZ!</div>
+    <div class="nft-win-mult" id="nftWinMult"></div>
+    <div class="nft-win-anim-wrap">
+      <div class="nft-win-anim-glow"></div>
+      <div class="nft-win-anim" id="nftWinAnim"></div>
+    </div>
+    <div class="nft-win-name" id="nftWinName"></div>
+    <div class="nft-win-desc" id="nftWinDesc"></div>
+    <button class="nft-win-ok-btn" onclick="closeNftWinModal()">Ajoyib!</button>
   </div>
 </div>
 
@@ -2867,6 +2928,32 @@ async function crashPlaceBet() {
   }
 }
 
+/* ---- Raketa'da NFT yutilganda: alert() o'rniga katta animatsiyali modal ---- */
+function showNftWinModal(wonNft, multiplier) {
+  const overlay = document.getElementById('nftWinOverlay');
+  if (!overlay) return;
+  document.getElementById('nftWinMult').textContent = `${Number(multiplier).toFixed(2)}x da chiqdingiz`;
+  document.getElementById('nftWinName').textContent = wonNft.name || '';
+  document.getElementById('nftWinDesc').innerHTML =
+    `Ushbu NFT'ni Inventar bo'limidan <b>${wonNft.price} <span class="coin-ico"></span></b> ga sotishingiz mumkin.`;
+
+  const animEl = document.getElementById('nftWinAnim');
+  animEl.innerHTML = '';
+  if (wonNft.custom_emoji_id) {
+    mountAnimatedEmoji(animEl, wonNft.custom_emoji_id, wonNft.is_video);
+  }
+
+  overlay.classList.add('active');
+}
+
+function closeNftWinModal() {
+  const overlay = document.getElementById('nftWinOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('active');
+  const animEl = document.getElementById('nftWinAnim');
+  if (animEl) animEl.innerHTML = '';
+}
+
 function crashCashOut() {
   return new Promise((resolve) => {
     if (crashCashoutBusy) return resolve();
@@ -2877,7 +2964,7 @@ function crashCashOut() {
       if (res && res.ok) {
         currentUserData.balance = res.balance;
         document.getElementById('topBalance').textContent = currentUserData.balance;
-        if (res.wonNft) alert(`🎉 Tabriklaymiz! Siz ${res.multiplier.toFixed(2)}x da chiqib, "${res.wonNft.name}" NFT'ni yutib oldingiz! Uni Inventar bo'limidan ${res.wonNft.price} coin'ga sotishingiz mumkin.`);
+        if (res.wonNft) showNftWinModal(res.wonNft, res.multiplier);
       } else if (res && res.error && res.error !== 'NOT_RUNNING' && res.error !== 'ALREADY_CASHED_OUT') {
         alert('Xatolik: ulgurmadingiz yoki stavka topilmadi!');
       }

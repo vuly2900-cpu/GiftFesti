@@ -840,6 +840,64 @@
     border:1px solid var(--mn-danger); color:var(--mn-cream); padding:10px 16px; border-radius:999px; font-size:12.5px; font-weight:600;
     box-shadow:0 6px 22px rgba(0,0,0,0.4); opacity:0; pointer-events:none; transition:opacity .18s, transform .18s; z-index:50; white-space:nowrap; }
   #page-mines .mn-toast.mn-show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ===== Dizayn yaxshilash: chuqurlik, animatsiya, tipografiya ===== */
+
+  /* --- Kartalarga chuqurlik (soya) --- */
+  .card, .game-card, .nft-card, .case-item, .case-reel-item,
+  .stat-grid .stat, .admin-task-row, .podium .slot, .link-box {
+    box-shadow: 0 4px 16px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.35);
+  }
+  .balance-pill {
+    box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  }
+  .slot.first {
+    box-shadow: 0 6px 22px rgba(232,185,35,.16), 0 1px 2px rgba(0,0,0,.35);
+  }
+
+  /* --- Padding/bo'sh joyni biroz kengaytirish --- */
+  .card { padding: 16px; margin-bottom: 14px; border-radius: 16px; }
+  .nft-grid, .stat-grid { gap: 12px; }
+
+  /* --- Tipografiya ierarxiyasi --- */
+  h1.title { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; font-family:'Sora',sans-serif; }
+  p.subtitle { color: var(--text-dim); opacity: .85; }
+
+  /* --- Tugmalar: yengil bosilish animatsiyasi --- */
+  .btn, .navbtn, .plus-btn, .nft-sell-btn, .del-btn, .admin-task-row .del-btn {
+    transition: transform .15s ease, opacity .15s ease, filter .15s ease;
+  }
+  .btn:active:not(:disabled), .plus-btn:active, .nft-card .nft-sell-btn:active,
+  .admin-task-row .del-btn:active {
+    transform: scale(.96);
+    filter: brightness(.95);
+  }
+  .navbtn { transition: color .2s ease, transform .15s ease; }
+  .navbtn:active { transform: scale(.92); }
+
+  /* --- Kartalarga yengil hover/tap effekti --- */
+  .card, .game-card, .nft-card {
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .card:active, .nft-card:active {
+    transform: scale(.985);
+  }
+
+  /* --- Sahifa almashinuvida yumshoq fade --- */
+  .page { opacity: 0; transition: opacity .25s ease; }
+  .page.active { opacity: 1; animation: pageFadeIn .3s ease; }
+  @keyframes pageFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* --- Gold rangni faqat muhim joylarda ta'kidlash uchun kontrastni oshirish --- */
+  .balance-pill .amt { color: var(--text); }
+  .stat-grid .stat .num { text-shadow: 0 0 18px rgba(232,185,35,.25); }
+
+  /* --- Podium va NFT kartalar chegarasini yumshatish --- */
+  .podium .slot { border-radius: 16px; }
+  .nft-card { border-radius: 16px; }
 </style>
 
 <script src="/socket.io/socket.io.js"></script>

@@ -260,20 +260,20 @@ function refreshPhotoAsync(user) {
    mumkin. Animatsiya Telegram custom emoji fayli orqali chiziladi.
    ============================================================ */
 const NFT_CATALOG = [
-  { id: 'lol_pop', name: 'Lol Pop', custom_emoji_id: '5278223019590850728', sell_price: 380, free: true },
+  { id: 'lol_pop', name: 'Lol Pop', custom_emoji_id: '5278223019590850728', sell_price: 3.8, free: true },
 
   // ---- Case'dan chiqadigan gift'lar (endi coin emas, inventoryga tushadi) ----
-  { id: 'teddy', name: 'Ayiqcha', custom_emoji_id: '5278547100643137176', sell_price: 15, tier: 15 },
-  { id: 'heart_gift', name: 'Yurakcha', custom_emoji_id: '5278414927319566863', sell_price: 15, tier: 15 },
-  { id: 'gift_box', name: 'Sovg\'a', custom_emoji_id: '5278248132264635804', sell_price: 25, tier: 25 },
-  { id: 'rose', name: 'Atirgul', custom_emoji_id: '5276522285556080471', sell_price: 25, tier: 25 },
-  { id: 'cake', name: 'Tort', custom_emoji_id: '5278534529273859992', sell_price: 50, tier: 50 },
-  { id: 'bouquet', name: 'Gullar', custom_emoji_id: '5278412273029782354', sell_price: 50, tier: 50 },
-  { id: 'rocket', name: 'Raketa', custom_emoji_id: '5278245624003725921', sell_price: 50, tier: 50 },
-  { id: 'champagne', name: 'Vino', custom_emoji_id: '5278604064794380612', sell_price: 50, tier: 50 },
-  { id: 'trophy', name: 'Kubok', custom_emoji_id: '5278692270537739766', sell_price: 100, tier: 100 },
-  { id: 'ring', name: 'Uzuk', custom_emoji_id: '5276492074756120077', sell_price: 100, tier: 100 },
-  { id: 'diamond', name: 'Olmos', custom_emoji_id: '5278313338458118113', sell_price: 100, tier: 100 },
+  { id: 'teddy', name: 'Ayiqcha', custom_emoji_id: '5278547100643137176', sell_price: 0.13, tier: 15 },
+  { id: 'heart_gift', name: 'Yurakcha', custom_emoji_id: '5278414927319566863', sell_price: 0.13, tier: 15 },
+  { id: 'gift_box', name: 'Sovg\'a', custom_emoji_id: '5278248132264635804', sell_price: 0.22, tier: 25 },
+  { id: 'rose', name: 'Atirgul', custom_emoji_id: '5276522285556080471', sell_price: 0.22, tier: 25 },
+  { id: 'cake', name: 'Tort', custom_emoji_id: '5278534529273859992', sell_price: 0.50, tier: 50 },
+  { id: 'bouquet', name: 'Gullar', custom_emoji_id: '5278412273029782354', sell_price: 0.50, tier: 50 },
+  { id: 'rocket', name: 'Raketa', custom_emoji_id: '5278245624003725921', sell_price: 0.50, tier: 50 },
+  { id: 'champagne', name: 'Vino', custom_emoji_id: '5278604064794380612', sell_price: 0.50, tier: 50 },
+  { id: 'trophy', name: 'Kubok', custom_emoji_id: '5278692270537739766', sell_price: 1, tier: 100 },
+  { id: 'ring', name: 'Uzuk', custom_emoji_id: '5276492074756120077', sell_price: 1, tier: 100 },
+  { id: 'diamond', name: 'Olmos', custom_emoji_id: '5278313338458118113', sell_price: 1, tier: 100 },
 ];
 const NFT_BY_ID = new Map(NFT_CATALOG.map(i => [i.id, i]));
 const CASE_ITEM_IDS = ['teddy', 'heart_gift', 'gift_box', 'rose', 'cake', 'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond'];
@@ -337,9 +337,8 @@ async function downloadAndCacheNftMedia(customEmojiId) {
   return outPath;
 }
 
-/* ---- Kunlik case sovrinlari (server-authoritative) ---- */
+/* ---- Kunlik case sovrinlari (server-authoritative) — faqat gift'lar, coin tushmaydi ---- */
 const CASE_TIER_WEIGHTS = { 100: 0.1, 50: 1, 25: 5, 15: 10 };
-const CASE_STAR_WEIGHTS = { 10: 20, 7: 30, 5: 35, 3: 40, 1: 80, 0: 70 };
 function pickCaseReward() {
   const caseItems = CASE_ITEM_IDS.map(id => NFT_BY_ID.get(id));
   const tierCounts = {};
@@ -347,9 +346,6 @@ function pickCaseReward() {
   const outcomes = [];
   caseItems.forEach(item => {
     outcomes.push({ itemId: item.id, stars: item.sell_price, isGift: true, tier: item.tier, weight: CASE_TIER_WEIGHTS[item.tier] / tierCounts[item.tier] });
-  });
-  Object.entries(CASE_STAR_WEIGHTS).forEach(([stars, weight]) => {
-    outcomes.push({ stars: Number(stars), isGift: false, weight });
   });
   const totalWeight = outcomes.reduce((s, o) => s + o.weight, 0);
   let rand = Math.random() * totalWeight;
@@ -363,6 +359,9 @@ function pickCaseReward() {
 /* ============================================================
    EXPRESS + SOCKET.IO SETUP
    ============================================================ */
+/* ---- Coin miqdorlarini 2 xonagacha yaxlitlash (float xatoliklarining oldini olish uchun) ---- */
+function round2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
+
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -460,7 +459,7 @@ app.post('/api/open_case', async (req, res) => {
     reward.sell_price = item.sell_price;
     reward.is_video = meta.is_video;
   } else {
-    user.balance += reward.stars;
+    user.balance = round2(user.balance + reward.stars);
   }
   res.json({ ok: true, reward });
 });
@@ -476,7 +475,7 @@ app.get('/api/case_items', async (req, res) => {
       sell_price: item.sell_price, tier: item.tier, is_video: meta.is_video,
     });
   }
-  res.json({ ok: true, items, tierWeights: CASE_TIER_WEIGHTS, starWeights: CASE_STAR_WEIGHTS });
+  res.json({ ok: true, items, tierWeights: CASE_TIER_WEIGHTS });
 });
 
 /* ============================================================
@@ -536,7 +535,7 @@ app.post('/api/sell_nft', (req, res) => {
   if (have <= 0) return res.status(400).json({ error: 'NOT_OWNED' });
 
   user.nftInventory[itemId] = have - 1;
-  user.balance += item.sell_price;
+  user.balance = round2(user.balance + item.sell_price);
   res.json({ ok: true, balance: user.balance, sold_for: item.sell_price });
 });
 
@@ -915,7 +914,7 @@ function finalizeRound(game) {
       const won = payouts[String(p.id)] || 0;
       if (won > 0) {
         const u = users.get(String(p.id));
-        if (u) { u.balance += won; u.total_won += won; u.wins += 1; }
+        if (u) { u.balance = round2(u.balance + won); u.total_won += won; u.wins += 1; }
       }
     });
     historyEntry.players = state.players.map(p => ({
@@ -948,7 +947,7 @@ app.post('/api/place_bet', (req, res) => {
   if (game !== 'hockey' && game !== 'drum') return res.status(400).json({ error: 'invalid_game' });
 
   const amt = Number(amount);
-  if (!amt || amt < 10) return res.status(400).json({ error: 'invalid_amount' });
+  if (!amt || amt < 0.1) return res.status(400).json({ error: 'invalid_amount' });
   if (amt > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
 
   const state = getState(game);
@@ -956,11 +955,11 @@ app.post('/api/place_bet', (req, res) => {
     return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
   }
 
-  user.balance -= amt;
+  user.balance = round2(user.balance - amt);
   const existing = state.players.find(p => p.id === Number(user.id));
-  if (existing) existing.stars += amt;
+  if (existing) existing.stars = round2(existing.stars + amt);
   else state.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, stars: amt, color: colorFor(state.players.length) });
-  state.pot += amt;
+  state.pot = round2(state.pot + amt);
 
   if (state.status === 'idle') {
     // 1-o'yinchi tikkanda o'yin "betting" holatiga o'tadi (pot va o'yinchi
@@ -984,7 +983,7 @@ app.post('/api/place_team_bet', (req, res) => {
   if (!['red', 'green', 'blue'].includes(color)) return res.status(400).json({ error: 'invalid_color' });
 
   const amt = Number(amount);
-  if (!amt || amt < 10) return res.status(400).json({ error: 'invalid_amount' });
+  if (!amt || amt < 0.1) return res.status(400).json({ error: 'invalid_amount' });
   if (amt > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
 
   const state = teamState;
@@ -994,11 +993,11 @@ app.post('/api/place_team_bet', (req, res) => {
   const existing = state.players.find(p => p.id === Number(user.id));
   if (existing && existing.color !== color) return res.status(400).json({ error: 'COLOR_LOCKED' });
 
-  user.balance -= amt;
-  if (existing) existing.stars += amt;
+  user.balance = round2(user.balance - amt);
+  if (existing) existing.stars = round2(existing.stars + amt);
   else state.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, stars: amt, color });
-  state.pot += amt;
-  state.colorTotals[color] = (state.colorTotals[color] || 0) + amt;
+  state.pot = round2(state.pot + amt);
+  state.colorTotals[color] = round2((state.colorTotals[color] || 0) + amt);
 
   if (state.status === 'idle') {
     // 1-o'yinchi tikkanda o'yin "betting" holatiga o'tadi, LEKIN taймer
@@ -1020,7 +1019,7 @@ app.post('/api/place_team_bet', (req, res) => {
    stars tikiladigan o'yinda firibgarlik oldi olinadi)
    ============================================================ */
 const minesRooms = new Map(); // roomId -> room
-const MINES_MIN_BET = 10;
+const MINES_MIN_BET = 0.1;
 const MINES_ALLOWED_SIZES = [25, 30, 35, 40];
 const MINES_ALLOWED_BOMBS = [1, 2, 3];
 const MINES_BOT_MOVE_DELAY_MS = 900;
@@ -1101,7 +1100,7 @@ function pickMinesBombs(total, count) {
 
 function refundMinesRoom(room) {
   const host = users.get(String(room.host.id));
-  if (host) host.balance += room.bet;
+  if (host) host.balance = round2(host.balance + room.bet);
 }
 
 function removeMinesRoom(room) {
@@ -1173,7 +1172,7 @@ function finishMinesRoom(room, winnerPlayer, loserPlayer) {
   if (!room.vsBot) {
     const winnerUser = users.get(String(winnerPlayer.id));
     if (winnerUser) {
-      winnerUser.balance += room.bank;
+      winnerUser.balance = round2(winnerUser.balance + room.bank);
       winnerUser.total_won += room.bank;
       winnerUser.wins += 1;
     }
@@ -1288,7 +1287,7 @@ io.on('connection', (socket) => {
     // uchun ishlatiladi.
     if (!vsBot) {
       if (bet > user.balance) return ack({ error: 'INSUFFICIENT_BALANCE' });
-      user.balance -= bet;
+      user.balance = round2(user.balance - bet);
     }
 
     const room = {
@@ -1342,7 +1341,7 @@ io.on('connection', (socket) => {
     if (String(room.host.id) === String(user.id)) return ack({ error: 'CANT_JOIN_OWN_ROOM' });
     if (room.bet > user.balance) return ack({ error: 'INSUFFICIENT_BALANCE' });
 
-    user.balance -= room.bet;
+    user.balance = round2(user.balance - room.bet);
     room.players.push({ id: Number(user.id), username: user.username, photo_url: user.photo_url, socketId: socket.id });
     socket.join(MINES_ROOM_PREFIX + room.id);
     broadcastMinesRooms();

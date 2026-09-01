@@ -783,7 +783,7 @@
     </div>
 
     <div class="hockey-bet-panel">
-      <p class="hockey-bet-label">Stars tikish (minimum 10 <span class="coin-ico"></span>)</p>
+      <p class="hockey-bet-label">Stars tikish (minimum 0.1 <span class="coin-ico"></span>)</p>
       <div class="hockey-amounts">
         <button class="amt-btn active" onclick="hockeySetAmount(10, this)">10</button>
         <button class="amt-btn" onclick="hockeySetAmount(25, this)">25</button>
@@ -792,7 +792,7 @@
         <button class="amt-btn" onclick="hockeySetAmount(100, this)">100</button>
       </div>
       <div class="hockey-custom-row">
-        <input type="number" id="hockeyCustomAmount" value="10" placeholder="Miqdor...">
+        <input type="number" id="hockeyCustomAmount" value="0.1" step="0.1" min="0.1" placeholder="Miqdor...">
         <button class="btn" id="hockeyBetBtn" onclick="hockeyPlaceBet()">Tikish</button>
       </div>
     </div>
@@ -831,7 +831,7 @@
     </div>
 
     <div class="hockey-bet-panel">
-      <p class="hockey-bet-label">Stars tikish (minimum 10 <span class="coin-ico"></span>)</p>
+      <p class="hockey-bet-label">Stars tikish (minimum 0.1 <span class="coin-ico"></span>)</p>
       <div class="hockey-amounts">
         <button class="amt-btn active" onclick="drumSetAmount(10, this)">10</button>
         <button class="amt-btn" onclick="drumSetAmount(25, this)">25</button>
@@ -840,7 +840,7 @@
         <button class="amt-btn" onclick="drumSetAmount(100, this)">100</button>
       </div>
       <div class="hockey-custom-row">
-        <input type="number" id="drumCustomAmount" value="10" placeholder="Miqdor...">
+        <input type="number" id="drumCustomAmount" value="0.1" step="0.1" min="0.1" placeholder="Miqdor...">
         <button class="btn" id="drumBetBtn" onclick="drumPlaceBet()">Tikish</button>
       </div>
     </div>
@@ -886,7 +886,7 @@
           <span class="dot"></span><span class="lbl">Ko'k</span><span class="tot mono"><span class="coin-ico"></span> <span id="teamTotBlue">0</span></span>
         </button>
       </div>
-      <p class="hockey-bet-label">Stars tikish (minimum 10 <span class="coin-ico"></span>, kamida 2 rangga tikilsa 20s dan keyin o'yin boshlanadi)</p>
+      <p class="hockey-bet-label">Stars tikish (minimum 0.1 <span class="coin-ico"></span>, kamida 2 rangga tikilsa 20s dan keyin o'yin boshlanadi)</p>
       <div class="hockey-amounts">
         <button class="amt-btn active" onclick="teamSetAmount(10, this)">10</button>
         <button class="amt-btn" onclick="teamSetAmount(25, this)">25</button>
@@ -895,7 +895,7 @@
         <button class="amt-btn" onclick="teamSetAmount(100, this)">100</button>
       </div>
       <div class="hockey-custom-row">
-        <input type="number" id="teamCustomAmount" value="10" placeholder="Miqdor...">
+        <input type="number" id="teamCustomAmount" value="0.1" step="0.1" min="0.1" placeholder="Miqdor...">
         <button class="btn" id="teamBetBtn" onclick="teamPlaceBet()">Tikish</button>
       </div>
     </div>
@@ -933,8 +933,8 @@
         <h2>Yangi xona yaratish</h2>
         <p class="mn-hint">Necha coinga o'ynashni tanla.</p>
         <div class="mn-field">
-          <label>Necha coinga o'ynaymiz? (minimal 10 <span class="coin-ico"></span>)</label>
-          <input type="number" id="mnBetAmount" placeholder="100" min="10" step="1">
+          <label>Necha coinga o'ynaymiz? (minimal 0.1 <span class="coin-ico"></span>)</label>
+          <input type="number" id="mnBetAmount" placeholder="100" min="0.1" step="0.1">
         </div>
         <div class="mn-chips">
           <div class="mn-chip" onclick="document.getElementById('mnBetAmount').value=10">10</div>
@@ -1496,7 +1496,6 @@ let caseCountdownInterval = null;
 // shu bilan birga qanday og'irlik (weight) bilan tushishi ham backend bilan bir xil.
 let CASE_ITEMS = [];
 let CASE_TIER_WEIGHTS = { 100: 0.1, 50: 1, 25: 5, 15: 10 };
-let CASE_STAR_WEIGHTS = { 10: 20, 7: 30, 5: 35, 3: 40, 1: 80, 0: 70 };
 let caseItemsLoaded = false;
 
 async function loadCaseItemsCatalog() {
@@ -1507,7 +1506,6 @@ async function loadCaseItemsCatalog() {
     if (data.ok) {
       CASE_ITEMS = data.items;
       if (data.tierWeights) CASE_TIER_WEIGHTS = data.tierWeights;
-      if (data.starWeights) CASE_STAR_WEIGHTS = data.starWeights;
       caseItemsLoaded = true;
     }
   } catch (e) { console.error('Case items yuklanmadi:', e); }
@@ -1556,9 +1554,6 @@ function buildReelFillerPool() {
     stars: item.sell_price, itemId: item.id, custom_emoji_id: item.custom_emoji_id,
     is_video: item.is_video, isGift: true, tier: item.tier,
   }));
-  Object.keys(CASE_STAR_WEIGHTS).forEach(stars => {
-    pool.push({ stars: Number(stars), isGift: false });
-  });
   return pool;
 }
 
@@ -1983,7 +1978,7 @@ async function loadInventory() {
         <div class="nft-anim" id="nftAnim_${it.id}"></div>
         <div class="nft-name">${it.name}</div>
         <div class="nft-count">x${it.count}</div>
-        <button class="nft-sell-btn" onclick="sellNft('${it.id}', ${it.sell_price})">💰 Sotish — ${it.sell_price}</button>
+        <button class="nft-sell-btn" onclick="sellNft('${it.id}', ${it.sell_price})">💰 Sotish — ${it.sell_price} <span class="coin-ico"></span></button>
       </div>
     `).join('');
 
@@ -2552,8 +2547,8 @@ async function hockeyPlaceBet() {
     return;
   }
 
-  const amount = parseInt(document.getElementById('hockeyCustomAmount').value);
-  if (!amount || amount < 10) { alert('Minimal tikish 10 ★'); return; }
+  const amount = parseFloat(document.getElementById('hockeyCustomAmount').value);
+  if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
   if (currentUserData.balance < amount) { alert("Stars yetarli emas!"); return; }
 
   btn.disabled = true;
@@ -3115,8 +3110,8 @@ async function drumPlaceBet() {
     return;
   }
 
-  const amount = parseInt(document.getElementById('drumCustomAmount').value);
-  if (!amount || amount < 10) { alert('Minimal tikish 10 ★'); return; }
+  const amount = parseFloat(document.getElementById('drumCustomAmount').value);
+  if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
   if (currentUserData.balance < amount) { alert("Stars yetarli emas!"); return; }
 
   btn.disabled = true;
@@ -3453,8 +3448,8 @@ async function teamPlaceBet() {
     return;
   }
 
-  const amount = parseInt(document.getElementById('teamCustomAmount').value);
-  if (!amount || amount < 10) { alert('Minimal tikish 10 ★'); return; }
+  const amount = parseFloat(document.getElementById('teamCustomAmount').value);
+  if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
   if (currentUserData.balance < amount) { alert("Stars yetarli emas!"); return; }
 
   btn.disabled = true;
@@ -3760,10 +3755,10 @@ function escapeHtmlLocal(s) {
 
 function mnCreateRoom() {
   const betInput = document.getElementById('mnBetAmount');
-  const bet = parseInt(betInput.value, 10);
+  const bet = parseFloat(betInput.value);
   const errEl = document.getElementById('mnLobbyErr');
-  if (!bet || isNaN(bet) || bet < 10) {
-    errEl.textContent = "Minimal tikish 10 coin. Iltimos to'g'ri miqdor kiriting.";
+  if (!bet || isNaN(bet) || bet < 0.1) {
+    errEl.textContent = "Minimal tikish 0.1 coin. Iltimos to'g'ri miqdor kiriting.";
     return;
   }
   if (!mnState.vsBot && currentUserData && bet > currentUserData.balance) {

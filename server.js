@@ -290,7 +290,7 @@ function ensureNftStarterPack(user) {
 }
 
 /* ---- Coin logotipi uchun premium animatsiyali emoji ---- */
-const COIN_CUSTOM_EMOJI_ID = '5188672371648634636';
+const COIN_CUSTOM_EMOJI_ID = '5462902520215002477';
 
 /* ---- Raketa (Crash) o'yini uchun premium animatsiyali emojilar
    (har bir raundda ikkalasi navbat bilan almashib turadi) ---- */

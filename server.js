@@ -343,6 +343,12 @@ const COIN_CUSTOM_EMOJI_ID = '5397902064250545379';
    (har bir raundda ikkalasi navbat bilan almashib turadi) ---- */
 const ROCKET_CUSTOM_EMOJI_IDS = ['5188481279963715781', '5463424023734014980'];
 
+/* ---- "O'ynash" sahifasidagi o'yin kartalari uchun premium animatsiyali emojilar
+   (kartaning o'ng tomonidagi vizual) ---- */
+const GAME_CARD_EMOJI_IDS = {
+  crash: '5341655069462910390',
+};
+
 /* ---- Reytingdagi top 1/2/3 medal ikonkalari uchun premium animatsiyali emoji ---- */
 const MEDAL_EMOJI_IDS = {
   1: '5440539497383087970',
@@ -672,6 +678,23 @@ app.get('/api/rocket_emoji', async (req, res) => {
     res.json({ emojis });
   } catch (e) {
     console.error('rocket_emoji xatolik:', e.message);
+    res.status(500).json({ error: 'SERVER_ERROR' });
+  }
+});
+
+/* ---- "O'ynash" sahifasidagi o'yin kartalarining animatsiya metadatasi ---- */
+app.get('/api/game_card_emojis', async (req, res) => {
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  try {
+    const entries = await Promise.all(
+      Object.entries(GAME_CARD_EMOJI_IDS).map(async ([key, customEmojiId]) => {
+        const meta = await getEmojiMeta(customEmojiId);
+        return [key, { custom_emoji_id: customEmojiId, is_video: meta.is_video, is_animated: meta.is_animated }];
+      })
+    );
+    res.json({ ok: true, icons: Object.fromEntries(entries) });
+  } catch (e) {
+    console.error('game_card_emojis xatolik:', e.message);
     res.status(500).json({ error: 'SERVER_ERROR' });
   }
 });

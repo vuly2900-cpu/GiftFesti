@@ -382,7 +382,49 @@
   .game-card.drum{background:linear-gradient(135deg,#3A2A1B,#211508);}
   .game-card.team-battle{background:linear-gradient(135deg,#3A1B24,#1F0E14);}
   .game-card.mines{background:linear-gradient(135deg,#123524,#0d211a);}
-  .game-card.crash{background:linear-gradient(135deg,#2A1B4A,#120B24);}
+
+  /* ---- RAKETA kartasi — cosmic dizayn ---- */
+  .game-card.crash{
+    padding-right:112px;
+    background:
+      radial-gradient(140px 110px at 88% 12%, rgba(150,110,255,.45), transparent 70%),
+      radial-gradient(90px 90px at 78% 70%, rgba(90,60,200,.35), transparent 70%),
+      linear-gradient(135deg,#2A1B4A,#120B24);
+  }
+  .game-card.crash::before{
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:.8; z-index:0;
+    background-image:
+      radial-gradient(1.5px 1.5px at 18px 22px, rgba(255,255,255,.6), transparent),
+      radial-gradient(1px 1px at 58px 52px, rgba(255,255,255,.4), transparent),
+      radial-gradient(1.5px 1.5px at 104px 18px, rgba(255,255,255,.55), transparent),
+      radial-gradient(1px 1px at 140px 62px, rgba(255,255,255,.35), transparent),
+      radial-gradient(1.5px 1.5px at 42px 78px, rgba(255,255,255,.45), transparent),
+      radial-gradient(1px 1px at 170px 90px, rgba(255,255,255,.35), transparent);
+    background-repeat:repeat; background-size:190px 110px;
+    animation:gcTwinkle 4s ease-in-out infinite;
+  }
+  @keyframes gcTwinkle{0%,100%{opacity:.5;} 50%{opacity:.9;}}
+  .game-card.crash > *{position:relative; z-index:1;}
+  .game-card-visual{
+    position:absolute; right:12px; top:50%; z-index:2;
+    width:88px; height:88px; transform:translateY(-50%) rotate(8deg);
+    filter:drop-shadow(0 8px 20px rgba(140,100,255,.5));
+  }
+  .game-card-visual video, .game-card-visual .lottie-box{width:100%; height:100%;}
+  .game-card-visual .fallback-emoji{
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:46px;
+  }
+  .gc-chip{
+    position:absolute; z-index:3; font-family:'Sora',sans-serif; font-weight:700; font-size:10px;
+    color:#0d2417; background:linear-gradient(180deg,#6CF7A8,#33C481);
+    padding:3px 8px; border-radius:999px; box-shadow:0 3px 10px rgba(0,0,0,.35);
+    animation:gcChipFloat 3.2s ease-in-out infinite;
+    pointer-events:none;
+  }
+  .gc-chip-1{right:96px; top:16px; animation-delay:.15s;}
+  .gc-chip-2{right:10px; top:10px; font-size:9px; animation-delay:.65s;}
+  .gc-chip-3{right:60px; bottom:14px; font-size:9px; animation-delay:1.15s;}
+  @keyframes gcChipFloat{0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);}}
 
   /* ---- RAKETA (CRASH) ---- */
   .crash-arena{position:relative; height:230px; border-radius:16px; overflow:hidden; margin-bottom:14px;
@@ -1117,6 +1159,10 @@
     <div class="game-card crash" onclick="openGame('crash')">
       <span class="game-badge">🚀 Jonli · Multiplayer</span>
       <span class="game-name">RAKETA</span>
+      <div class="game-card-visual" id="gcVisualCrash"><span class="fallback-emoji">🚀</span></div>
+      <span class="gc-chip gc-chip-1">x5.98</span>
+      <span class="gc-chip gc-chip-2">x3.49</span>
+      <span class="gc-chip gc-chip-3">x7.32</span>
     </div>
     <div class="game-card hockey" onclick="openGame('hockey')">
       <span class="game-badge">🏒 Mukammal Fizika</span>
@@ -2587,6 +2633,25 @@ function mountCoinIcons() {
     el.classList.add('coin-anim-on');
     mountEmojiAsset(el, coinAnimState.asset);
   });
+}
+
+/* ===== "O'ynash" sahifasidagi o'yin kartalari — premium animatsiyali emoji vizuallar ===== */
+async function initGameCardIcons() {
+  try {
+    const res = await fetch('/api/game_card_emojis');
+    if (!res.ok) return; // BOT_TOKEN sozlanmagan bo'lsa — statik fallback emoji qoladi
+    const data = await res.json();
+    if (!data.ok || !data.icons) return;
+    Object.entries(data.icons).forEach(([key, meta]) => {
+      const elId = `gcVisual${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+      const el = document.getElementById(elId);
+      if (!el) return;
+      el.innerHTML = '';
+      mountAnimatedEmoji(el, meta.custom_emoji_id, meta.is_video);
+    });
+  } catch (e) {
+    console.error('O\'yin kartasi emojilari yuklanmadi:', e.message);
+  }
 }
 
 /* ===== Reyting top 1/2/3 medal ikonkalari — premium animatsiyali emoji ===== */
@@ -5285,6 +5350,8 @@ checkCaptchaRequirement();
 initCoinIcons();
 // Reytingdagi top 1/2/3 medal ikonkalarini ham premium animatsiyali emoji bilan almashtiramiz
 initMedalIcons();
+// O'ynash sahifasidagi o'yin kartalariga (Raketa va h.k.) premium animatsiyali vizuallarni joylaymiz
+initGameCardIcons();
 </script>
 </div>
 </body>

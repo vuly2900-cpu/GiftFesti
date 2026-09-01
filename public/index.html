@@ -676,6 +676,42 @@
     font-weight: 800; font-size: 14px; cursor: pointer;
   }
 
+  /* HOCKEY/DRUM — YUTUQ OYNACHASI (raund yutilganda coin + barcha yutilgan
+     NFT'larni ko'rsatuvchi oynacha, alert()/banner o'rniga) */
+  .round-win-overlay {
+    position: fixed; inset: 0; background: rgba(5, 8, 14, 0.9);
+    z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .round-win-overlay.active { display: flex; }
+  .round-win-card {
+    position: relative; width: 100%; max-width: 360px;
+    background: linear-gradient(180deg, rgba(255,215,110,0.10), var(--surface) 40%);
+    border: 1px solid rgba(255, 205, 90, 0.5); border-radius: 22px; padding: 22px 18px 18px;
+    box-shadow: 0 0 60px rgba(255, 200, 80, 0.25);
+    animation: nftWinPop 0.4s cubic-bezier(.2,1.4,.4,1);
+  }
+  .round-win-title { font-size: 15px; font-weight: 700; color: var(--gold, #ffd76e); text-align: center; margin-bottom: 4px; }
+  .round-win-sub { font-size: 13px; color: var(--text-dim); text-align: center; margin-bottom: 16px; }
+  .round-win-sub b { color: var(--text); }
+  .round-win-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px;
+    max-height: 260px; overflow-y: auto;
+  }
+  .round-win-item {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px 6px; text-align: center;
+  }
+  .round-win-item .anim-slot { width: 42px; height: 42px; margin: 0 auto 6px; }
+  .round-win-item .coin-ico-big { font-size: 26px; display: block; margin-bottom: 6px; }
+  .round-win-item .name { font-size: 10.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .round-win-item .val { font-size: 12.5px; font-weight: 700; color: var(--gold, #ffd76e); }
+  .round-win-ok-btn {
+    width: 100%; padding: 13px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, #ffd76e, #ffb238); color: #1a1200;
+    font-weight: 800; font-size: 14px; cursor: pointer;
+  }
+
   /* O'YIN TARIXI */
   .history-btn {
     background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
@@ -1316,6 +1352,16 @@
     <div class="nft-win-name" id="nftWinName"></div>
     <div class="nft-win-desc" id="nftWinDesc"></div>
     <button class="nft-win-ok-btn" onclick="closeNftWinModal()">Ajoyib!</button>
+  </div>
+</div>
+
+<!-- HOCKEY / DRUM — RAUND YUTUQ OYNACHASI -->
+<div class="round-win-overlay" id="roundWinOverlay">
+  <div class="round-win-card">
+    <div class="round-win-title">🎉 TABRIKLAYMIZ!</div>
+    <div class="round-win-sub" id="roundWinSub"></div>
+    <div class="round-win-grid" id="roundWinGrid"></div>
+    <button class="round-win-ok-btn" onclick="closeRoundWinModal()">Ajoyib!</button>
   </div>
 </div>
 
@@ -2545,6 +2591,26 @@ async function adminGiveStars() {
   } catch (e) { console.error(e); alert("Xatolik yuz berdi!"); }
 }
 
+/* ==================== NFT katalog keshi (yutuq oynachasida ikonka
+   ko'rsatish uchun — bir marta yuklab olinadi va keshda saqlanadi) ==================== */
+let nftCatalogById = null;
+let nftCatalogLoadPromise = null;
+async function ensureNftCatalogLoaded() {
+  if (nftCatalogById) return nftCatalogById;
+  if (!nftCatalogLoadPromise) {
+    nftCatalogLoadPromise = fetch(NFT_CATALOG_API_URL).then(r => r.json()).then(data => {
+      nftCatalogById = {};
+      (data.items || []).forEach(it => { nftCatalogById[it.id] = it; });
+      return nftCatalogById;
+    }).catch(e => {
+      console.error('NFT katalogini yuklashda xatolik:', e);
+      nftCatalogLoadPromise = null;
+      return {};
+    });
+  }
+  return nftCatalogLoadPromise;
+}
+
 async function loadAdminNftSelect() {
   const select = document.getElementById('a_nftSelect');
   try {
@@ -3055,6 +3121,53 @@ function closeNftWinModal() {
   if (animEl) animEl.innerHTML = '';
 }
 
+/* ==================== HOKKEY/BARABAN — RAUND YUTUQ OYNACHASI ====================
+   G'olib bo'lganda coin miqdori VA yutilgan barcha NFT'larni (ikonkasi bilan)
+   ko'rsatadi — mos ravishda foydalanuvchi so'ragan "coin va nft yutgani hammasi
+   chiqadigan oynacha" talabini bajaradi. */
+async function showRoundWinModal(coinAmount, nftItems) {
+  const overlay = document.getElementById('roundWinOverlay');
+  if (!overlay) return;
+
+  const sub = document.getElementById('roundWinSub');
+  const items = nftItems || [];
+  sub.innerHTML = items.length
+    ? `Siz <b>${coinAmount} <span class="coin-ico"></span></b> va <b>${items.length} NFT</b> yutdingiz!`
+    : `Siz <b>${coinAmount} <span class="coin-ico"></span></b> yutdingiz!`;
+
+  const cells = [{ type: 'coin', value: coinAmount }, ...items.map(n => ({ type: 'nft', ...n }))];
+
+  const grid = document.getElementById('roundWinGrid');
+  grid.innerHTML = cells.map((c, i) => {
+    if (c.type === 'coin') {
+      return `<div class="round-win-item"><span class="coin-ico-big">🪙</span><div class="name">Coin</div><div class="val">${c.value}</div></div>`;
+    }
+    return `<div class="round-win-item"><div class="anim-slot" id="roundWinAnim_${i}"></div><div class="name">${c.name || c.itemId || ''}</div><div class="val">${c.price} <span class="coin-ico"></span></div></div>`;
+  }).join('');
+
+  overlay.classList.add('active');
+
+  // Ikonkalarni keshdagi (yoki agar `nfts` massivida allaqachon bor bo'lsa,
+  // to'g'ridan-to'g'ri o'sha) custom_emoji_id orqali animatsiya sifatida chizamiz.
+  const catalog = await ensureNftCatalogLoaded();
+  cells.forEach((c, i) => {
+    if (c.type !== 'nft') return;
+    const meta = catalog[c.itemId] || {};
+    const emojiId = c.custom_emoji_id || meta.custom_emoji_id;
+    if (!emojiId) return;
+    const el = document.getElementById(`roundWinAnim_${i}`);
+    if (el) mountAnimatedEmoji(el, emojiId, c.is_video ?? meta.is_video);
+  });
+}
+
+function closeRoundWinModal() {
+  const overlay = document.getElementById('roundWinOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('active');
+  const grid = document.getElementById('roundWinGrid');
+  if (grid) grid.innerHTML = '';
+}
+
 function crashCashOut() {
   return new Promise((resolve) => {
     if (crashCashoutBusy) return resolve();
@@ -3081,6 +3194,7 @@ let hockeyState = { status: 'idle', players: [], pot: 0, game_number: 1 };
 let hockeyRoundPotSnapshot = 0;
 let hockeyRoundCoinPotSnapshot = 0;
 let hockeyRoundNftCountSnapshot = 0;
+let hockeyRoundNftItemsSnapshot = [];
 let hockeyZoneRects = null;
 let currentUnsubscribe = null;
 let physicsInterval = null;
@@ -3153,6 +3267,7 @@ function initHockeyPage() {
         hockeyRoundPotSnapshot = hockeyState.pot || 0;
         hockeyRoundCoinPotSnapshot = (hockeyState.players || []).reduce((s, p) => s + (p.stars || 0), 0);
         hockeyRoundNftCountSnapshot = (hockeyState.players || []).reduce((s, p) => s + ((p.nfts || []).length), 0);
+        hockeyRoundNftItemsSnapshot = (hockeyState.players || []).reduce((arr, p) => arr.concat(p.nfts || []), []);
         startPuckPhysicsAnimation(hockeyState.puckSeed);
       }
     } else if (hockeyState.status === 'cooldown') {
@@ -3505,6 +3620,7 @@ async function finishHockeyRound(winner) {
     currentUserData.balance += potAtWin;
     currentUserData.total_won = (currentUserData.total_won || 0) + potAtWin;
     document.getElementById('topBalance').textContent = currentUserData.balance;
+    showRoundWinModal(potAtWin, hockeyRoundNftItemsSnapshot);
   }
 
   // Raundni 'cooldown' -> 'idle'ga o'tkazish ham endi serverda avtomatik
@@ -3803,6 +3919,7 @@ let drumState = { status: 'idle', players: [], pot: 0, game_number: 1 };
 let drumRoundPotSnapshot = 0;
 let drumRoundCoinPotSnapshot = 0;
 let drumRoundNftCountSnapshot = 0;
+let drumRoundNftItemsSnapshot = [];
 let drumSegmentsData = null; // [{player, startDeg, endDeg}]
 let drumBettingCountdownInterval = null;
 let drumSpinTimeout = null;
@@ -3857,6 +3974,7 @@ function initDrumPage() {
         drumRoundPotSnapshot = drumState.pot || 0;
         drumRoundCoinPotSnapshot = (drumState.players || []).reduce((s, p) => s + (p.stars || 0), 0);
         drumRoundNftCountSnapshot = (drumState.players || []).reduce((s, p) => s + ((p.nfts || []).length), 0);
+        drumRoundNftItemsSnapshot = (drumState.players || []).reduce((arr, p) => arr.concat(p.nfts || []), []);
         startDrumSpinAnimation(drumState.drumSeed);
       }
     } else if (drumState.status === 'cooldown') {
@@ -3997,6 +4115,7 @@ async function finishDrumRound(winner) {
     currentUserData.balance += potAtWin;
     currentUserData.total_won = (currentUserData.total_won || 0) + potAtWin;
     document.getElementById('topBalance').textContent = currentUserData.balance;
+    showRoundWinModal(potAtWin, drumRoundNftItemsSnapshot);
   }
 
   setTimeout(() => {

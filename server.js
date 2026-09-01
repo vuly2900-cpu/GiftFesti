@@ -588,12 +588,18 @@ app.get('/api/inventory', async (req, res) => {
   res.json({ ok: true, items });
 });
 
-/* ---- Admin panelda NFT tanlash uchun to'liq katalog ro'yxati ---- */
-app.get('/api/nft_catalog', (req, res) => {
-  res.json({
-    ok: true,
-    items: NFT_CATALOG.map(item => ({ id: item.id, name: item.name, sell_price: item.sell_price })),
-  });
+/* ---- Admin panelda NFT tanlash hamda yutuq oynachasida ikonka
+   ko'rsatish uchun to'liq katalog ro'yxati (custom_emoji_id bilan) ---- */
+app.get('/api/nft_catalog', async (req, res) => {
+  const items = [];
+  for (const item of NFT_CATALOG) {
+    const meta = await getEmojiMeta(item.custom_emoji_id);
+    items.push({
+      id: item.id, name: item.name, sell_price: item.sell_price,
+      custom_emoji_id: item.custom_emoji_id, is_video: meta.is_video,
+    });
+  }
+  res.json({ ok: true, items });
 });
 
 app.post('/api/sell_nft', (req, res) => {
@@ -927,6 +933,200 @@ app.post('/api/internal_voucher_claim', async (req, res) => {
 });
 
 /* ============================================================
+   HOCKEY — tosh (puck) qayerda to'xtasa, o'sha zonaning egasi yutadi.
+   Bu funksiyalar public/index.html dagi bir xil nomli funksiyalarning
+   ANIQ NUSXASI (bir xil matematika) — shu tufayli mijozda ko'rsatiladigan
+   tosh parvozi va zonalar bilan SERVERDA hisoblangan g'olib har doim
+   ANIQ mos keladi (oldin bular bir-biridan mustaqil edi — shu narsa
+   "tosh boshqa zonaga tushyapti, lekin boshqasi yutyapti" xatosining
+   sababi edi).
+   ============================================================ */
+function hkPolygonArea(poly) {
+  let a = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [x1, y1] = poly[i], [x2, y2] = poly[(i + 1) % poly.length];
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a / 2);
+}
+
+function hkClipPolygonHalfPlane(poly, dx, dy, c, keepGreaterEqual) {
+  if (!poly.length) return poly;
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const curr = poly[i];
+    const prev = poly[(i - 1 + poly.length) % poly.length];
+    const currVal = dx * curr[0] + dy * curr[1];
+    const prevVal = dx * prev[0] + dy * prev[1];
+    const currIn = keepGreaterEqual ? currVal >= c - 1e-6 : currVal <= c + 1e-6;
+    const prevIn = keepGreaterEqual ? prevVal >= c - 1e-6 : prevVal <= c + 1e-6;
+    if (currIn) {
+      if (!prevIn) {
+        const t = (c - prevVal) / (currVal - prevVal);
+        out.push([prev[0] + t * (curr[0] - prev[0]), prev[1] + t * (curr[1] - prev[1])]);
+      }
+      out.push(curr);
+    } else if (prevIn) {
+      const t = (c - prevVal) / (currVal - prevVal);
+      out.push([prev[0] + t * (curr[0] - prev[0]), prev[1] + t * (curr[1] - prev[1])]);
+    }
+  }
+  return out;
+}
+
+function hkComputeDiagonalTreemap(items, dirAngleDeg) {
+  const rad = dirAngleDeg * Math.PI / 180;
+  const dx = Math.cos(rad), dy = Math.sin(rad);
+  const corners = [[0, 0], [100, 0], [100, 100], [0, 100]];
+  const projections = corners.map(([x, y]) => x * dx + y * dy);
+  const minP = Math.min(...projections), maxP = Math.max(...projections);
+  const TOTAL_AREA = 10000;
+
+  function areaBelow(p) {
+    let poly = [[0, 0], [100, 0], [100, 100], [0, 100]];
+    poly = hkClipPolygonHalfPlane(poly, dx, dy, p, false);
+    return hkPolygonArea(poly);
+  }
+  function findCut(targetArea) {
+    let lo = minP, hi = maxP;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if (areaBelow(mid) < targetArea) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  const total = items.reduce((s, i) => s + i.value, 0) || 1;
+  let cum = 0, prevCut = minP;
+  const results = [];
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx];
+    cum += item.value;
+    const isLast = idx === items.length - 1;
+    const targetArea = isLast ? TOTAL_AREA : (cum / total) * TOTAL_AREA;
+    const cut = isLast ? maxP : findCut(targetArea);
+    let poly = [[0, 0], [100, 0], [100, 100], [0, 100]];
+    poly = hkClipPolygonHalfPlane(poly, dx, dy, prevCut, true);
+    poly = hkClipPolygonHalfPlane(poly, dx, dy, cut, false);
+    results.push({ index: item.index, polygon: poly });
+    prevCut = cut;
+  }
+  return results;
+}
+
+function hkComputeTreemap(items, startVertical) {
+  const sorted = items.slice().sort((a, b) => b.value - a.value);
+  const rects = {};
+  function recurse(list, x, y, w, h, vertical) {
+    if (list.length === 1) {
+      rects[list[0].index] = { x, y, w, h };
+      return;
+    }
+    const sum = list.reduce((s, i) => s + i.value, 0) || 1;
+    let cum = 0, bestIdx = 1, bestDiff = Infinity;
+    for (let i = 0; i < list.length - 1; i++) {
+      cum += list[i].value;
+      const diff = Math.abs(cum - sum / 2);
+      if (diff < bestDiff) { bestDiff = diff; bestIdx = i + 1; }
+    }
+    const groupA = list.slice(0, bestIdx);
+    const groupB = list.slice(bestIdx);
+    const sumA = groupA.reduce((s, i) => s + i.value, 0);
+    if (vertical) {
+      const wA = w * sumA / sum;
+      recurse(groupA, x, y, wA, h, !vertical);
+      recurse(groupB, x + wA, y, w - wA, h, !vertical);
+    } else {
+      const hA = h * sumA / sum;
+      recurse(groupA, x, y, w, hA, !vertical);
+      recurse(groupB, x, y + hA, w, h - hA, !vertical);
+    }
+  }
+  recurse(sorted, 0, 0, 100, 100, startVertical !== false);
+  return rects;
+}
+
+function hkPointInPolygon(pt, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1];
+    const xj = poly[j][0], yj = poly[j][1];
+    const intersect = ((yi > pt[1]) !== (yj > pt[1])) &&
+      (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// Toshning uchish yo'lini boshidan oxirigacha (bitta sinxron siklda)
+// hisoblab, to'xtagan (final) nuqtasini qaytaradi. public/index.html dagi
+// runPuckFlight() ichidagi fizika bilan BIR XIL: shu tufayli mijozda
+// ko'rinadigan animatsiya oxiri bilan bu funksiya natijasi mos keladi.
+function hkSimulatePuckFinalPosition(angle) {
+  const flightDuration = 7000;
+  const tickMs = 1000 / 60;
+  const totalSteps = Math.round(flightDuration / tickMs);
+  const rad = 2.2;
+
+  let speed = 11.5;
+  let vx = Math.cos(angle * Math.PI / 180) * speed;
+  let vy = Math.sin(angle * Math.PI / 180) * speed;
+
+  let px = 50, py = 50;
+  for (let i = 0; i < totalSteps; i++) {
+    const stepProgress = i / totalSteps;
+    const currentFriction = 0.992 - (stepProgress * 0.012);
+
+    px += vx;
+    py += vy;
+
+    if (px - rad <= 0) { px = rad; vx *= -1; }
+    if (px + rad >= 100) { px = 100 - rad; vx *= -1; }
+    if (py - rad <= 0) { py = rad; vy *= -1; }
+    if (py + rad >= 100) { py = 100 - rad; vy *= -1; }
+
+    vx *= currentFriction;
+    vy *= currentFriction;
+  }
+
+  return { x: px, y: py };
+}
+
+// Berilgan yakuniy nuqta (finalPos) qaysi o'yinchining zonasi ustida
+// to'xtaganini aniqlaydi — public/index.html dagi renderHockeyArena() bilan
+// AYNAN BIR XIL joylashuv (game_number juftligi/toqligi asosida diagonal
+// yoki to'g'ri burchakli treemap) ishlatiladi.
+function hkResolveZoneWinner(players, gameNumber, finalPos) {
+  if (!players.length) return null;
+  const items = players.map((p, idx) => ({ index: idx, value: p.stars || 1 }));
+  const roundSeed = gameNumber || 0;
+  const useDiagonal = (roundSeed % 2 === 0);
+
+  if (useDiagonal) {
+    const diagAngle = (roundSeed % 4 < 2) ? 45 : 135;
+    const zones = hkComputeDiagonalTreemap(items, diagAngle);
+    for (const z of zones) {
+      if (z.polygon.length >= 3 && hkPointInPolygon([finalPos.x, finalPos.y], z.polygon)) {
+        return players[z.index];
+      }
+    }
+    // Chekka holatlarda (masalan, chiziq ustida) eng yaqin zonani tanlaymiz.
+    return players[zones[zones.length - 1].index];
+  } else {
+    const startVertical = (Math.floor(roundSeed / 2) % 2 === 0);
+    const rectsMap = hkComputeTreemap(items, startVertical);
+    for (let idx = 0; idx < players.length; idx++) {
+      const r = rectsMap[idx];
+      if (finalPos.x >= r.x - 1e-6 && finalPos.x <= r.x + r.w + 1e-6 &&
+          finalPos.y >= r.y - 1e-6 && finalPos.y <= r.y + r.h + 1e-6) {
+        return players[idx];
+      }
+    }
+    return players[players.length - 1];
+  }
+}
+
+/* ============================================================
    O'YINLAR: umumiy holat mashinasi (hockey, drum, team_battle)
    idle -> betting -> spinning_visual -> cooldown -> idle
    ============================================================ */
@@ -965,9 +1165,18 @@ function resolveRound(game) {
   state.status = 'spinning_visual';
 
   if (game === 'hockey') {
-    const winner = pickWeighted(state.players, playerWeight);
+    // MUHIM (bug fix): g'olib endi tosh AMALDA to'xtagan zonaga qarab
+    // aniqlanadi — avval g'olib pickWeighted bilan mustaqil tanlanardi va
+    // burchak esa alohida tasodifiy qiymat edi, shu sabab vizual tosh
+    // ko'pincha boshqa zonaga tushib, lekin boshqa odam yutgandek ko'rinardi.
+    // Endi burchak (angle) tasodifiy tanlanadi, so'ng AYNAN mijozdagi bilan
+    // bir xil fizika/joylashuv hisobi bilan tosh qayerda to'xtashi
+    // hisoblanadi va o'sha zonaning egasi yutadi.
+    const angle = Math.random() * 360;
+    const finalPos = hkSimulatePuckFinalPosition(angle);
+    const winner = hkResolveZoneWinner(state.players, state.game_number, finalPos) || pickWeighted(state.players, playerWeight);
     state.winner = { id: winner.id, username: winner.username, photo: winner.photo, stars: winner.stars };
-    state.puckSeed = { angle: Math.random() * 360 };
+    state.puckSeed = { angle };
   } else if (game === 'drum') {
     const winner = pickWeighted(state.players, playerWeight);
     const total = state.players.reduce((s, p) => s + playerWeight(p), 0) || 1;

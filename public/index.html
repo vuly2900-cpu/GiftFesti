@@ -703,7 +703,7 @@
     padding: 10px 6px; text-align: center;
   }
   .round-win-item .anim-slot { width: 42px; height: 42px; margin: 0 auto 6px; }
-  .round-win-item .coin-ico-big { font-size: 26px; display: block; margin-bottom: 6px; }
+  .round-win-item .coin-ico-big { display: block; width: 42px; height: 42px; margin: 0 auto 6px; }
   .round-win-item .name { font-size: 10.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .round-win-item .val { font-size: 12.5px; font-weight: 700; color: var(--gold, #ffd76e); }
   .round-win-ok-btn {
@@ -2490,10 +2490,12 @@ async function openGameHistory(game) {
     rounds.forEach(r => {
       const isTeamBattle = game === 'team_battle';
       let players = [...(r.players || [])].sort((a, b) => (b.stars || 0) - (a.stars || 0));
-      // Team Battle'da yutgan RANGGA tikkan HAMMA odam pul oladi, shuning
-      // uchun tarixda faqat haqiqatan yutgan (payout olgan) odamlar
-      // ko'rsatiladi — yutqazgan ranglarga tikkanlar ro'yxatda chiqmaydi.
+      // Team Battle'da yutgan RANGGA tikkan HAMMA odam pul oladi, hokkey va
+      // baraban'da esa faqat BITTA g'olib bo'ladi — ikkalasida ham tarixda
+      // faqat haqiqatan yutgan (payout olgan) odam(lar) ko'rsatiladi,
+      // yutqazganlar ro'yxatda umuman chiqmaydi.
       if (isTeamBattle) players = players.filter(p => p.won && p.won > 0);
+      else players = players.filter(p => p.id === r.winner_id);
       const titleExtra = isTeamBattle ? ` — G'olib: ${TEAM_COLOR_LABEL[r.winner_color] || r.winner_color}` : '';
       html += `<div class="history-round">
         <div class="history-round-title">O'yin #${r.game_number} — Bank: <span class="coin-ico"></span> ${r.pot}${titleExtra}</div>
@@ -3122,25 +3124,32 @@ function closeNftWinModal() {
 }
 
 /* ==================== HOKKEY/BARABAN — RAUND YUTUQ OYNACHASI ====================
-   G'olib bo'lganda coin miqdori VA yutilgan barcha NFT'larni (ikonkasi bilan)
-   ko'rsatadi — mos ravishda foydalanuvchi so'ragan "coin va nft yutgani hammasi
-   chiqadigan oynacha" talabini bajaradi. */
-async function showRoundWinModal(coinAmount, nftItems) {
+   Raund tugaganda coin miqdori VA yutilgan barcha NFT'larni (ikonkasi bilan)
+   ko'rsatadi. MUHIM: bu oynacha endi FAQAT g'olibga emas — o'sha o'yinni
+   kuzatib turgan HAMMA foydalanuvchiga chiqadi, kim va nima yutganini hammasi
+   ko'rishi uchun. */
+async function showRoundWinModal(winner, coinAmount, nftItems) {
   const overlay = document.getElementById('roundWinOverlay');
   if (!overlay) return;
 
+  const isMe = winner && tgUser && winner.id === tgUser.id;
+  const winnerName = winner ? (winner.username || 'Foydalanuvchi') : '';
+
   const sub = document.getElementById('roundWinSub');
   const items = nftItems || [];
-  sub.innerHTML = items.length
-    ? `Siz <b>${coinAmount} <span class="coin-ico"></span></b> va <b>${items.length} NFT</b> yutdingiz!`
-    : `Siz <b>${coinAmount} <span class="coin-ico"></span></b> yutdingiz!`;
+  const wonText = items.length
+    ? `<b>${coinAmount} <span class="coin-ico"></span></b> va <b>${items.length} NFT</b>`
+    : `<b>${coinAmount} <span class="coin-ico"></span></b>`;
+  sub.innerHTML = isMe
+    ? `Siz ${wonText} yutdingiz!`
+    : `<b>${winnerName}</b> ${wonText} yutdi!`;
 
   const cells = [{ type: 'coin', value: coinAmount }, ...items.map(n => ({ type: 'nft', ...n }))];
 
   const grid = document.getElementById('roundWinGrid');
   grid.innerHTML = cells.map((c, i) => {
     if (c.type === 'coin') {
-      return `<div class="round-win-item"><span class="coin-ico-big">🪙</span><div class="name">Coin</div><div class="val">${c.value}</div></div>`;
+      return `<div class="round-win-item"><span class="coin-ico coin-ico-big"></span><div class="name">Coin</div><div class="val">${c.value}</div></div>`;
     }
     return `<div class="round-win-item"><div class="anim-slot" id="roundWinAnim_${i}"></div><div class="name">${c.name || c.itemId || ''}</div><div class="val">${c.price} <span class="coin-ico"></span></div></div>`;
   }).join('');
@@ -3620,8 +3629,11 @@ async function finishHockeyRound(winner) {
     currentUserData.balance += potAtWin;
     currentUserData.total_won = (currentUserData.total_won || 0) + potAtWin;
     document.getElementById('topBalance').textContent = currentUserData.balance;
-    showRoundWinModal(potAtWin, hockeyRoundNftItemsSnapshot);
   }
+  // MUHIM: yutuq oynachasi endi FAQAT g'olibga emas — shu raundda ishtirok
+  // etgan/kuzatib turgan HAMMA foydalanuvchiga chiqadi (kim yutganini va
+  // nima yutganini hammasi ko'rishi uchun).
+  showRoundWinModal(winner, hockeyRoundCoinPotSnapshot, hockeyRoundNftItemsSnapshot);
 
   // Raundni 'cooldown' -> 'idle'ga o'tkazish ham endi serverda avtomatik
   // amalga oshadi (backenddagi resolve_round/advance_to_cooldown). Bu yerda
@@ -4115,8 +4127,9 @@ async function finishDrumRound(winner) {
     currentUserData.balance += potAtWin;
     currentUserData.total_won = (currentUserData.total_won || 0) + potAtWin;
     document.getElementById('topBalance').textContent = currentUserData.balance;
-    showRoundWinModal(potAtWin, drumRoundNftItemsSnapshot);
   }
+  // Yutuq oynachasi endi HAMMAGA chiqadi (faqat g'olibga emas).
+  showRoundWinModal(winner, drumRoundCoinPotSnapshot, drumRoundNftItemsSnapshot);
 
   setTimeout(() => {
     banner.classList.remove('show');

@@ -2428,10 +2428,17 @@ function scheduleMountCoinIcons() {
   requestAnimationFrame(() => { coinMountScheduled = false; mountCoinIcons(); });
 }
 
+// Bir vaqtda juda ko'p video/lottie elementi ishga tushib, zaif telefonlarda
+// qotib qolmasligi uchun animatsiyalanadigan coin-ico sonini cheklaymiz.
+const COIN_ANIM_MAX = 8;
+let coinAnimMountedCount = 0;
+
 function mountCoinIcons() {
   if (!coinAnimState.ready) return;
   document.querySelectorAll('.coin-ico:not([data-coin-mounted])').forEach(el => {
     el.setAttribute('data-coin-mounted', '1');
+    if (coinAnimMountedCount >= COIN_ANIM_MAX) return; // limitdan oshsa — statik icon qoladi
+    coinAnimMountedCount++;
     el.classList.add('coin-anim-on');
     mountEmojiAsset(el, coinAnimState.asset);
   });
@@ -5003,10 +5010,7 @@ function mnLeavePage() {
 // Boshlanishida captcha tekshiriladi
 checkCaptchaRequirement();
 // Coin logotipini premium animatsiyali emoji bilan almashtiramiz
-// initCoinIcons() — coin ikonkasi animatsiyasi ba'zi telefonlarda qotib qolgani uchun o'chirilgan.
-// Shu bilan coin doim statik icon (PNG) sifatida ko'rinadi.
-// Yoqish uchun quyidagi qatorni izohdan chiqaring:
-// initCoinIcons();
+initCoinIcons();
 // Reytingdagi top 1/2/3 medal ikonkalarini ham premium animatsiyali emoji bilan almashtiramiz
 initMedalIcons();
 </script>

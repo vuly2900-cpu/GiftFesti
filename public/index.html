@@ -279,9 +279,14 @@
     text-shadow:0 0 24px rgba(255,255,255,.18); transition:color .15s ease;}
   .crash-mult.running{color:var(--success); text-shadow:0 0 24px rgba(51,196,129,.35);}
   .crash-mult.crashed{color:var(--danger); text-shadow:0 0 24px rgba(229,84,75,.4); animation:crashShake .4s ease;}
-  .crash-rocket{position:absolute; left:14px; bottom:14px; font-size:26px; z-index:2;
-    transform:translate(0,0) rotate(-45deg); transition:transform .12s linear; filter:drop-shadow(0 0 6px rgba(255,255,255,.25));}
-  .crash-rocket.crashed{animation:crashBoom .4s ease forwards;}
+  .crash-rocket{position:absolute; left:50%; top:50%; width:64px; height:64px; z-index:2;
+    transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center;
+    animation:crashFloat 2.2s ease-in-out infinite;}
+  .crash-rocket .fallback-emoji{font-size:40px;}
+  .crash-rocket video, .crash-rocket .lottie-box{width:100%; height:100%;}
+  .crash-rocket.running{animation:crashFloat 0.6s ease-in-out infinite;}
+  .crash-rocket.crashed{animation:crashBoom .5s ease forwards;}
+  @keyframes crashFloat{0%,100%{transform:translate(-50%,-50%) translateY(0px);} 50%{transform:translate(-50%,-50%) translateY(-8px);}}
   .crash-history-strip{display:flex; gap:6px; overflow-x:auto; padding:2px 1px 10px; margin-bottom:2px;}
   .crash-history-chip{flex:0 0 auto; padding:5px 9px; border-radius:8px; font-size:11.5px; font-weight:700; font-family:'JetBrains Mono',monospace;
     background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);}
@@ -292,7 +297,7 @@
   .crash-my-status{font-size:12.5px; color:var(--text-dim); text-align:center; margin:-2px 0 10px;}
   .crash-my-status b{color:var(--success);}
   @keyframes crashShake{0%,100%{transform:scale(1);} 50%{transform:scale(1.08);}}
-  @keyframes crashBoom{0%{opacity:1; filter:drop-shadow(0 0 6px rgba(255,255,255,.25));} 100%{opacity:0; transform:translate(var(--rx,0),var(--ry,0)) scale(1.6) rotate(20deg);}}
+  @keyframes crashBoom{0%{opacity:1; transform:translate(-50%,-50%) scale(1);} 100%{opacity:0; transform:translate(-50%,-50%) scale(1.8) rotate(15deg);}}
   .game-badge{
     display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
     background:rgba(0,0,0,.35); color:var(--gold); font-size:10px; font-weight:700;
@@ -810,7 +815,7 @@
     <div class="crash-arena" id="crashArena">
       <div class="crash-stars"></div>
       <div class="crash-status-banner" id="crashStatusBanner">Kutish...</div>
-      <div class="crash-rocket" id="crashRocket">🚀</div>
+      <div class="crash-rocket" id="crashRocket"><span class="fallback-emoji">🚀</span></div>
       <div class="crash-mult" id="crashMultDisplay">1.00x</div>
     </div>
 
@@ -2566,6 +2571,29 @@ function openGame(name) {
 }
 
 
+/* ===== Raketa (Crash) — premium animatsiyali emoji ===== */
+const rocketAnimState = { ready: false, mounted: false };
+async function initRocketEmoji() {
+  if (rocketAnimState.ready || rocketAnimState.loading) return;
+  rocketAnimState.loading = true;
+  try {
+    const metaRes = await fetch('/api/rocket_emoji');
+    if (!metaRes.ok) return; // BOT_TOKEN sozlanmagan bo'lsa — statik 🚀 emoji qoladi
+    const meta = await metaRes.json();
+    const asset = await loadEmojiAsset(meta.custom_emoji_id, meta.is_video);
+    const el = document.getElementById('crashRocket');
+    if (el) {
+      el.innerHTML = '';
+      mountEmojiAsset(el, asset);
+    }
+    rocketAnimState.ready = true;
+  } catch (e) {
+    console.error('Raketa animatsiyasi yuklanmadi:', e.message);
+  } finally {
+    rocketAnimState.loading = false;
+  }
+}
+
 // ==================== RAKETA (CRASH) — real vaqtli multiplayer ====================
 let crashState = { status: 'waiting', players: [], multiplier: 1.00, round_number: 1, lastResult: null, waitMs: 7000 };
 let crashUnsubscribe = null;
@@ -2576,6 +2604,7 @@ let crashLocalTickInterval = null;
 function initCrashPage() {
   if (crashUnsubscribe) crashUnsubscribe();
   if (crashLocalTickInterval) clearInterval(crashLocalTickInterval);
+  initRocketEmoji();
 
   const handler = (state) => {
     crashState = state;
@@ -2622,19 +2651,16 @@ function renderCrashState() {
     const waitMs = crashState.waitMs || 7000;
     const remaining = startedAt ? Math.max(0, Math.ceil((waitMs - (Date.now() - startedAt)) / 1000)) : Math.ceil(waitMs / 1000);
     banner.textContent = `Tikish ochiq — ${remaining}s`;
-    rocket.style.transform = 'translate(0px,0px) rotate(-45deg)';
+    rocket.classList.remove('running', 'crashed');
   } else if (crashState.status === 'running') {
     banner.textContent = "Uchmoqda...";
     multEl.classList.add('running');
-    // Multiplikatorga qarab raketani asta-sekin yuqoriga siljitamiz (0..10x oralig'ida).
-    const progress = Math.min(1, Math.log(mult) / Math.log(10));
-    const arena = document.getElementById('crashArena');
-    const maxX = (arena?.clientWidth || 300) - 60;
-    const maxY = (arena?.clientHeight || 230) - 60;
-    rocket.style.transform = `translate(${progress * maxX}px, ${-progress * maxY}px) rotate(-45deg)`;
+    rocket.classList.add('running');
+    rocket.classList.remove('crashed');
   } else if (crashState.status === 'crashed') {
     banner.textContent = `💥 ${mult.toFixed(2)}x da portladi`;
     multEl.classList.add('crashed');
+    rocket.classList.remove('running');
     rocket.classList.add('crashed');
   }
 

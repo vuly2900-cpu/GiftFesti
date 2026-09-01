@@ -1139,19 +1139,26 @@ const CRASH_TICK_MS = 100;        // multiplikator qancha tez-tez broadcast qili
 const CRASH_GROWTH = 0.13;        // multiplikator o'sish tezligi (katta = tezroq o'sadi)
 const CRASH_HOUSE_EDGE = 0.04;    // 4% — raundlarning 4% i darhol 1.00x da "portlaydi"
 const CRASH_MAX_MULTIPLIER = 500;
-// NFT yutish: faqat aynan CRASH_NFT_WIN_BET miqdorida tikkan bo'lsa va
-// "OLISH" bosilgan multiplikator biror NFT'ning katalogdagi narxiga
-// CRASH_NFT_MATCH_TOLERANCE ichida yaqin bo'lsa — coin o'rniga o'sha NFT
-// beriladi, uning narxi esa aynan shu multiplikator bo'ladi (masalan 3.44).
-const CRASH_NFT_WIN_BET = 1;
-const CRASH_NFT_MATCH_TOLERANCE = 0.5;
+// NFT yutish: tikilgan summa qancha bo'lishidan qat'iy nazar (endi faqat
+// 1 ga tenglik shart emas), "OLISH" bosilgan paytdagi YUTILGAN QIYMAT
+// (bet * multiplikator) hisoblanadi va shu qiymatga eng yaqin narxdagi
+// NFT katalogdan tanlanadi. Moslik nisbiy tolerantlik bilan tekshiriladi
+// (qiymat qancha katta bo'lsa, ruxsat etilgan farq ham shuncha katta
+// bo'ladi), shu bilan kichik tikkanlarga arzon NFT, katta tikkanlarga
+// qimmat NFT to'g'ri keladi. NFT'ning narxi esa aynan shu yutilgan qiymat
+// bo'lib qoladi (masalan 5.34), xuddi referensdagi botdagidek.
+const CRASH_NFT_MIN_VALUE = 0.1;      // bundan kichik yutuqlarga NFT berilmaydi (juda arzon bo'lib ko'rinmasin)
+const CRASH_NFT_MATCH_RELATIVE_TOLERANCE = 0.35; // qiymatning ±35% i ichida bo'lsa moslik hisoblanadi
+const CRASH_NFT_MATCH_MIN_TOLERANCE = 0.15;      // kichik qiymatlar uchun minimal ruxsat etilgan farq
 
-function findNftMatchForMultiplier(mult) {
+function findNftMatchForValue(value) {
+  if (value < CRASH_NFT_MIN_VALUE) return null;
   let best = null;
   let bestDiff = Infinity;
   for (const item of NFT_CATALOG) {
-    const diff = Math.abs(item.sell_price - mult);
-    if (diff <= CRASH_NFT_MATCH_TOLERANCE && diff < bestDiff) {
+    const tolerance = Math.max(CRASH_NFT_MATCH_MIN_TOLERANCE, item.sell_price * CRASH_NFT_MATCH_RELATIVE_TOLERANCE);
+    const diff = Math.abs(item.sell_price - value);
+    if (diff <= tolerance && diff < bestDiff) {
       best = item;
       bestDiff = diff;
     }
@@ -1529,18 +1536,20 @@ io.on('connection', (socket) => {
     mult = Math.round(mult * 100) / 100;
     p.cashedOutAt = mult;
 
-    // Agar aynan CRASH_NFT_WIN_BET (1) dona tikkan bo'lsa va multiplikator
-    // biror NFT narxiga yaqin bo'lsa — coin o'rniga o'sha NFT beriladi,
-    // uning narxi esa aynan shu multiplikator (masalan 3.44) bo'ladi.
-    const nftMatch = Math.abs(p.bet - CRASH_NFT_WIN_BET) < 0.0001 ? findNftMatchForMultiplier(mult) : null;
+    // Tikilgan summa qancha bo'lishidan qat'iy nazar: yutilgan qiymat
+    // (bet * multiplikator) hisoblanadi va shu qiymatga yaqin narxdagi NFT
+    // bo'lsa — coin o'rniga o'sha NFT beriladi, uning narxi esa aynan shu
+    // yutilgan qiymat (masalan 5.34) bo'ladi.
+    const wonValue = round2(p.bet * mult);
+    const nftMatch = findNftMatchForValue(wonValue);
 
     let won = 0;
     let wonNft = null;
     if (nftMatch) {
-      grantNftToUser(user, nftMatch.id, mult);
-      wonNft = { id: nftMatch.id, name: nftMatch.name, price: mult };
+      grantNftToUser(user, nftMatch.id, wonValue);
+      wonNft = { id: nftMatch.id, name: nftMatch.name, price: wonValue };
     } else {
-      won = round2(p.bet * mult);
+      won = wonValue;
       user.balance = round2(user.balance + won);
       user.total_won = round2((user.total_won || 0) + won);
     }

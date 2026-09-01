@@ -261,6 +261,8 @@ function refreshPhotoAsync(user) {
    ============================================================ */
 const NFT_CATALOG = [
   { id: 'lol_pop', name: 'Lol Pop', custom_emoji_id: '5278223019590850728', sell_price: 3.8, free: true },
+  { id: 'spy_agaric', name: 'Spy Agaric', custom_emoji_id: '5278253651297600475', sell_price: 5.4, free: true },
+  { id: 'witch_hat', name: 'Witch Hat', custom_emoji_id: '5278396652233723315', sell_price: 5, free: true },
 
   // ---- Case'dan chiqadigan gift'lar (endi coin emas, inventoryga tushadi) ----
   { id: 'teddy', name: 'Ayiqcha', custom_emoji_id: '5278547100643137176', sell_price: 0.13, tier: 15 },

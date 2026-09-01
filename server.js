@@ -105,14 +105,23 @@ function loadDb() {
 /* ============================================================
    YORDAMCHI FUNKSIYALAR
    ============================================================ */
-function pickWeighted(players, key) {
-  const total = players.reduce((s, p) => s + p[key], 0);
+function pickWeighted(players, keyOrFn) {
+  const val = (p) => typeof keyOrFn === 'function' ? keyOrFn(p) : p[keyOrFn];
+  const total = players.reduce((s, p) => s + val(p), 0);
   let r = Math.random() * total;
   for (const p of players) {
-    if (r < p[key]) return p;
-    r -= p[key];
+    if (r < val(p)) return p;
+    r -= val(p);
   }
   return players[players.length - 1];
+}
+
+/* ---- Hockey/drum o'yinlarida bitta o'yinchining umumiy "og'irligi"
+   (coin tikkani + tikkan NFT'larining narxi) — g'olibni tanlashda ham,
+   ehtimollik (%) ko'rsatishda ham shu ishlatiladi. ---- */
+function playerWeight(p) {
+  const nftValue = (p.nfts || []).reduce((s, n) => s + n.price, 0);
+  return round2((p.stars || 0) + nftValue);
 }
 
 const PALETTE = ['#FF6B6B', '#4DABF7', '#69DB7C', '#FFD43B', '#DA77F2', '#FF922B', '#38D9A9', '#F783AC', '#748FFC', '#94D82D'];
@@ -956,15 +965,15 @@ function resolveRound(game) {
   state.status = 'spinning_visual';
 
   if (game === 'hockey') {
-    const winner = pickWeighted(state.players, 'stars');
+    const winner = pickWeighted(state.players, playerWeight);
     state.winner = { id: winner.id, username: winner.username, photo: winner.photo, stars: winner.stars };
     state.puckSeed = { angle: Math.random() * 360 };
   } else if (game === 'drum') {
-    const winner = pickWeighted(state.players, 'stars');
-    const total = state.players.reduce((s, p) => s + p.stars, 0) || 1;
+    const winner = pickWeighted(state.players, playerWeight);
+    const total = state.players.reduce((s, p) => s + playerWeight(p), 0) || 1;
     let cursor = 0, start = 0, end = 360;
     for (const p of state.players) {
-      const size = p.stars / total * 360;
+      const size = playerWeight(p) / total * 360;
       if (p.id === winner.id) { start = cursor; end = cursor + size; break; }
       cursor += size;
     }
@@ -1009,12 +1018,28 @@ function finalizeRound(game) {
   if (game === 'hockey' || game === 'drum') {
     const winner = state.winner;
     const wUser = users.get(String(winner.id));
-    if (wUser) { wUser.balance += pot; wUser.total_won += pot; wUser.wins += 1; }
+    // Coin qismi — tikilgan barcha coin'lar yig'indisi (NFT qiymati emas!)
+    const coinPot = round2(state.players.reduce((s, p) => s + (p.stars || 0), 0));
+    let wonNftsCount = 0;
+    if (wUser) {
+      wUser.balance = round2(wUser.balance + coinPot);
+      wUser.total_won = round2((wUser.total_won || 0) + coinPot);
+      wUser.wins += 1;
+      // Barcha o'yinchilar (g'olibning o'zi ham) tikkan NFT'lar — hammasi
+      // g'olibning inventoriga o'tadi, narxi ham qulflangan holicha saqlanadi.
+      state.players.forEach(p => {
+        (p.nfts || []).forEach(n => {
+          grantNftToUser(wUser, n.itemId, n.price);
+          wonNftsCount += 1;
+        });
+      });
+    }
     historyEntry.winner_id = winner.id;
+    historyEntry.wonNftsCount = wonNftsCount;
     historyEntry.players = state.players.map(p => ({
-      id: p.id, username: p.username, photo: p.photo, stars: p.stars,
-      chance: pot ? Number(((p.stars / pot) * 100).toFixed(1)) : 0,
-      won: p.id === winner.id ? pot : 0,
+      id: p.id, username: p.username, photo: p.photo, stars: p.stars, nfts: p.nfts || [],
+      chance: pot ? Number(((playerWeight(p) / pot) * 100).toFixed(1)) : 0,
+      won: p.id === winner.id ? coinPot : 0,
     }));
   } else if (game === 'team_battle') {
     historyEntry.winner_color = state.winner.color;
@@ -1085,7 +1110,63 @@ app.post('/api/place_bet', (req, res) => {
   res.json({ ok: true, balance: user.balance });
 });
 
-/* ---- Tikish (team battle) ---- */
+/* ---- Tikish — NFT bilan (hockey / drum). Bir yoki bir nechta NFT
+   itemId'sini (takrorlansa bir nechta dona) inventoriydan olib, joriy
+   davrga tikadi. Yutgan o'yinchi bu NFT'larning HAMMASINI (o'zinikini ham,
+   raqiblarnikini ham) o'z inventoriga oladi. ---- */
+app.post('/api/place_bet_nft', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { game, itemIds } = req.body || {};
+  if (game !== 'hockey' && game !== 'drum') return res.status(400).json({ error: 'invalid_game' });
+  if (!Array.isArray(itemIds) || !itemIds.length) return res.status(400).json({ error: 'invalid_items' });
+
+  const state = getState(game);
+  if (state.status === 'spinning_visual' || state.status === 'cooldown') {
+    return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
+  }
+
+  ensureNftStarterPack(user);
+
+  // Avval — hech narsani kamaytirmasdan — hammasi yetarlimi tekshiramiz.
+  const needCounts = {};
+  for (const id of itemIds) needCounts[id] = (needCounts[id] || 0) + 1;
+  for (const [id, need] of Object.entries(needCounts)) {
+    const item = NFT_BY_ID.get(id);
+    if (!item) return res.status(404).json({ error: 'ITEM_NOT_FOUND' });
+    if ((user.nftInventory[id] || 0) < need) return res.status(400).json({ error: 'NOT_ENOUGH_NFT' });
+  }
+
+  // Endi haqiqatan ayiramiz va narxlarini "qulflaymiz" (keyinchalik katalog
+  // narxi o'zgarsa ham, bu dona aynan shu narxda hisoblanadi).
+  const staked = [];
+  for (const id of itemIds) {
+    const item = NFT_BY_ID.get(id);
+    user.nftInventory[id] -= 1;
+    let price = item.sell_price;
+    const customPrices = user.nftInstancePrices && user.nftInstancePrices[id];
+    if (customPrices && customPrices.length) price = customPrices.shift();
+    staked.push({ itemId: id, name: item.name, custom_emoji_id: item.custom_emoji_id, price: round2(price) });
+  }
+  const nftValue = round2(staked.reduce((s, n) => s + n.price, 0));
+
+  let existing = state.players.find(p => p.id === Number(user.id));
+  if (!existing) {
+    existing = { id: Number(user.id), username: user.username, photo: user.photo_url, stars: 0, nfts: [], color: colorFor(state.players.length) };
+    state.players.push(existing);
+  }
+  existing.nfts = (existing.nfts || []).concat(staked);
+  state.pot = round2(state.pot + nftValue);
+
+  if (state.status === 'idle') state.status = 'betting';
+  if (state.players.length >= 2 && !state.bettingStartedAt) {
+    state.bettingStartedAt = Date.now();
+    startBettingTimer(game);
+  }
+  emitState(game);
+  res.json({ ok: true, staked });
+});
+
+
 app.post('/api/place_team_bet', (req, res) => {
   const user = requireUser(req, res); if (!user) return;
   const { amount, color } = req.body || {};

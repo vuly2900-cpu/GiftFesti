@@ -438,6 +438,11 @@
   .amt-btn.active{background:var(--gold); color:#1A1400; border-color:var(--gold);}
   .hockey-custom-row{display:flex; gap:8px;}
   .hockey-custom-row input{flex:1; margin-bottom:0;}
+  .nft-stake-btn{
+    width:44px; flex:0 0 44px; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:8px; font-size:19px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .nft-stake-btn.has-staged{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset;}
 
   .hockey-player-row{
     display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid var(--border);
@@ -446,6 +451,35 @@
   .hockey-player-row .uname{flex:1; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .hockey-player-row .stake{font-size:13px; color:var(--gold);}
   .hockey-player-row .chance{font-size:12px; color:var(--text-dim); width:48px; text-align:right;}
+  .hockey-player-row .stake-nfts{display:flex; gap:2px;}
+  .hockey-player-row .stake-nfts .anim-slot{width:18px; height:18px; border-radius:4px; background:var(--surface-2);}
+  .hockey-player-row .stake-nfts .nft-more{font-size:11px; color:var(--text-dim); align-self:center;}
+
+  /* NFT TIKISH MODALI */
+  .nft-stake-overlay{
+    position:fixed; inset:0; background:rgba(5,8,14,.85); z-index:220;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .nft-stake-overlay.active{display:flex;}
+  .nft-stake-sheet{
+    width:100%; max-width:480px; max-height:80vh; overflow-y:auto;
+    background:var(--surface); border-radius:20px 20px 0 0; padding:16px;
+    border:1px solid var(--border); border-bottom:none;
+  }
+  .nft-stake-sheet h3{font-size:15px; margin-bottom:12px;}
+  .nft-stake-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;}
+  .nft-stake-item{background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:8px 6px; text-align:center; position:relative;}
+  .nft-stake-item .anim-slot{width:100%; aspect-ratio:1/1; border-radius:8px; margin-bottom:6px;}
+  .nft-stake-item .n-name{font-size:11px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .nft-stake-item .n-price{font-size:10px; color:var(--text-dim);}
+  .nft-stake-item .n-stepper{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:6px;}
+  .nft-stake-item .n-stepper button{
+    width:22px; height:22px; border-radius:6px; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); font-size:14px; line-height:1; cursor:pointer;
+  }
+  .nft-stake-item .n-stepper .n-qty{font-size:12px; font-weight:700; min-width:14px;}
+  .nft-stake-footer{display:flex; gap:8px; align-items:center; position:sticky; bottom:0; background:var(--surface); padding-top:8px;}
+  .nft-stake-footer .n-total{flex:1; font-size:12px; color:var(--text-dim);}
 
   /* TEAM BATTLE (3 RANGLI ARENA) */
   .team-color-select{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px;}
@@ -949,6 +983,7 @@
         <button class="amt-btn" onclick="hockeySetAmount(100, this)">100</button>
       </div>
       <div class="hockey-custom-row">
+        <button class="nft-stake-btn" id="hockeyNftBtn" onclick="openNftStakeModal('hockey')" title="NFT tikish">🎁</button>
         <input type="number" id="hockeyCustomAmount" value="0.1" step="0.1" min="0.1" placeholder="Miqdor...">
         <button class="btn" id="hockeyBetBtn" onclick="hockeyPlaceBet()">Tikish</button>
       </div>
@@ -997,6 +1032,7 @@
         <button class="amt-btn" onclick="drumSetAmount(100, this)">100</button>
       </div>
       <div class="hockey-custom-row">
+        <button class="nft-stake-btn" id="drumNftBtn" onclick="openNftStakeModal('drum')" title="NFT tikish">🎁</button>
         <input type="number" id="drumCustomAmount" value="0.1" step="0.1" min="0.1" placeholder="Miqdor...">
         <button class="btn" id="drumBetBtn" onclick="drumPlaceBet()">Tikish</button>
       </div>
@@ -1283,6 +1319,21 @@
   </div>
 </div>
 
+<!-- HOCKEY/DRUM — NFT TIKISH MODALI -->
+<div class="nft-stake-overlay" id="nftStakeOverlay" onclick="if(event.target===this) closeNftStakeModal()">
+  <div class="nft-stake-sheet">
+    <h3>🎁 Inventoringizdan NFT tikish</h3>
+    <div class="nft-stake-grid" id="nftStakeGrid">
+      <p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>
+    </div>
+    <div class="nft-stake-footer">
+      <div class="n-total" id="nftStakeTotal">Tanlanmadi</div>
+      <button class="btn" style="flex:0 0 auto; padding:10px 18px;" onclick="closeNftStakeModal()">Bekor</button>
+      <button class="btn" style="flex:0 0 auto; padding:10px 18px;" id="nftStakeConfirmBtn" onclick="confirmNftStake()">Tikish</button>
+    </div>
+  </div>
+</div>
+
 <!-- RAKETA SOZLAMALARI MODAL -->
 <div class="modal-overlay" id="crashSettingsModal">
   <div class="modal-window">
@@ -1407,6 +1458,7 @@ const OPEN_CASE_API_URL = '/api/open_case';
 const REFERRAL_API_URL = '/api/referral_reward';
 const REDEEM_PROMO_API_URL = '/api/redeem_promo';
 const PLACE_BET_API_URL = '/api/place_bet';
+const PLACE_BET_NFT_API_URL = '/api/place_bet_nft';
 const CRASH_BET_API_URL = '/api/crash/bet';
 const PLACE_TEAM_BET_API_URL = '/api/place_team_bet';
 const ADMIN_ACTION_API_URL = '/api/admin_action';
@@ -3027,6 +3079,8 @@ function crashCashOut() {
 let hockeyState = { status: 'idle', players: [], pot: 0, game_number: 1 };
 // Animatsiya boshida "muzlatilgan" pot qiymati — pastdagi izohga qarang.
 let hockeyRoundPotSnapshot = 0;
+let hockeyRoundCoinPotSnapshot = 0;
+let hockeyRoundNftCountSnapshot = 0;
 let hockeyZoneRects = null;
 let currentUnsubscribe = null;
 let physicsInterval = null;
@@ -3097,6 +3151,8 @@ function initHockeyPage() {
         // raund hali 'spinning_visual' bo'lgan paytda saqlab qo'yamiz.
         puckAnimationRunning = true;
         hockeyRoundPotSnapshot = hockeyState.pot || 0;
+        hockeyRoundCoinPotSnapshot = (hockeyState.players || []).reduce((s, p) => s + (p.stars || 0), 0);
+        hockeyRoundNftCountSnapshot = (hockeyState.players || []).reduce((s, p) => s + ((p.nfts || []).length), 0);
         startPuckPhysicsAnimation(hockeyState.puckSeed);
       }
     } else if (hockeyState.status === 'cooldown') {
@@ -3137,6 +3193,117 @@ function shuffleArray(array) {
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
+}
+
+// ==================== HOCKEY/DRUM — NFT TIKISH MODALI ====================
+let nftStakeGame = null;          // 'hockey' | 'drum'
+let nftStakeInventory = [];       // /api/inventory dan kelgan ro'yxat
+let nftStakeSelection = {};       // itemId -> tanlangan dona soni
+
+async function openNftStakeModal(game) {
+  nftStakeGame = game;
+  nftStakeSelection = {};
+  const overlay = document.getElementById('nftStakeOverlay');
+  const grid = document.getElementById('nftStakeGrid');
+  overlay.classList.add('active');
+  grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>';
+  updateNftStakeTotal();
+
+  try {
+    const res = await fetch(`${INVENTORY_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`);
+    const data = await res.json();
+    nftStakeInventory = data.items || [];
+    renderNftStakeGrid();
+  } catch (e) {
+    console.error(e);
+    grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklab bo\'lmadi</p>';
+  }
+}
+
+function closeNftStakeModal() {
+  document.getElementById('nftStakeOverlay').classList.remove('active');
+}
+
+function renderNftStakeGrid() {
+  const grid = document.getElementById('nftStakeGrid');
+  if (!nftStakeInventory.length) {
+    grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Inventoringizda NFT yo\'q</p>';
+    return;
+  }
+  grid.innerHTML = nftStakeInventory.map(it => `
+    <div class="nft-stake-item">
+      <div class="anim-slot" id="stakeAnim_${it.id}"></div>
+      <div class="n-name">${it.name}</div>
+      <div class="n-price"><span class="coin-ico"></span> ${it.sell_price} · x${it.count}</div>
+      <div class="n-stepper">
+        <button onclick="nftStakeAdjust('${it.id}', -1)">−</button>
+        <span class="n-qty" id="stakeQty_${it.id}">0</span>
+        <button onclick="nftStakeAdjust('${it.id}', 1)">+</button>
+      </div>
+    </div>
+  `).join('');
+  nftStakeInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`stakeAnim_${it.id}`), it.custom_emoji_id, it.is_video));
+}
+
+function nftStakeAdjust(itemId, delta) {
+  const item = nftStakeInventory.find(i => i.id === itemId);
+  if (!item) return;
+  const cur = nftStakeSelection[itemId] || 0;
+  const next = Math.max(0, Math.min(item.count, cur + delta));
+  nftStakeSelection[itemId] = next;
+  document.getElementById(`stakeQty_${itemId}`).textContent = next;
+  updateNftStakeTotal();
+}
+
+function updateNftStakeTotal() {
+  const totalEl = document.getElementById('nftStakeTotal');
+  let count = 0, value = 0;
+  Object.entries(nftStakeSelection).forEach(([id, qty]) => {
+    if (!qty) return;
+    const item = nftStakeInventory.find(i => i.id === id);
+    if (!item) return;
+    count += qty;
+    value += qty * item.sell_price;
+  });
+  totalEl.textContent = count ? `${count} ta NFT · ${value.toFixed(2)}` : 'Tanlanmadi';
+}
+
+async function confirmNftStake() {
+  const itemIds = [];
+  Object.entries(nftStakeSelection).forEach(([id, qty]) => {
+    for (let i = 0; i < qty; i++) itemIds.push(id);
+  });
+  if (!itemIds.length) { alert('Kamida 1 ta NFT tanlang!'); return; }
+
+  const game = nftStakeGame;
+  const state = game === 'hockey' ? hockeyState : drumState;
+  if (state.status === 'spinning_visual' || state.status === 'cooldown') {
+    alert("O'yin jarayoni kutilmoqda, yangi davr boshlanishini kuting!");
+    return;
+  }
+
+  const btn = document.getElementById('nftStakeConfirmBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(PLACE_BET_NFT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', game, itemIds })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'NOT_ENOUGH_NFT') alert("Bu NFT yetarli miqdorda yo'q!");
+      else if (data.error === 'GAME_NOT_ACCEPTING_BETS') alert("O'yin jarayoni kutilmoqda, yangi davr boshlanishini kuting!");
+      else alert('Xatolik yuz berdi!');
+      return;
+    }
+    closeNftStakeModal();
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function hockeyPlaceBet() {
@@ -3326,7 +3493,7 @@ async function finishHockeyRound(winner) {
   // Firestore orqali yangilanib turadi va animatsiya tugagan payt server
   // allaqachon raundni 'cooldown'ga o'tkazib pot'ni 0'ga tushirgan bo'lishi
   // mumkin (bu "0 ★ yutdi" xatosining sababi edi).
-  banner.textContent = `${winner.username} ${hockeyRoundPotSnapshot} ★ yutdi!`;
+  banner.textContent = `${winner.username} ${hockeyRoundPotSnapshot} ★ yutdi!` + (hockeyRoundNftCountSnapshot > 0 ? ` (+${hockeyRoundNftCountSnapshot} NFT)` : '');
   banner.classList.add('show');
 
   // MUHIM: pot to'lovi endi BUTUNLAY serverda amalga oshirilgan (status
@@ -3334,7 +3501,7 @@ async function finishHockeyRound(winner) {
   // Shu sababli bu yerda hech qanday balans yozuvi kerak emas — faqat
   // o'zimizning UI'imizni yangilaymiz, agar biz g'olib bo'lsak.
   if (winner.id === tgUser.id) {
-    const potAtWin = hockeyRoundPotSnapshot;
+    const potAtWin = hockeyRoundCoinPotSnapshot;
     currentUserData.balance += potAtWin;
     currentUserData.total_won = (currentUserData.total_won || 0) + potAtWin;
     document.getElementById('topBalance').textContent = currentUserData.balance;
@@ -3596,6 +3763,22 @@ function buildZoneClipPath(z) {
   return `polygon(${local.map(p => `${p[0]}% ${p[1]}%`).join(', ')})`;
 }
 
+function playerWeightClient(p) {
+  const nftValue = (p.nfts || []).reduce((s, n) => s + n.price, 0);
+  return (p.stars || 0) + nftValue;
+}
+
+function stakeNftsHTML(p) {
+  if (!p.nfts || !p.nfts.length) return '';
+  const shown = p.nfts.slice(0, 3);
+  const extra = p.nfts.length - shown.length;
+  const icons = shown.map((n, i) => `<div class="anim-slot" id="stakeRowAnim_${p.id}_${i}"></div>`).join('');
+  setTimeout(() => {
+    shown.forEach((n, i) => mountAnimatedEmoji(document.getElementById(`stakeRowAnim_${p.id}_${i}`), n.custom_emoji_id, n.is_video));
+  }, 0);
+  return `<div class="stake-nfts">${icons}${extra > 0 ? `<span class="nft-more">+${extra}</span>` : ''}</div>`;
+}
+
 function renderHockeyPlayers() {
   const list = document.getElementById('hockeyPlayersList');
   if (!hockeyState.players || !hockeyState.players.length) {
@@ -3603,11 +3786,12 @@ function renderHockeyPlayers() {
     return;
   }
   list.innerHTML = hockeyState.players.map(p => {
-    const chance = ((p.stars / hockeyState.pot) * 100).toFixed(1);
+    const chance = ((playerWeightClient(p) / hockeyState.pot) * 100).toFixed(1);
     return `
       <div class="hockey-player-row">
         <img class="avatar" src="${p.photo || avatarFallback(p.username)}" onerror="this.src=avatarFallback('${p.username}')">
         <div class="uname" style="color:${p.color}">${p.username}</div>
+        ${stakeNftsHTML(p)}
         <div class="stake mono"><span class="coin-ico"></span> ${p.stars}</div>
         <div class="chance mono">${chance}%</div>
       </div>`;
@@ -3617,6 +3801,8 @@ function renderHockeyPlayers() {
 // ==================== BARABAN (DRUM/WHEEL) O'YINI ====================
 let drumState = { status: 'idle', players: [], pot: 0, game_number: 1 };
 let drumRoundPotSnapshot = 0;
+let drumRoundCoinPotSnapshot = 0;
+let drumRoundNftCountSnapshot = 0;
 let drumSegmentsData = null; // [{player, startDeg, endDeg}]
 let drumBettingCountdownInterval = null;
 let drumSpinTimeout = null;
@@ -3669,6 +3855,8 @@ function initDrumPage() {
         // aks holda server 'cooldown'ga o'tib pot'ni 0'ga tushirgach,
         // banner "0 ★ yutdi" deb ko'rsatishi mumkin edi.
         drumRoundPotSnapshot = drumState.pot || 0;
+        drumRoundCoinPotSnapshot = (drumState.players || []).reduce((s, p) => s + (p.stars || 0), 0);
+        drumRoundNftCountSnapshot = (drumState.players || []).reduce((s, p) => s + ((p.nfts || []).length), 0);
         startDrumSpinAnimation(drumState.drumSeed);
       }
     } else if (drumState.status === 'cooldown') {
@@ -3747,10 +3935,10 @@ async function drumPlaceBet() {
 
 function computeDrumSegments() {
   const players = drumState.players || [];
-  const total = players.reduce((s, p) => s + (p.stars || 0), 0) || 1;
+  const total = players.reduce((s, p) => s + playerWeightClient(p), 0) || 1;
   let cursor = 0;
   return players.map(p => {
-    const size = (p.stars || 0) / total * 360;
+    const size = playerWeightClient(p) / total * 360;
     const seg = { player: p, startDeg: cursor, endDeg: cursor + size };
     cursor += size;
     return seg;
@@ -3799,13 +3987,13 @@ async function finishDrumRound(winner) {
   cd.textContent = "O'yin tugadi!";
 
   const banner = document.getElementById('drumWinnerBanner');
-  banner.textContent = `${winner.username} ${drumRoundPotSnapshot} ★ yutdi!`;
+  banner.textContent = `${winner.username} ${drumRoundPotSnapshot} ★ yutdi!` + (drumRoundNftCountSnapshot > 0 ? ` (+${drumRoundNftCountSnapshot} NFT)` : '');
   banner.classList.add('show');
 
   // MUHIM: pot to'lovi va raund o'tishi (cooldown -> idle) endi BUTUNLAY
   // serverda amalga oshiriladi. Bu yerda faqat o'z UI'imizni yangilaymiz.
   if (winner.id === tgUser.id) {
-    const potAtWin = drumRoundPotSnapshot;
+    const potAtWin = drumRoundCoinPotSnapshot;
     currentUserData.balance += potAtWin;
     currentUserData.total_won = (currentUserData.total_won || 0) + potAtWin;
     document.getElementById('topBalance').textContent = currentUserData.balance;
@@ -3851,11 +4039,12 @@ function renderDrumPlayers() {
     return;
   }
   list.innerHTML = drumState.players.map(p => {
-    const chance = ((p.stars / drumState.pot) * 100).toFixed(1);
+    const chance = ((playerWeightClient(p) / drumState.pot) * 100).toFixed(1);
     return `
       <div class="hockey-player-row">
         <img class="avatar" src="${p.photo || avatarFallback(p.username)}" onerror="this.src=avatarFallback('${p.username}')">
         <div class="uname" style="color:${p.color}">${p.username}</div>
+        ${stakeNftsHTML(p)}
         <div class="stake mono"><span class="coin-ico"></span> ${p.stars}</div>
         <div class="chance mono">${chance}%</div>
       </div>`;

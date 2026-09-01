@@ -1225,6 +1225,16 @@
     </div>
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--success);">🖼️ Foydalanuvchiga NFT berish</p>
+      <input type="text" id="a_nftUserTid" placeholder="Foydalanuvchi Telegram ID si">
+      <select id="a_nftSelect" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+        <option value="">Yuklanmoqda...</option>
+      </select>
+      <input type="number" id="a_nftAmount" placeholder="Dona soni" value="1" min="1" style="margin-top:8px;">
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminGiveNft()">NFT Berish</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
       <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎟️ Yangi Promokod yaratish</p>
       <input type="text" id="a_promoCode" placeholder="Kod nomi (Masalan: BONUS yoki STARS)">
       <input type="number" id="a_promoReward" placeholder="Qancha stars berishi">
@@ -1321,6 +1331,7 @@ const FRIENDS_API_URL = '/api/friends';
 const GAME_HISTORY_API_URL = '/api/game_history';
 const INVENTORY_API_URL = '/api/inventory';
 const SELL_NFT_API_URL = '/api/sell_nft';
+const NFT_CATALOG_API_URL = '/api/nft_catalog';
 const CHANNEL_URL = 'https://t.me/GiftFesti';
 let caseSubscriptionVerified = false; // shu sessiyada bir marta tekshirilgach true bo'ladi
 
@@ -2247,7 +2258,7 @@ async function sellNft(itemId, sellPrice) {
 
 function toggleAdminModal(show) {
   const modal = document.getElementById('adminModal');
-  if(show) { modal.classList.add('active'); loadAdminTasksList(); }
+  if(show) { modal.classList.add('active'); loadAdminTasksList(); loadAdminNftSelect(); }
   else modal.classList.remove('active');
 }
 
@@ -2393,6 +2404,32 @@ async function adminGiveStars() {
   try {
     await callAdminAction('give_stars', { userId: id, amount: amt });
     alert("Stars berildi!");
+  } catch (e) { console.error(e); alert("Xatolik yuz berdi!"); }
+}
+
+async function loadAdminNftSelect() {
+  const select = document.getElementById('a_nftSelect');
+  try {
+    const res = await fetch(NFT_CATALOG_API_URL);
+    const data = await res.json();
+    if (!data.ok) throw new Error('server_error');
+    select.innerHTML = data.items.map(it =>
+      `<option value="${it.id}">${it.name} (${it.sell_price} ⭐)</option>`
+    ).join('');
+  } catch (e) {
+    console.error(e);
+    select.innerHTML = '<option value="">Yuklab bo\'lmadi</option>';
+  }
+}
+
+async function adminGiveNft() {
+  const id = document.getElementById('a_nftUserTid').value.trim();
+  const itemId = document.getElementById('a_nftSelect').value;
+  const amount = parseInt(document.getElementById('a_nftAmount').value) || 1;
+  if (!id || !itemId) { alert("Foydalanuvchi ID va NFT tanlang!"); return; }
+  try {
+    await callAdminAction('give_nft', { userId: id, itemId, amount });
+    alert("NFT berildi!");
   } catch (e) { console.error(e); alert("Xatolik yuz berdi!"); }
 }
 

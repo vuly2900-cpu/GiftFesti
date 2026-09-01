@@ -546,6 +546,14 @@ app.get('/api/inventory', async (req, res) => {
   res.json({ ok: true, items });
 });
 
+/* ---- Admin panelda NFT tanlash uchun to'liq katalog ro'yxati ---- */
+app.get('/api/nft_catalog', (req, res) => {
+  res.json({
+    ok: true,
+    items: NFT_CATALOG.map(item => ({ id: item.id, name: item.name, sell_price: item.sell_price })),
+  });
+});
+
 app.post('/api/sell_nft', (req, res) => {
   const user = requireUser(req, res); if (!user) return;
   const { itemId } = req.body || {};
@@ -755,6 +763,16 @@ app.post('/api/admin_action', (req, res) => {
       }
       case 'reset_case_cooldowns': {
         users.forEach(u => { u.lastCaseOpenedAt = null; });
+        break;
+      }
+      case 'give_nft': {
+        const target = users.get(String(payload.userId));
+        if (!target) throw new Error('USER_NOT_FOUND');
+        const item = NFT_BY_ID.get(payload.itemId);
+        if (!item) throw new Error('ITEM_NOT_FOUND');
+        const amount = Math.max(1, parseInt(payload.amount) || 1);
+        ensureNftStarterPack(target);
+        target.nftInventory[item.id] = (target.nftInventory[item.id] || 0) + amount;
         break;
       }
       case 'reset_everything': {

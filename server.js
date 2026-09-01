@@ -287,6 +287,9 @@ function ensureNftStarterPack(user) {
   user.nftInitialized = true;
 }
 
+/* ---- Coin logotipi uchun premium animatsiyali emoji ---- */
+const COIN_CUSTOM_EMOJI_ID = '5462902520215002477';
+
 /* ---- Telegram custom emoji fayli: metadata + fayl keshi ---- */
 const NFT_MEDIA_CACHE_DIR = path.join(__dirname, 'nft_media_cache');
 if (!fs.existsSync(NFT_MEDIA_CACHE_DIR)) fs.mkdirSync(NFT_MEDIA_CACHE_DIR, { recursive: true });
@@ -535,6 +538,18 @@ app.post('/api/sell_nft', (req, res) => {
   user.nftInventory[itemId] = have - 1;
   user.balance += item.sell_price;
   res.json({ ok: true, balance: user.balance, sold_for: item.sell_price });
+});
+
+/* ---- Coin logo uchun animatsiya metadatasi (video/tgs ekanligini frontendga aytadi) ---- */
+app.get('/api/coin_emoji', async (req, res) => {
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  try {
+    const meta = await getEmojiMeta(COIN_CUSTOM_EMOJI_ID);
+    res.json({ custom_emoji_id: COIN_CUSTOM_EMOJI_ID, is_video: meta.is_video, is_animated: meta.is_animated });
+  } catch (e) {
+    console.error('coin_emoji xatolik:', e.message);
+    res.status(500).json({ error: 'SERVER_ERROR' });
+  }
 });
 
 /* ---- NFT animatsiya faylini proksi qilish (bot token frontendga chiqmaydi) ---- */

@@ -172,9 +172,11 @@
   .case-items-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:18px;}
   .case-item{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:10px 2px; text-align:center;}
   .case-item .emoji{font-size:20px; line-height:1;}
-  .gift-ico{ width:28px; height:28px; object-fit:contain; display:inline-block; vertical-align:middle; }
-  .gift-ico-lg{ width:56px; height:56px; object-fit:contain; }
-  .case-reel-item .gift-ico{ width:32px; height:32px; }
+  .anim-slot{display:inline-flex; align-items:center; justify-content:center; overflow:hidden;}
+  .anim-slot video, .anim-slot .lottie-box{width:100%; height:100%; object-fit:contain;}
+  .case-item .anim-slot{width:32px; height:32px; margin:0 auto;}
+  .case-reel-item .anim-slot{width:36px; height:36px; margin:0 auto;}
+  .case-result-emoji .anim-slot{width:64px; height:64px; margin:0 auto 4px;}
   .case-item .val{font-size:11px; color:var(--text-dim); font-weight:700; margin-top:4px; font-family:'JetBrains Mono',monospace;}
   .case-item.tier-15{border-color:#3A4550;}
   .case-item.tier-25{border-color:#3D5A4A;}
@@ -1487,27 +1489,30 @@ async function rewardReferrer(referrerId) {
 const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 let caseCountdownInterval = null;
 
-// Har bir gift o'z "tier"iga ega, har tier uchun UMUMIY vazn (shans) belgilangan,
-// tier ichidagi giftlar o'sha umumiy vaznni teng bo'lishadi.
-const CASE_ITEMS = [
-  { emoji: '🧸', img: 'teddy', value: 15, tier: 15 },
-  { emoji: '💝', img: 'heart_gift', value: 15, tier: 15 },
-  { emoji: '🎁', img: 'gift_box', value: 25, tier: 25 },
-  { emoji: '🌹', img: 'rose', value: 25, tier: 25 },
-  { emoji: '🎂', img: 'cake', value: 50, tier: 50 },
-  { emoji: '💐', img: 'bouquet', value: 50, tier: 50 },
-  { emoji: '🚀', img: 'rocket', value: 50, tier: 50 },
-  { emoji: '🍾', img: 'champagne', value: 50, tier: 50 },
-  { emoji: '🏆', img: 'trophy', value: 100, tier: 100 },
-  { emoji: '💍', img: 'ring', value: 100, tier: 100 },
-  { emoji: '💎', img: 'diamond', value: 100, tier: 100 }
-];
-const CASE_TIER_WEIGHTS = { 100: 0.1, 50: 1, 25: 5, 15: 10 };
-const CASE_STAR_WEIGHTS = { 10: 20, 7: 30, 5: 35, 3: 40, 1: 80, 0: 70 };
+// Case'dagi gift'lar endi backend'dan (custom emoji + tier/narx bilan) olinadi —
+// shu bilan birga qanday og'irlik (weight) bilan tushishi ham backend bilan bir xil.
+let CASE_ITEMS = [];
+let CASE_TIER_WEIGHTS = { 100: 0.1, 50: 1, 25: 5, 15: 10 };
+let CASE_STAR_WEIGHTS = { 10: 20, 7: 30, 5: 35, 3: 40, 1: 80, 0: 70 };
+let caseItemsLoaded = false;
 
-function giftIconHTML(item, cssClass) {
-  if (item.img) return `<img class="${cssClass || 'gift-ico'}" src="/gifts/${item.img}.png" alt="${item.emoji || ''}">`;
-  return `<span class="${cssClass || 'gift-ico'}">${item.emoji || ''}</span>`;
+async function loadCaseItemsCatalog() {
+  if (caseItemsLoaded) return;
+  try {
+    const res = await fetch('/api/case_items');
+    const data = await res.json();
+    if (data.ok) {
+      CASE_ITEMS = data.items;
+      if (data.tierWeights) CASE_TIER_WEIGHTS = data.tierWeights;
+      if (data.starWeights) CASE_STAR_WEIGHTS = data.starWeights;
+      caseItemsLoaded = true;
+    }
+  } catch (e) { console.error('Case items yuklanmadi:', e); }
+}
+
+function giftIconHTML(item, animId) {
+  // Haqiqiy animatsiya keyinroq mountAnimatedEmoji orqali shu konteynerga chiziladi.
+  return `<div class="anim-slot" id="${animId}"></div>`;
 }
 
 function renderCaseItems() {
@@ -1515,37 +1520,20 @@ function renderCaseItems() {
   if (!grid) return;
   grid.innerHTML = CASE_ITEMS.map(item => `
     <div class="case-item tier-${item.tier}">
-      <div class="emoji">${giftIconHTML(item)}</div>
-      <div class="val">${item.value} <span class="coin-ico"></span></div>
+      <div class="emoji">${giftIconHTML(item, `caseGridAnim_${item.id}`)}</div>
+      <div class="val">${item.sell_price} <span class="coin-ico"></span></div>
     </div>
   `).join('');
+  CASE_ITEMS.forEach(item => {
+    mountAnimatedEmoji(document.getElementById(`caseGridAnim_${item.id}`), item.custom_emoji_id, item.is_video);
+  });
 }
+
 
 // Real vaqtdagi mavjud og'irliklardan (weight) yagona ro'yxat quradi va
 // shundan Math.random() bilan tortadi. Gift/stars taqsimoti "hammasi random"
 // bo'lishi uchun umumiy vazn asosida normallashtiriladi (foizlar yig'indisi
 // 100% bo'lishi shart emas — nisbiy og'irlik sifatida ishlatiladi).
-function pickCaseReward() {
-  const tierCounts = {};
-  CASE_ITEMS.forEach(i => { tierCounts[i.tier] = (tierCounts[i.tier] || 0) + 1; });
-
-  const outcomes = [];
-  CASE_ITEMS.forEach(item => {
-    outcomes.push({ stars: item.value, emoji: item.emoji, img: item.img, isGift: true, tier: item.tier, weight: CASE_TIER_WEIGHTS[item.tier] / tierCounts[item.tier] });
-  });
-  Object.entries(CASE_STAR_WEIGHTS).forEach(([stars, weight]) => {
-    outcomes.push({ stars: Number(stars), emoji: null, isGift: false, weight });
-  });
-
-  const totalWeight = outcomes.reduce((s, o) => s + o.weight, 0);
-  let rand = Math.random() * totalWeight;
-  for (const o of outcomes) {
-    if (rand < o.weight) return o;
-    rand -= o.weight;
-  }
-  return outcomes[outcomes.length - 1];
-}
-
 // ==== AYLANUVCHI REEL ANIMATSIYASI ====
 // Vizual pul (filler) elementlar to'plami — g'olib allaqachon transaction'da
 // aniqlangan, bu faqat ko'rinish/hayajon uchun. Adolat/natija hech qanday
@@ -1554,16 +1542,19 @@ const CASE_REEL_ITEM_W = 82; // .case-reel-item to'liq eni (72px + 2*5px margin)
 const CASE_REEL_LENGTH = 46;
 const CASE_REEL_WIN_INDEX = 38;
 
-function reelItemHTML(item, extraClass) {
+function reelItemHTML(item, extraClass, animId) {
   const tierClass = item.isGift ? `tier-${item.tier}` : '';
-  const iconHtml = item.isGift ? giftIconHTML(item) : '<span class="coin-ico"></span>';
+  const iconHtml = item.isGift ? giftIconHTML(item, animId) : '<span class="coin-ico"></span>';
   return `<div class="case-reel-item ${tierClass} ${extraClass || ''}"><div class="emoji">${iconHtml}</div><div class="rv">${item.stars} <span class="coin-ico"></span></div></div>`;
 }
 
 function buildReelFillerPool() {
-  const pool = CASE_ITEMS.map(item => ({ stars: item.value, emoji: item.emoji, img: item.img, isGift: true, tier: item.tier }));
+  const pool = CASE_ITEMS.map(item => ({
+    stars: item.sell_price, itemId: item.id, custom_emoji_id: item.custom_emoji_id,
+    is_video: item.is_video, isGift: true, tier: item.tier,
+  }));
   Object.keys(CASE_STAR_WEIGHTS).forEach(stars => {
-    pool.push({ stars: Number(stars), emoji: null, isGift: false });
+    pool.push({ stars: Number(stars), isGift: false });
   });
   return pool;
 }
@@ -1583,7 +1574,11 @@ function runCaseReelAnimation(reward) {
 
     track.style.transition = 'none';
     track.style.transform = 'translateX(0px)';
-    track.innerHTML = seq.map((it, i) => reelItemHTML(it, i === CASE_REEL_WIN_INDEX ? 'win-slot' : '')).join('');
+    track.innerHTML = seq.map((it, i) => reelItemHTML(it, i === CASE_REEL_WIN_INDEX ? 'win-slot' : '', `reelAnim_${i}`)).join('');
+    // DOM joylashgandan keyin har bir gift slot uchun haqiqiy animatsiyani mount qilamiz.
+    seq.forEach((it, i) => {
+      if (it.isGift) mountAnimatedEmoji(document.getElementById(`reelAnim_${i}`), it.custom_emoji_id, it.is_video);
+    });
 
     if (grid) grid.style.display = 'none';
     wrap.style.display = 'block';
@@ -1651,7 +1646,7 @@ function updateCaseAvailability() {
 }
 
 function initCasePage() {
-  renderCaseItems();
+  loadCaseItemsCatalog().then(renderCaseItems);
   updateCaseAvailability();
 }
 
@@ -1659,7 +1654,8 @@ function showCaseResult(reward) {
   const banner = document.getElementById('caseResultBanner');
   if (!banner) return;
   if (reward.isGift) {
-    banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'gift-ico-lg')}</div><div>Siz <b>${reward.emoji || ''} ${reward.stars} <span class="coin-ico"></span></b> lik gift yutdingiz! Avtomatik sotildi va balansga tushdi.</div>`;
+    banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'caseResultAnim')}</div><div>Siz <b>${reward.name || ''} (${reward.stars} <span class="coin-ico"></span>)</b> lik gift yutdingiz! Inventoringizga tushdi — Profil bo'limidan sotishingiz mumkin.</div>`;
+    mountAnimatedEmoji(document.getElementById('caseResultAnim'), reward.custom_emoji_id, reward.is_video);
   } else if (reward.stars > 0) {
     banner.innerHTML = `<div class="case-result-emoji"><span class="coin-ico"></span></div><div>Siz <b>${reward.stars} <span class="coin-ico"></span></b> yutdingiz!</div>`;
   } else {
@@ -1726,7 +1722,9 @@ async function openDailyCase() {
 
     await runCaseReelAnimation(reward);
 
-    currentUserData.balance += reward.stars;
+    // MUHIM: gift chiqsa endi coin balansga qo'shilmaydi — inventoryga tushadi,
+    // faqat reyting uchun total_won oshadi. Oddiy "stars" tushsa balans o'sadi.
+    if (!reward.isGift) currentUserData.balance += reward.stars;
     currentUserData.total_won = (currentUserData.total_won || 0) + reward.stars;
     document.getElementById('topBalance').textContent = currentUserData.balance;
 
@@ -1993,12 +1991,11 @@ async function loadInventory() {
   }
 }
 
-function renderNftAnim(item) {
-  const container = document.getElementById(`nftAnim_${item.id}`);
+function mountAnimatedEmoji(container, customEmojiId, isVideo) {
   if (!container) return;
-  const mediaUrl = `/api/nft_media/${item.custom_emoji_id}`;
+  const mediaUrl = `/api/nft_media/${customEmojiId}`;
 
-  if (item.is_video) {
+  if (isVideo) {
     container.innerHTML = `<video src="${mediaUrl}" autoplay loop muted playsinline></video>`;
   } else {
     const box = document.createElement('div');
@@ -2016,8 +2013,12 @@ function renderNftAnim(item) {
           animationData: JSON.parse(jsonStr),
         });
       })
-      .catch(err => console.error('NFT animatsiya xatolik:', err));
+      .catch(err => console.error('Animatsiya xatolik:', err));
   }
+}
+
+function renderNftAnim(item) {
+  mountAnimatedEmoji(document.getElementById(`nftAnim_${item.id}`), item.custom_emoji_id, item.is_video);
 }
 
 async function sellNft(itemId, sellPrice) {

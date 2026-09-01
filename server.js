@@ -253,41 +253,6 @@ function refreshPhotoAsync(user) {
   fetchTelegramPhoto(user.id).then(url => { if (url) user.photo_url = url; }).catch(() => {});
 }
 
-/* ---- Kunlik case sovrinlari (server-authoritative) ---- */
-const CASE_ITEMS = [
-  { emoji: '🧸', img: 'teddy', value: 15, tier: 15 },
-  { emoji: '💝', img: 'heart_gift', value: 15, tier: 15 },
-  { emoji: '🎁', img: 'gift_box', value: 25, tier: 25 },
-  { emoji: '🌹', img: 'rose', value: 25, tier: 25 },
-  { emoji: '🎂', img: 'cake', value: 50, tier: 50 },
-  { emoji: '💐', img: 'bouquet', value: 50, tier: 50 },
-  { emoji: '🚀', img: 'rocket', value: 50, tier: 50 },
-  { emoji: '🍾', img: 'champagne', value: 50, tier: 50 },
-  { emoji: '🏆', img: 'trophy', value: 100, tier: 100 },
-  { emoji: '💍', img: 'ring', value: 100, tier: 100 },
-  { emoji: '💎', img: 'diamond', value: 100, tier: 100 },
-];
-const CASE_TIER_WEIGHTS = { 100: 0.1, 50: 1, 25: 5, 15: 10 };
-const CASE_STAR_WEIGHTS = { 10: 20, 7: 30, 5: 35, 3: 40, 1: 80, 0: 70 };
-function pickCaseReward() {
-  const tierCounts = {};
-  CASE_ITEMS.forEach(i => { tierCounts[i.tier] = (tierCounts[i.tier] || 0) + 1; });
-  const outcomes = [];
-  CASE_ITEMS.forEach(item => {
-    outcomes.push({ stars: item.value, emoji: item.emoji, img: item.img, isGift: true, tier: item.tier, weight: CASE_TIER_WEIGHTS[item.tier] / tierCounts[item.tier] });
-  });
-  Object.entries(CASE_STAR_WEIGHTS).forEach(([stars, weight]) => {
-    outcomes.push({ stars: Number(stars), emoji: null, isGift: false, weight });
-  });
-  const totalWeight = outcomes.reduce((s, o) => s + o.weight, 0);
-  let rand = Math.random() * totalWeight;
-  for (const o of outcomes) {
-    if (rand < o.weight) return o;
-    rand -= o.weight;
-  }
-  return outcomes[outcomes.length - 1];
-}
-
 /* ============================================================
    NFT INVENTAR (Telegram premium custom emoji asosida)
    — bu real Telegram NFT/gift emas, faqat ilova ichida beriladigan
@@ -295,15 +260,23 @@ function pickCaseReward() {
    mumkin. Animatsiya Telegram custom emoji fayli orqali chiziladi.
    ============================================================ */
 const NFT_CATALOG = [
-  {
-    id: 'lol_pop',
-    name: 'Lol Pop',
-    custom_emoji_id: '5278223019590850728',
-    sell_price: 380,
-    free: true, // hozircha hammaga tekin beriladi
-  },
+  { id: 'lol_pop', name: 'Lol Pop', custom_emoji_id: '5278223019590850728', sell_price: 380, free: true },
+
+  // ---- Case'dan chiqadigan gift'lar (endi coin emas, inventoryga tushadi) ----
+  { id: 'teddy', name: 'Ayiqcha', custom_emoji_id: '5278547100643137176', sell_price: 15, tier: 15 },
+  { id: 'heart_gift', name: 'Yurakcha', custom_emoji_id: '5278414927319566863', sell_price: 15, tier: 15 },
+  { id: 'gift_box', name: 'Sovg\'a', custom_emoji_id: '5278248132264635804', sell_price: 25, tier: 25 },
+  { id: 'rose', name: 'Atirgul', custom_emoji_id: '5276522285556080471', sell_price: 25, tier: 25 },
+  { id: 'cake', name: 'Tort', custom_emoji_id: '5278534529273859992', sell_price: 50, tier: 50 },
+  { id: 'bouquet', name: 'Gullar', custom_emoji_id: '5278412273029782354', sell_price: 50, tier: 50 },
+  { id: 'rocket', name: 'Raketa', custom_emoji_id: '5278245624003725921', sell_price: 50, tier: 50 },
+  { id: 'champagne', name: 'Vino', custom_emoji_id: '5278604064794380612', sell_price: 50, tier: 50 },
+  { id: 'trophy', name: 'Kubok', custom_emoji_id: '5278692270537739766', sell_price: 100, tier: 100 },
+  { id: 'ring', name: 'Uzuk', custom_emoji_id: '5276492074756120077', sell_price: 100, tier: 100 },
+  { id: 'diamond', name: 'Olmos', custom_emoji_id: '5278313338458118113', sell_price: 100, tier: 100 },
 ];
 const NFT_BY_ID = new Map(NFT_CATALOG.map(i => [i.id, i]));
+const CASE_ITEM_IDS = ['teddy', 'heart_gift', 'gift_box', 'rose', 'cake', 'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond'];
 
 function ensureNftStarterPack(user) {
   if (!user.nftInventory) user.nftInventory = {};
@@ -359,6 +332,29 @@ async function downloadAndCacheNftMedia(customEmojiId) {
   const outPath = path.join(NFT_MEDIA_CACHE_DIR, customEmojiId + ext);
   fs.writeFileSync(outPath, buffer);
   return outPath;
+}
+
+/* ---- Kunlik case sovrinlari (server-authoritative) ---- */
+const CASE_TIER_WEIGHTS = { 100: 0.1, 50: 1, 25: 5, 15: 10 };
+const CASE_STAR_WEIGHTS = { 10: 20, 7: 30, 5: 35, 3: 40, 1: 80, 0: 70 };
+function pickCaseReward() {
+  const caseItems = CASE_ITEM_IDS.map(id => NFT_BY_ID.get(id));
+  const tierCounts = {};
+  caseItems.forEach(i => { tierCounts[i.tier] = (tierCounts[i.tier] || 0) + 1; });
+  const outcomes = [];
+  caseItems.forEach(item => {
+    outcomes.push({ itemId: item.id, stars: item.sell_price, isGift: true, tier: item.tier, weight: CASE_TIER_WEIGHTS[item.tier] / tierCounts[item.tier] });
+  });
+  Object.entries(CASE_STAR_WEIGHTS).forEach(([stars, weight]) => {
+    outcomes.push({ stars: Number(stars), isGift: false, weight });
+  });
+  const totalWeight = outcomes.reduce((s, o) => s + o.weight, 0);
+  let rand = Math.random() * totalWeight;
+  for (const o of outcomes) {
+    if (rand < o.weight) return o;
+    rand -= o.weight;
+  }
+  return outcomes[outcomes.length - 1];
 }
 
 /* ============================================================
@@ -445,11 +441,39 @@ app.post('/api/open_case', async (req, res) => {
   if (user.lastCaseOpenedAt && Date.now() - user.lastCaseOpenedAt < CASE_COOLDOWN_MS) {
     return res.status(400).json({ error: 'CASE_NOT_READY' });
   }
+  ensureNftStarterPack(user);
   const reward = pickCaseReward();
-  user.balance += reward.stars;
-  user.total_won += reward.stars;
   user.lastCaseOpenedAt = Date.now();
+  user.total_won += reward.stars; // reytingda ko'rsatiladigan umumiy qiymat
+
+  if (reward.isGift) {
+    // MUHIM: endi gift avtomatik coinga aylanmaydi — inventoryga tushadi,
+    // foydalanuvchi o'zi xohlasa keyinroq /api/sell_nft orqali sotadi.
+    user.nftInventory[reward.itemId] = (user.nftInventory[reward.itemId] || 0) + 1;
+    const item = NFT_BY_ID.get(reward.itemId);
+    const meta = await getEmojiMeta(item.custom_emoji_id);
+    reward.name = item.name;
+    reward.custom_emoji_id = item.custom_emoji_id;
+    reward.sell_price = item.sell_price;
+    reward.is_video = meta.is_video;
+  } else {
+    user.balance += reward.stars;
+  }
   res.json({ ok: true, reward });
+});
+
+/* ---- Case'dagi mumkin bo'lgan gift'lar ro'yxati (frontend uchun) ---- */
+app.get('/api/case_items', async (req, res) => {
+  const items = [];
+  for (const id of CASE_ITEM_IDS) {
+    const item = NFT_BY_ID.get(id);
+    const meta = await getEmojiMeta(item.custom_emoji_id);
+    items.push({
+      id: item.id, name: item.name, custom_emoji_id: item.custom_emoji_id,
+      sell_price: item.sell_price, tier: item.tier, is_video: meta.is_video,
+    });
+  }
+  res.json({ ok: true, items, tierWeights: CASE_TIER_WEIGHTS, starWeights: CASE_STAR_WEIGHTS });
 });
 
 /* ============================================================

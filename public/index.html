@@ -481,32 +481,6 @@
   .nft-stake-footer{display:flex; gap:8px; align-items:center; position:sticky; bottom:0; background:var(--surface); padding-top:8px;}
   .nft-stake-footer .n-total{flex:1; font-size:12px; color:var(--text-dim);}
 
-  /* HOCKEY/DRUM — YUTUQ OYNACHASI (coin + bir nechta NFT) */
-  .round-win-overlay{
-    position:fixed; inset:0; background:rgba(5,8,14,.9); z-index:230;
-    display:none; align-items:center; justify-content:center; padding:20px;
-    backdrop-filter:blur(4px);
-  }
-  .round-win-overlay.active{display:flex;}
-  .round-win-card{
-    position:relative; width:100%; max-width:360px; text-align:center;
-    background:linear-gradient(180deg, rgba(255,215,110,0.10), var(--surface) 40%);
-    border:1px solid rgba(255,205,90,0.5); border-radius:22px; padding:26px 18px 20px;
-    box-shadow:0 0 60px rgba(255,200,80,0.25);
-    animation:nftWinPop .4s cubic-bezier(.2,1.4,.4,1);
-  }
-  .round-win-title{font-size:16px; font-weight:800; color:var(--gold,#ffd76e); margin-bottom:4px;}
-  .round-win-coin{font-size:14px; color:var(--text-dim); margin-bottom:16px;}
-  .round-win-coin b{color:var(--text); font-weight:700;}
-  .round-win-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-height:260px; overflow-y:auto; margin-bottom:18px;}
-  .round-win-grid .anim-slot{width:100%; aspect-ratio:1/1; border-radius:10px; background:var(--surface-2); margin-bottom:4px;}
-  .round-win-grid .rw-name{font-size:10.5px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .round-win-empty{font-size:13px; color:var(--text-dim); margin-bottom:18px;}
-  .round-win-ok-btn{
-    width:100%; padding:13px; border-radius:12px; border:none; cursor:pointer;
-    background:linear-gradient(180deg,var(--gold,#ffd76e),#c99a2e); color:#1A1400; font-weight:800; font-size:14px;
-  }
-
   /* TEAM BATTLE (3 RANGLI ARENA) */
   .team-color-select{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px;}
   .team-color-btn{
@@ -1357,16 +1331,6 @@
       <button class="btn" style="flex:0 0 auto; padding:10px 18px;" onclick="closeNftStakeModal()">Bekor</button>
       <button class="btn" style="flex:0 0 auto; padding:10px 18px;" id="nftStakeConfirmBtn" onclick="confirmNftStake()">Tikish</button>
     </div>
-  </div>
-</div>
-
-<!-- HOCKEY/DRUM — YUTUQ OYNACHASI -->
-<div class="round-win-overlay" id="roundWinOverlay">
-  <div class="round-win-card">
-    <div class="round-win-title">🎉 SIZ YUTDINGIZ!</div>
-    <div class="round-win-coin" id="roundWinCoin"></div>
-    <div class="round-win-grid" id="roundWinGrid"></div>
-    <button class="round-win-ok-btn" onclick="closeRoundWinModal()">Ajoyib!</button>
   </div>
 </div>
 
@@ -3091,43 +3055,6 @@ function closeNftWinModal() {
   if (animEl) animEl.innerHTML = '';
 }
 
-// HOCKEY/DRUM — coin + (agar bo'lsa) bir nechta NFT'ni birga ko'rsatadigan
-// yutuq oynachasi. playersSnapshot — davr boshlanishida saqlangan barcha
-// o'yinchilar ro'yxati (tikkan NFT'lari bilan birga), shundan barcha
-// NFT'lar yig'ib olinadi (chunki g'olib hammasini oladi).
-function showRoundWinModal(coinAmount, playersSnapshot) {
-  const overlay = document.getElementById('roundWinOverlay');
-  if (!overlay) return;
-
-  const allNfts = (playersSnapshot || []).flatMap(p => p.nfts || []);
-
-  document.getElementById('roundWinCoin').innerHTML = coinAmount > 0
-    ? `Siz <b>${coinAmount} <span class="coin-ico"></span></b> yutdingiz!`
-    : '';
-
-  const grid = document.getElementById('roundWinGrid');
-  if (!allNfts.length) {
-    grid.innerHTML = '';
-  } else {
-    grid.innerHTML = allNfts.map((n, i) => `
-      <div>
-        <div class="anim-slot" id="roundWinAnim_${i}"></div>
-        <div class="rw-name">${n.name || ''}</div>
-      </div>
-    `).join('');
-    allNfts.forEach((n, i) => mountAnimatedEmoji(document.getElementById(`roundWinAnim_${i}`), n.custom_emoji_id, n.is_video));
-  }
-
-  overlay.classList.add('active');
-}
-
-function closeRoundWinModal() {
-  const overlay = document.getElementById('roundWinOverlay');
-  if (!overlay) return;
-  overlay.classList.remove('active');
-  document.getElementById('roundWinGrid').innerHTML = '';
-}
-
 function crashCashOut() {
   return new Promise((resolve) => {
     if (crashCashoutBusy) return resolve();
@@ -3154,7 +3081,6 @@ let hockeyState = { status: 'idle', players: [], pot: 0, game_number: 1 };
 let hockeyRoundPotSnapshot = 0;
 let hockeyRoundCoinPotSnapshot = 0;
 let hockeyRoundNftCountSnapshot = 0;
-let hockeyRoundPlayersSnapshot = [];
 let hockeyZoneRects = null;
 let currentUnsubscribe = null;
 let physicsInterval = null;
@@ -3227,7 +3153,6 @@ function initHockeyPage() {
         hockeyRoundPotSnapshot = hockeyState.pot || 0;
         hockeyRoundCoinPotSnapshot = (hockeyState.players || []).reduce((s, p) => s + (p.stars || 0), 0);
         hockeyRoundNftCountSnapshot = (hockeyState.players || []).reduce((s, p) => s + ((p.nfts || []).length), 0);
-        hockeyRoundPlayersSnapshot = (hockeyState.players || []).map(p => ({ ...p, nfts: (p.nfts || []).slice() }));
         startPuckPhysicsAnimation(hockeyState.puckSeed);
       }
     } else if (hockeyState.status === 'cooldown') {
@@ -3519,38 +3444,6 @@ function startPuckPhysicsAnimation(seed) {
     // FAQAT vizual effekt, natijaga hech qanday ta'sir qilmaydi.
     let winner = hockeyState.winner || zones[zones.length - 1];
 
-    // MUHIM TUZATISH: avval tosh QAYERGA TUSHSA O'SHA YERDA to'xtar edi,
-    // bu esa haqiqiy (serverda tanlangan) g'olib bilan hech qanday bog'liq
-    // emas edi — shu sabab "boshqa zona yutdi" ko'rinishidagi chalkashlik
-    // yuzaga kelardi. Endi: fizika birinchi ~72% davomida ODDIY tasodifiy
-    // sakrab-uchadi (faqat vizual hayajon uchun), so'ngra oxirgi qismida
-    // tekis (ease-out) tarzda AYNAN g'olibning zonasi markaziga suriladi —
-    // shu bilan ko'rinish va haqiqiy natija 100% mos keladi.
-    const winnerZone = hockeyZoneRects && hockeyZoneRects.find(z => z.player.id === winner.id);
-    if (winnerZone) {
-      let target;
-      if (winnerZone.polygon) {
-        const c = polygonCentroid(winnerZone.polygon);
-        target = { x: c[0], y: c[1] };
-      } else {
-        target = { x: winnerZone.x + winnerZone.w / 2, y: winnerZone.y + winnerZone.h / 2 };
-      }
-      target.x = Math.min(100 - rad, Math.max(rad, target.x));
-      target.y = Math.min(100 - rad, Math.max(rad, target.y));
-
-      const settleStartIdx = Math.floor(totalSteps * 0.72);
-      const settleStart = path[settleStartIdx];
-      for (let i = settleStartIdx; i < totalSteps; i++) {
-        const t = (i - settleStartIdx) / Math.max(1, totalSteps - 1 - settleStartIdx);
-        const ease = 1 - Math.pow(1 - t, 3);
-        path[i] = {
-          x: settleStart.x + (target.x - settleStart.x) * ease,
-          y: settleStart.y + (target.y - settleStart.y) * ease,
-        };
-      }
-    }
-    const settledFinalPos = path[path.length - 1];
-
     const flightStart = Date.now();
     physicsInterval = setInterval(() => {
       let elapsed = Date.now() - flightStart;
@@ -3559,7 +3452,7 @@ function startPuckPhysicsAnimation(seed) {
       if (progress >= 1) {
         clearInterval(physicsInterval);
 
-        const endPx = toPx(settledFinalPos.x, settledFinalPos.y);
+        const endPx = toPx(finalPos.x, finalPos.y);
         puck.style.left = `${endPx.left}px`;
         puck.style.top = `${endPx.top}px`;
 
@@ -3612,7 +3505,6 @@ async function finishHockeyRound(winner) {
     currentUserData.balance += potAtWin;
     currentUserData.total_won = (currentUserData.total_won || 0) + potAtWin;
     document.getElementById('topBalance').textContent = currentUserData.balance;
-    showRoundWinModal(potAtWin, hockeyRoundPlayersSnapshot);
   }
 
   // Raundni 'cooldown' -> 'idle'ga o'tkazish ham endi serverda avtomatik
@@ -3632,7 +3524,7 @@ function renderHockeyArena() {
     return;
   }
 
-  const items = hockeyState.players.map((p, idx) => ({ index: idx, value: playerWeightClient(p) || 0.01 }));
+  const items = hockeyState.players.map((p, idx) => ({ index: idx, value: p.stars || 1 }));
   // Har bir raund uchun stil (to'g'ri burchakli treemap yoki qiya/uchburchak bo'linish)
   // va yo'nalish game_number asosida aniqlanadi — shu tufayli har doim bir xil
   // ko'rinish emas, lekin BARCHA foydalanuvchilarda (va g'olibni aniqlashda)
@@ -3911,7 +3803,6 @@ let drumState = { status: 'idle', players: [], pot: 0, game_number: 1 };
 let drumRoundPotSnapshot = 0;
 let drumRoundCoinPotSnapshot = 0;
 let drumRoundNftCountSnapshot = 0;
-let drumRoundPlayersSnapshot = [];
 let drumSegmentsData = null; // [{player, startDeg, endDeg}]
 let drumBettingCountdownInterval = null;
 let drumSpinTimeout = null;
@@ -3966,7 +3857,6 @@ function initDrumPage() {
         drumRoundPotSnapshot = drumState.pot || 0;
         drumRoundCoinPotSnapshot = (drumState.players || []).reduce((s, p) => s + (p.stars || 0), 0);
         drumRoundNftCountSnapshot = (drumState.players || []).reduce((s, p) => s + ((p.nfts || []).length), 0);
-        drumRoundPlayersSnapshot = (drumState.players || []).map(p => ({ ...p, nfts: (p.nfts || []).slice() }));
         startDrumSpinAnimation(drumState.drumSeed);
       }
     } else if (drumState.status === 'cooldown') {
@@ -4107,7 +3997,6 @@ async function finishDrumRound(winner) {
     currentUserData.balance += potAtWin;
     currentUserData.total_won = (currentUserData.total_won || 0) + potAtWin;
     document.getElementById('topBalance').textContent = currentUserData.balance;
-    showRoundWinModal(potAtWin, drumRoundPlayersSnapshot);
   }
 
   setTimeout(() => {

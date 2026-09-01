@@ -72,7 +72,10 @@
     width:34px; height:34px; border-radius:50%; margin:0 auto 8px;
     display:flex; align-items:center; justify-content:center;
     font-weight:700; font-size:14px; font-family:'Sora',sans-serif;
+    position:relative; overflow:hidden;
   }
+  .medal.medal-anim-on{background:transparent !important;}
+  .medal video, .medal .lottie-box{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .slot.first .medal{background:var(--gold); color:#1A1400; width:40px; height:40px; font-size:16px;}
   .slot.second .medal{background:#C6C9D1; color:#1A1A1A;}
   .slot.third .medal{background:#C97B4A; color:#1A1000;}
@@ -1797,13 +1800,14 @@ function renderLeaderboard(leaderboard) {
   const order = ['first', 'second', 'third'];
   podium.innerHTML = top3.map((u, i) => `
     <div class="slot ${order[i]}">
-      <div class="medal">${u.place}</div>
+      <div class="medal" data-place="${u.place}">${u.place}</div>
       <img class="avatar" src="${u.photo_url || avatarFallback(u.username)}" onerror="this.src=avatarFallback('${u.username}')">
       <div class="name">${u.username}</div>
       <div class="stars"><span class="coin-ico"></span> ${u.stars}</div>
       <div class="gift-badge">🧸 Gift</div>
     </div>
   `).join('');
+  mountMedalIcons();
   list.innerHTML = rest.map(u => `
     <div class="lb-row">
       <div class="place">${u.place}</div>
@@ -2015,8 +2019,38 @@ function mountAnimatedEmoji(container, customEmojiId, isVideo) {
   }
 }
 
+/* ===== Umumiy: Telegram premium custom emoji'ni video/lottie sifatida yuklab olish ===== */
+async function loadEmojiAsset(customEmojiId, isVideo) {
+  const mediaUrl = `/api/nft_media/${customEmojiId}`;
+  if (isVideo) {
+    const blob = await (await fetch(mediaUrl)).blob();
+    return { isVideo: true, videoUrl: URL.createObjectURL(blob) };
+  }
+  const buf = await (await fetch(mediaUrl)).arrayBuffer();
+  const jsonStr = window.pako ? pako.inflate(new Uint8Array(buf), { to: 'string' }) : null;
+  if (!jsonStr) throw new Error('lottie inflate xatolik');
+  return { isVideo: false, lottieData: JSON.parse(jsonStr) };
+}
+
+function mountEmojiAsset(el, asset) {
+  if (asset.isVideo) {
+    const v = document.createElement('video');
+    v.src = asset.videoUrl;
+    v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
+    el.appendChild(v);
+  } else {
+    const box = document.createElement('div');
+    box.className = 'lottie-box';
+    el.appendChild(box);
+    lottie.loadAnimation({
+      container: box, renderer: 'svg', loop: true, autoplay: true,
+      animationData: asset.lottieData,
+    });
+  }
+}
+
 /* ===== Coin logotipi — premium animatsiyali emoji ===== */
-const coinAnimState = { ready: false, isVideo: false, videoUrl: null, lottieData: null };
+const coinAnimState = { ready: false, asset: null };
 let coinMountScheduled = false;
 
 async function initCoinIcons() {
@@ -2024,18 +2058,7 @@ async function initCoinIcons() {
     const metaRes = await fetch('/api/coin_emoji');
     if (!metaRes.ok) return; // BOT_TOKEN sozlanmagan bo'lsa — statik icon qoladi
     const meta = await metaRes.json();
-    const mediaUrl = `/api/nft_media/${meta.custom_emoji_id}`;
-    if (meta.is_video) {
-      const blob = await (await fetch(mediaUrl)).blob();
-      coinAnimState.videoUrl = URL.createObjectURL(blob);
-      coinAnimState.isVideo = true;
-    } else {
-      const buf = await (await fetch(mediaUrl)).arrayBuffer();
-      const jsonStr = window.pako ? pako.inflate(new Uint8Array(buf), { to: 'string' }) : null;
-      if (!jsonStr) return;
-      coinAnimState.lottieData = JSON.parse(jsonStr);
-      coinAnimState.isVideo = false;
-    }
+    coinAnimState.asset = await loadEmojiAsset(meta.custom_emoji_id, meta.is_video);
     coinAnimState.ready = true;
     mountCoinIcons();
     // Ilova davomida dinamik qo'shiladigan coin-ico'larni (case ochish, ro'yxatlar va h.k.) kuzatib turamiz
@@ -2057,20 +2080,42 @@ function mountCoinIcons() {
   document.querySelectorAll('.coin-ico:not([data-coin-mounted])').forEach(el => {
     el.setAttribute('data-coin-mounted', '1');
     el.classList.add('coin-anim-on');
-    if (coinAnimState.isVideo) {
-      const v = document.createElement('video');
-      v.src = coinAnimState.videoUrl;
-      v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
-      el.appendChild(v);
-    } else {
-      const box = document.createElement('div');
-      box.className = 'lottie-box';
-      el.appendChild(box);
-      lottie.loadAnimation({
-        container: box, renderer: 'svg', loop: true, autoplay: true,
-        animationData: coinAnimState.lottieData,
-      });
-    }
+    mountEmojiAsset(el, coinAnimState.asset);
+  });
+}
+
+/* ===== Reyting top 1/2/3 medal ikonkalari — premium animatsiyali emoji ===== */
+const medalAnimState = {}; // place(1|2|3) -> {ready, asset}
+
+async function initMedalIcons() {
+  try {
+    const res = await fetch('/api/medal_emojis');
+    if (!res.ok) return; // BOT_TOKEN sozlanmagan bo'lsa — statik raqam qoladi
+    const data = await res.json();
+    if (!data.ok) return;
+    await Promise.all(data.medals.map(async (m) => {
+      try {
+        const asset = await loadEmojiAsset(m.custom_emoji_id, m.is_video);
+        medalAnimState[m.place] = { ready: true, asset };
+      } catch (e) {
+        console.error(`Medal #${m.place} animatsiyasi yuklanmadi:`, e.message);
+      }
+    }));
+    mountMedalIcons();
+  } catch (e) {
+    console.error('Medal emojilari yuklanmadi:', e.message);
+  }
+}
+
+function mountMedalIcons() {
+  document.querySelectorAll('.medal[data-place]:not([data-medal-mounted])').forEach(el => {
+    const place = el.getAttribute('data-place');
+    const state = medalAnimState[place];
+    if (!state || !state.ready) return;
+    el.setAttribute('data-medal-mounted', '1');
+    el.textContent = '';
+    el.classList.add('medal-anim-on');
+    mountEmojiAsset(el, state.asset);
   });
 }
 
@@ -4024,6 +4069,8 @@ function mnLeavePage() {
 checkCaptchaRequirement();
 // Coin logotipini premium animatsiyali emoji bilan almashtiramiz
 initCoinIcons();
+// Reytingdagi top 1/2/3 medal ikonkalarini ham premium animatsiyali emoji bilan almashtiramiz
+initMedalIcons();
 </script>
 </body>
 </html>

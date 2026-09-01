@@ -404,27 +404,18 @@
     animation:gcTwinkle 4s ease-in-out infinite;
   }
   @keyframes gcTwinkle{0%,100%{opacity:.5;} 50%{opacity:.9;}}
-  .game-card.crash > *{position:relative; z-index:1;}
+  .game-card.crash > .game-badge, .game-card.crash > .game-name{position:relative; z-index:1;}
   .game-card-visual{
-    position:absolute; right:12px; top:50%; z-index:2;
-    width:88px; height:88px; transform:translateY(-50%) rotate(8deg);
-    filter:drop-shadow(0 8px 20px rgba(140,100,255,.5));
+    position:absolute; right:14px; top:50%; z-index:2;
+    width:76px; height:76px; margin-top:-38px;
+    animation:gcVisualFloat 2.4s ease-in-out infinite;
+    filter:drop-shadow(0 8px 18px rgba(140,100,255,.5));
   }
   .game-card-visual video, .game-card-visual .lottie-box{width:100%; height:100%;}
   .game-card-visual .fallback-emoji{
-    width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:46px;
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:42px;
   }
-  .gc-chip{
-    position:absolute; z-index:3; font-family:'Sora',sans-serif; font-weight:700; font-size:10px;
-    color:#0d2417; background:linear-gradient(180deg,#6CF7A8,#33C481);
-    padding:3px 8px; border-radius:999px; box-shadow:0 3px 10px rgba(0,0,0,.35);
-    animation:gcChipFloat 3.2s ease-in-out infinite;
-    pointer-events:none;
-  }
-  .gc-chip-1{right:96px; top:16px; animation-delay:.15s;}
-  .gc-chip-2{right:10px; top:10px; font-size:9px; animation-delay:.65s;}
-  .gc-chip-3{right:60px; bottom:14px; font-size:9px; animation-delay:1.15s;}
-  @keyframes gcChipFloat{0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);}}
+  @keyframes gcVisualFloat{0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);}}
 
   /* ---- RAKETA (CRASH) ---- */
   .crash-arena{position:relative; height:230px; border-radius:16px; overflow:hidden; margin-bottom:14px;
@@ -1160,9 +1151,6 @@
       <span class="game-badge">🚀 Jonli · Multiplayer</span>
       <span class="game-name">RAKETA</span>
       <div class="game-card-visual" id="gcVisualCrash"><span class="fallback-emoji">🚀</span></div>
-      <span class="gc-chip gc-chip-1">x5.98</span>
-      <span class="gc-chip gc-chip-2">x3.49</span>
-      <span class="gc-chip gc-chip-3">x7.32</span>
     </div>
     <div class="game-card hockey" onclick="openGame('hockey')">
       <span class="game-badge">🏒 Mukammal Fizika</span>

@@ -274,19 +274,20 @@
       radial-gradient(1px 1px at 60px 140px, rgba(255,255,255,.4), transparent);
     background-repeat:repeat; background-size:280px 180px; opacity:.8;}
   .crash-status-banner{position:absolute; top:10px; left:0; right:0; text-align:center; font-size:12px; color:var(--text-dim); z-index:3;}
-  .crash-mult{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    font-family:'Sora',sans-serif; font-weight:800; font-size:44px; color:var(--text); z-index:2;
+  .crash-mult{position:absolute; left:0; right:0; bottom:26px; display:flex; align-items:center; justify-content:center;
+    font-family:'Sora',sans-serif; font-weight:800; font-size:38px; color:var(--text); z-index:2;
     text-shadow:0 0 24px rgba(255,255,255,.18); transition:color .15s ease;}
   .crash-mult.running{color:var(--success); text-shadow:0 0 24px rgba(51,196,129,.35);}
   .crash-mult.crashed{color:var(--danger); text-shadow:0 0 24px rgba(229,84,75,.4); animation:crashShake .4s ease;}
-  .crash-rocket{position:absolute; left:50%; top:50%; width:64px; height:64px; z-index:2;
+  .crash-rocket{position:absolute; left:50%; top:38%; width:94px; height:94px; z-index:2;
     transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center;
     animation:crashFloat 2.2s ease-in-out infinite;}
-  .crash-rocket .fallback-emoji{font-size:40px;}
+  .crash-rocket .fallback-emoji{font-size:56px;}
   .crash-rocket video, .crash-rocket .lottie-box{width:100%; height:100%;}
-  .crash-rocket.running{animation:crashFloat 0.6s ease-in-out infinite;}
+  .crash-rocket.running{animation:crashFloat 0.6s ease-in-out infinite, crashGrow 1.4s ease forwards;}
   .crash-rocket.crashed{animation:crashBoom .5s ease forwards;}
   @keyframes crashFloat{0%,100%{transform:translate(-50%,-50%) translateY(0px);} 50%{transform:translate(-50%,-50%) translateY(-8px);}}
+  @keyframes crashGrow{0%{transform:translate(-50%,-50%) scale(1);} 100%{transform:translate(-50%,-50%) scale(1.18);}}
   .crash-history-strip{display:flex; gap:6px; overflow-x:auto; padding:2px 1px 10px; margin-bottom:2px;}
   .crash-history-chip{flex:0 0 auto; padding:5px 9px; border-radius:8px; font-size:11.5px; font-weight:700; font-family:'JetBrains Mono',monospace;
     background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);}
@@ -2571,8 +2572,8 @@ function openGame(name) {
 }
 
 
-/* ===== Raketa (Crash) — premium animatsiyali emoji ===== */
-const rocketAnimState = { ready: false, mounted: false };
+/* ===== Raketa (Crash) — premium animatsiyali emojilar (har raundda almashadi) ===== */
+const rocketAnimState = { ready: false, loading: false, assets: [], mountedIndex: null };
 async function initRocketEmoji() {
   if (rocketAnimState.ready || rocketAnimState.loading) return;
   rocketAnimState.loading = true;
@@ -2580,18 +2581,27 @@ async function initRocketEmoji() {
     const metaRes = await fetch('/api/rocket_emoji');
     if (!metaRes.ok) return; // BOT_TOKEN sozlanmagan bo'lsa — statik 🚀 emoji qoladi
     const meta = await metaRes.json();
-    const asset = await loadEmojiAsset(meta.custom_emoji_id, meta.is_video);
-    const el = document.getElementById('crashRocket');
-    if (el) {
-      el.innerHTML = '';
-      mountEmojiAsset(el, asset);
-    }
-    rocketAnimState.ready = true;
+    rocketAnimState.assets = await Promise.all(
+      (meta.emojis || []).map(e => loadEmojiAsset(e.custom_emoji_id, e.is_video))
+    );
+    rocketAnimState.ready = rocketAnimState.assets.length > 0;
+    mountRocketForRound(crashState.round_number || 1);
   } catch (e) {
     console.error('Raketa animatsiyasi yuklanmadi:', e.message);
   } finally {
     rocketAnimState.loading = false;
   }
+}
+
+function mountRocketForRound(roundNumber) {
+  if (!rocketAnimState.ready || !rocketAnimState.assets.length) return;
+  const idx = (Number(roundNumber || 1) - 1) % rocketAnimState.assets.length;
+  if (rocketAnimState.mountedIndex === idx) return;
+  rocketAnimState.mountedIndex = idx;
+  const el = document.getElementById('crashRocket');
+  if (!el) return;
+  el.innerHTML = '';
+  mountEmojiAsset(el, rocketAnimState.assets[idx]);
 }
 
 // ==================== RAKETA (CRASH) — real vaqtli multiplayer ====================
@@ -2636,6 +2646,7 @@ function myCrashPlayer() {
 function renderCrashState() {
   const label = document.getElementById('crashRoundLabel');
   if (label) label.textContent = `Raund #${crashState.round_number || 1}`;
+  mountRocketForRound(crashState.round_number || 1);
 
   const banner = document.getElementById('crashStatusBanner');
   const multEl = document.getElementById('crashMultDisplay');

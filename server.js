@@ -292,8 +292,9 @@ function ensureNftStarterPack(user) {
 /* ---- Coin logotipi uchun premium animatsiyali emoji ---- */
 const COIN_CUSTOM_EMOJI_ID = '5462902520215002477';
 
-/* ---- Raketa (Crash) o'yini uchun premium animatsiyali emoji ---- */
-const ROCKET_CUSTOM_EMOJI_ID = '5188481279963715781';
+/* ---- Raketa (Crash) o'yini uchun premium animatsiyali emojilar
+   (har bir raundda ikkalasi navbat bilan almashib turadi) ---- */
+const ROCKET_CUSTOM_EMOJI_IDS = ['5188481279963715781', '5463424023734014980'];
 
 /* ---- Reytingdagi top 1/2/3 medal ikonkalari uchun premium animatsiyali emoji ---- */
 const MEDAL_EMOJI_IDS = {
@@ -583,8 +584,11 @@ app.get('/api/coin_emoji', async (req, res) => {
 app.get('/api/rocket_emoji', async (req, res) => {
   if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
   try {
-    const meta = await getEmojiMeta(ROCKET_CUSTOM_EMOJI_ID);
-    res.json({ custom_emoji_id: ROCKET_CUSTOM_EMOJI_ID, is_video: meta.is_video, is_animated: meta.is_animated });
+    const emojis = await Promise.all(ROCKET_CUSTOM_EMOJI_IDS.map(async (id) => {
+      const meta = await getEmojiMeta(id);
+      return { custom_emoji_id: id, is_video: meta.is_video, is_animated: meta.is_animated };
+    }));
+    res.json({ emojis });
   } catch (e) {
     console.error('rocket_emoji xatolik:', e.message);
     res.status(500).json({ error: 'SERVER_ERROR' });

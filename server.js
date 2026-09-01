@@ -41,6 +41,7 @@ function createUser(id, username) {
     referralRewarded: false,
     isAdmin: ADMIN_IDS.includes(String(id)),
     nftInventory: {},      // itemId(NFT_CATALOG dagi) -> dona soni
+    nftInstancePrices: {}, // itemId -> [narx1, narx2, ...] (raketa o'yinidan yutilgan NFT'larning haqiqiy narxi)
     nftInitialized: false, // starter (tekin) NFT'lar berilganmi
   };
 }
@@ -83,6 +84,7 @@ function loadDb() {
         ...u,
         completedTasks: new Set(u.completedTasks || []),
         nftInventory: u.nftInventory || {},
+        nftInstancePrices: u.nftInstancePrices || {},
         nftInitialized: u.nftInitialized || false,
       });
     });
@@ -260,9 +262,9 @@ function refreshPhotoAsync(user) {
    mumkin. Animatsiya Telegram custom emoji fayli orqali chiziladi.
    ============================================================ */
 const NFT_CATALOG = [
-  { id: 'lol_pop', name: 'Lol Pop', custom_emoji_id: '5278223019590850728', sell_price: 3.8, free: true },
-  { id: 'spy_agaric', name: 'Spy Agaric', custom_emoji_id: '5278253651297600475', sell_price: 5.4, free: true },
-  { id: 'witch_hat', name: 'Witch Hat', custom_emoji_id: '5278396652233723315', sell_price: 5, free: true },
+  { id: 'lol_pop', name: 'Lol Pop', custom_emoji_id: '5278223019590850728', sell_price: 3.8 },
+  { id: 'spy_agaric', name: 'Spy Agaric', custom_emoji_id: '5278253651297600475', sell_price: 5.4 },
+  { id: 'witch_hat', name: 'Witch Hat', custom_emoji_id: '5278396652233723315', sell_price: 5 },
 
   // ---- Case'dan chiqadigan gift'lar (endi coin emas, inventoryga tushadi) ----
   { id: 'teddy', name: 'Ayiqcha', custom_emoji_id: '5278547100643137176', sell_price: 0.13, tier: 15 },
@@ -291,11 +293,38 @@ const CASE_ITEM_IDS = ['teddy', 'heart_gift', 'gift_box', 'rose', 'cake', 'bouqu
 
 function ensureNftStarterPack(user) {
   if (!user.nftInventory) user.nftInventory = {};
+  if (!user.nftInstancePrices) user.nftInstancePrices = {};
   if (user.nftInitialized) return;
   NFT_CATALOG.forEach(item => {
     if (item.free) user.nftInventory[item.id] = (user.nftInventory[item.id] || 0) + 1;
   });
   user.nftInitialized = true;
+}
+
+/* ---- Bitta NFT dona sifatida foydalanuvchi inventoriga qo'shish.
+   customPrice berilsa (masalan raketa o'yinida yutilgan bo'lsa), bu dona
+   sotilganda katalogdagi standart narx emas, aynan shu narx qo'llanadi. ---- */
+function grantNftToUser(user, itemId, customPrice = null) {
+  ensureNftStarterPack(user);
+  user.nftInventory[itemId] = (user.nftInventory[itemId] || 0) + 1;
+  if (customPrice !== null && customPrice !== undefined) {
+    if (!user.nftInstancePrices[itemId]) user.nftInstancePrices[itemId] = [];
+    user.nftInstancePrices[itemId].push(round2(customPrice));
+  }
+}
+
+/* ---- Bir martalik migratsiya: eski "bepul starter" NFT'lar (lol_pop,
+   spy_agaric, witch_hat) endi tarqatilmaydi — hozirda mavjud bo'lgan
+   foydalanuvchilarning ushbu 3ta NFT soni 0 ga tushiriladi. ---- */
+const RETIRED_STARTER_NFT_IDS = ['lol_pop', 'spy_agaric', 'witch_hat'];
+function resetRetiredStarterNfts() {
+  users.forEach(u => {
+    if (!u.nftInventory) return;
+    RETIRED_STARTER_NFT_IDS.forEach(id => {
+      if (u.nftInventory[id]) u.nftInventory[id] = 0;
+      if (u.nftInstancePrices && u.nftInstancePrices[id]) u.nftInstancePrices[id] = [];
+    });
+  });
 }
 
 /* ---- Coin logotipi uchun premium animatsiyali emoji ---- */
@@ -473,7 +502,7 @@ app.post('/api/open_case', async (req, res) => {
   if (reward.isGift) {
     // MUHIM: endi gift avtomatik coinga aylanmaydi — inventoryga tushadi,
     // foydalanuvchi o'zi xohlasa keyinroq /api/sell_nft orqali sotadi.
-    user.nftInventory[reward.itemId] = (user.nftInventory[reward.itemId] || 0) + 1;
+    grantNftToUser(user, reward.itemId);
     const item = NFT_BY_ID.get(reward.itemId);
     const meta = await getEmojiMeta(item.custom_emoji_id);
     reward.name = item.name;
@@ -534,11 +563,15 @@ app.get('/api/inventory', async (req, res) => {
     const count = user.nftInventory[item.id] || 0;
     if (count <= 0) continue;
     const meta = await getEmojiMeta(item.custom_emoji_id);
+    const customPrices = user.nftInstancePrices && user.nftInstancePrices[item.id];
+    // Sotilganda birinchi navbatda ishlatiladigan narx (raketa'dan yutilgan
+    // bo'lsa aynan shu maxsus narx, aks holda katalogdagi standart narx).
+    const nextSellPrice = (customPrices && customPrices.length) ? customPrices[0] : item.sell_price;
     items.push({
       id: item.id,
       name: item.name,
       custom_emoji_id: item.custom_emoji_id,
-      sell_price: item.sell_price,
+      sell_price: nextSellPrice,
       count,
       is_video: meta.is_video,
     });
@@ -565,8 +598,14 @@ app.post('/api/sell_nft', (req, res) => {
   if (have <= 0) return res.status(400).json({ error: 'NOT_OWNED' });
 
   user.nftInventory[itemId] = have - 1;
-  user.balance = round2(user.balance + item.sell_price);
-  res.json({ ok: true, balance: user.balance, sold_for: item.sell_price });
+  // Agar shu dona raketa o'yinida maxsus narxda yutilgan bo'lsa (masalan
+  // 3.44), o'sha aniq narx qo'llanadi; aks holda katalogdagi standart narx.
+  let sellPrice = item.sell_price;
+  const customPrices = user.nftInstancePrices && user.nftInstancePrices[itemId];
+  if (customPrices && customPrices.length) sellPrice = customPrices.shift();
+
+  user.balance = round2(user.balance + sellPrice);
+  res.json({ ok: true, balance: user.balance, sold_for: sellPrice });
 });
 
 /* ---- Reyting top 1/2/3 medal ikonkalarining animatsiya metadatasi ---- */
@@ -771,8 +810,7 @@ app.post('/api/admin_action', (req, res) => {
         const item = NFT_BY_ID.get(payload.itemId);
         if (!item) throw new Error('ITEM_NOT_FOUND');
         const amount = Math.max(1, parseInt(payload.amount) || 1);
-        ensureNftStarterPack(target);
-        target.nftInventory[item.id] = (target.nftInventory[item.id] || 0) + amount;
+        for (let i = 0; i < amount; i++) grantNftToUser(target, item.id);
         break;
       }
       case 'reset_everything': {
@@ -1101,6 +1139,25 @@ const CRASH_TICK_MS = 100;        // multiplikator qancha tez-tez broadcast qili
 const CRASH_GROWTH = 0.13;        // multiplikator o'sish tezligi (katta = tezroq o'sadi)
 const CRASH_HOUSE_EDGE = 0.04;    // 4% — raundlarning 4% i darhol 1.00x da "portlaydi"
 const CRASH_MAX_MULTIPLIER = 500;
+// NFT yutish: faqat aynan CRASH_NFT_WIN_BET miqdorida tikkan bo'lsa va
+// "OLISH" bosilgan multiplikator biror NFT'ning katalogdagi narxiga
+// CRASH_NFT_MATCH_TOLERANCE ichida yaqin bo'lsa — coin o'rniga o'sha NFT
+// beriladi, uning narxi esa aynan shu multiplikator bo'ladi (masalan 3.44).
+const CRASH_NFT_WIN_BET = 1;
+const CRASH_NFT_MATCH_TOLERANCE = 0.5;
+
+function findNftMatchForMultiplier(mult) {
+  let best = null;
+  let bestDiff = Infinity;
+  for (const item of NFT_CATALOG) {
+    const diff = Math.abs(item.sell_price - mult);
+    if (diff <= CRASH_NFT_MATCH_TOLERANCE && diff < bestDiff) {
+      best = item;
+      bestDiff = diff;
+    }
+  }
+  return best;
+}
 
 let crashState = { status: 'waiting', players: [], multiplier: 1.00, startedAt: null, waitingStartedAt: Date.now(), round_number: 1 };
 let crashSecretCrashPoint = null; // MAXFIY — sanitizeCrashState() bu qiymatni hech qachon qaytarmaydi
@@ -1131,7 +1188,7 @@ function sanitizeCrashState() {
     status: crashState.status,
     players: crashState.players.map(p => ({
       id: p.id, username: p.username, photo: p.photo, bet: p.bet,
-      cashedOutAt: p.cashedOutAt, won: p.won,
+      cashedOutAt: p.cashedOutAt, won: p.won, wonNft: p.wonNft || null,
     })),
     multiplier: crashState.multiplier,
     startedAt: crashState.startedAt,
@@ -1175,7 +1232,7 @@ function finalizeCrashRound() {
   const historyEntry = {
     round_number: crashState.round_number,
     crashPoint: crashSecretCrashPoint,
-    players: crashState.players.map(p => ({ id: p.id, username: p.username, photo: p.photo, bet: p.bet, cashedOutAt: p.cashedOutAt, won: p.won })),
+    players: crashState.players.map(p => ({ id: p.id, username: p.username, photo: p.photo, bet: p.bet, cashedOutAt: p.cashedOutAt, won: p.won, wonNft: p.wonNft || null })),
   };
   crashLastResult = { round_number: crashState.round_number, crashPoint: crashSecretCrashPoint };
   gameHistory.crash.unshift(historyEntry);
@@ -1195,7 +1252,7 @@ app.post('/api/crash/bet', (req, res) => {
   if (crashState.players.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
 
   user.balance = round2(user.balance - amt);
-  crashState.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt, cashedOutAt: null, won: 0 });
+  crashState.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt, cashedOutAt: null, won: 0, wonNft: null });
   emitCrashState();
   res.json({ ok: true, balance: user.balance });
 });
@@ -1470,14 +1527,28 @@ io.on('connection', (socket) => {
     // kechikishi tufayli so'rov biroz kech kelib qolishi mumkin).
     let mult = Math.min(currentCrashMultiplier(), crashSecretCrashPoint);
     mult = Math.round(mult * 100) / 100;
-    const won = round2(p.bet * mult);
     p.cashedOutAt = mult;
+
+    // Agar aynan CRASH_NFT_WIN_BET (1) dona tikkan bo'lsa va multiplikator
+    // biror NFT narxiga yaqin bo'lsa — coin o'rniga o'sha NFT beriladi,
+    // uning narxi esa aynan shu multiplikator (masalan 3.44) bo'ladi.
+    const nftMatch = Math.abs(p.bet - CRASH_NFT_WIN_BET) < 0.0001 ? findNftMatchForMultiplier(mult) : null;
+
+    let won = 0;
+    let wonNft = null;
+    if (nftMatch) {
+      grantNftToUser(user, nftMatch.id, mult);
+      wonNft = { id: nftMatch.id, name: nftMatch.name, price: mult };
+    } else {
+      won = round2(p.bet * mult);
+      user.balance = round2(user.balance + won);
+      user.total_won = round2((user.total_won || 0) + won);
+    }
     p.won = won;
-    user.balance = round2(user.balance + won);
-    user.total_won = round2((user.total_won || 0) + won);
+    p.wonNft = wonNft;
     user.wins = (user.wins || 0) + 1;
     emitCrashState();
-    ack({ ok: true, multiplier: mult, won, balance: user.balance });
+    ack({ ok: true, multiplier: mult, won, wonNft, balance: user.balance });
   });
 
   /* -------- MINES 1vs1 -------- */
@@ -1583,6 +1654,7 @@ io.on('connection', (socket) => {
    ISHGA TUSHIRISH
    ============================================================ */
 loadDb();
+resetRetiredStarterNfts();
 setInterval(saveDb, 10000);
 process.on('SIGINT', () => { saveDb(); process.exit(0); });
 process.on('SIGTERM', () => { saveDb(); process.exit(0); });

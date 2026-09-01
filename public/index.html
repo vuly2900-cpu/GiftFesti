@@ -2284,16 +2284,16 @@ async function openGameHistory(game) {
     if (game === 'crash') {
       let html = '';
       rounds.forEach(r => {
-        const players = [...(r.players || [])].sort((a, b) => (b.won || 0) - (a.won || 0));
+        const players = [...(r.players || [])].sort((a, b) => ((b.won || (b.wonNft ? b.wonNft.price : 0)) - (a.won || (a.wonNft ? a.wonNft.price : 0))));
         html += `<div class="history-round">
           <div class="history-round-title">Raund #${r.round_number} — Portladi: <span class="mono">${Number(r.crashPoint).toFixed(2)}x</span></div>
           ${players.map(p => `
-          <div class="history-player-row ${p.won ? 'is-winner' : ''}">
+          <div class="history-player-row ${(p.won || p.wonNft) ? 'is-winner' : ''}">
             <img class="avatar" src="${p.photo || avatarFallback(p.username)}" onerror="this.src=avatarFallback('${p.username}')">
-            <div class="uname">${p.username}${p.won ? ' 🏆' : ''}</div>
+            <div class="uname">${p.username}${(p.won || p.wonNft) ? ' 🏆' : ''}</div>
             <div class="stake mono"><span class="coin-ico"></span>${p.bet}</div>
             <div class="chance mono">${p.cashedOutAt ? p.cashedOutAt.toFixed(2) + 'x' : '—'}</div>
-            <div class="won mono ${p.won ? '' : 'zero'}">${p.won ? '+' + p.won : '—'}</div>
+            <div class="won mono ${(p.won || p.wonNft) ? '' : 'zero'}">${p.wonNft ? '🖼️ ' + p.wonNft.name : (p.won ? '+' + p.won : '—')}</div>
           </div>`).join('')}
         </div>`;
       });
@@ -2778,7 +2778,8 @@ function renderCrashPlayers() {
   const sorted = [...crashState.players].sort((a, b) => b.bet - a.bet);
   wrap.innerHTML = sorted.map(p => {
     let right;
-    if (p.cashedOutAt) right = `<span class="stake mono" style="color:var(--success);">✔ ${p.cashedOutAt.toFixed(2)}x · +${p.won}</span>`;
+    if (p.wonNft) right = `<span class="stake mono" style="color:var(--gold);">✔ ${p.cashedOutAt.toFixed(2)}x · 🖼️ ${p.wonNft.name}</span>`;
+    else if (p.cashedOutAt) right = `<span class="stake mono" style="color:var(--success);">✔ ${p.cashedOutAt.toFixed(2)}x · +${p.won}</span>`;
     else if (crashState.status === 'crashed') right = `<span class="stake mono" style="color:var(--danger);">−${p.bet}</span>`;
     else right = `<span class="stake mono"><span class="coin-ico"></span>${p.bet}</span>`;
     return `<div class="hockey-player-row">
@@ -2819,7 +2820,8 @@ function updateCrashActionBtn() {
 
   const status = document.getElementById('crashMyStatus');
   if (status) {
-    if (mine && mine.cashedOutAt) status.innerHTML = `Siz <b>${mine.cashedOutAt.toFixed(2)}x</b> da chiqdingiz — <b>+${mine.won}</b> yutdingiz`;
+    if (mine && mine.wonNft) status.innerHTML = `Siz <b>${mine.cashedOutAt.toFixed(2)}x</b> da chiqdingiz — <b style="color:var(--gold);">🖼️ ${mine.wonNft.name}</b> NFT yutdingiz!`;
+    else if (mine && mine.cashedOutAt) status.innerHTML = `Siz <b>${mine.cashedOutAt.toFixed(2)}x</b> da chiqdingiz — <b>+${mine.won}</b> yutdingiz`;
     else if (mine && crashState.status === 'crashed') status.innerHTML = `Ulgurmadingiz — <span style="color:var(--danger);">−${mine.bet}</span>`;
     else status.textContent = '';
   }
@@ -2875,6 +2877,7 @@ function crashCashOut() {
       if (res && res.ok) {
         currentUserData.balance = res.balance;
         document.getElementById('topBalance').textContent = currentUserData.balance;
+        if (res.wonNft) alert(`🎉 Tabriklaymiz! Siz ${res.multiplier.toFixed(2)}x da chiqib, "${res.wonNft.name}" NFT'ni yutib oldingiz! Uni Inventar bo'limidan ${res.wonNft.price} coin'ga sotishingiz mumkin.`);
       } else if (res && res.error && res.error !== 'NOT_RUNNING' && res.error !== 'ALREADY_CASHED_OUT') {
         alert('Xatolik: ulgurmadingiz yoki stavka topilmadi!');
       }

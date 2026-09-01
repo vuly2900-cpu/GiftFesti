@@ -29,7 +29,7 @@ const friends = new Map();   // referrerId(string) -> [{id,username,photo_url,jo
 let tasks = [];              // [{id, channel_link, channel_title, stars_reward}]
 let promos = [];             // [{code, reward, maxUses, used, usedBy:Set}]
 let vouchers = [];           // [{id, reward, maxUses, used, usedBy:Set, requireType, requireTarget, requireLabel, createdAt}]
-const gameHistory = { hockey: [], drum: [], team_battle: [] };
+const gameHistory = { hockey: [], drum: [], team_battle: [], crash: [] };
 
 function createUser(id, username) {
   return {
@@ -1039,6 +1039,123 @@ app.post('/api/place_team_bet', (req, res) => {
 });
 
 /* ============================================================
+   RAKETA (CRASH) — bitta umumiy raundda barcha ulangan
+   foydalanuvchilar real vaqtda ishtirok etadigan multiplayer o'yin.
+   Har bir raund 3 bosqichdan iborat:
+     waiting  -> tikish qabul qilinadi (CRASH_WAIT_MS)
+     running  -> multiplikator o'sadi, istalgan payt "OLISH" mumkin
+     crashed  -> "portlash" — ulgurmagan o'yinchilar tikkanini yutqizadi
+   Portlash nuqtasi (crashSecretCrashPoint) HECH QACHON clientga
+   oldindan yuborilmaydi — faqat serverda saqlanadi, shu bilan
+   natijani oldindan bilib olib firibgarlik qilish oldi olinadi.
+   ============================================================ */
+const CRASH_MIN_BET = 0.1;
+const CRASH_WAIT_MS = 7000;       // tikish uchun ochiq bo'lgan vaqt
+const CRASH_COOLDOWN_MS = 4000;   // portlashdan keyingi natija ko'rsatiladigan vaqt
+const CRASH_TICK_MS = 100;        // multiplikator qancha tez-tez broadcast qilinadi
+const CRASH_GROWTH = 0.13;        // multiplikator o'sish tezligi (katta = tezroq o'sadi)
+const CRASH_HOUSE_EDGE = 0.04;    // 4% — raundlarning 4% i darhol 1.00x da "portlaydi"
+const CRASH_MAX_MULTIPLIER = 500;
+
+let crashState = { status: 'waiting', players: [], multiplier: 1.00, startedAt: null, waitingStartedAt: Date.now(), round_number: 1 };
+let crashSecretCrashPoint = null; // MAXFIY — sanitizeCrashState() bu qiymatni hech qachon qaytarmaydi
+let crashLastResult = null;
+let crashWaitTimer = null;
+let crashRunInterval = null;
+
+function generateCrashPoint() {
+  // Klassik "crash" o'yinlarida ishlatiladigan taqsimot: uzun quyruqli
+  // (kamdan-kam holda juda katta multiplikatorlar chiqadi), CRASH_HOUSE_EDGE
+  // ulushida esa raund 1.00x da darhol tugaydi.
+  if (Math.random() < CRASH_HOUSE_EDGE) return 1.00;
+  const r = Math.random();
+  let cp = (1 - CRASH_HOUSE_EDGE) / (1 - r);
+  cp = Math.max(1.00, Math.min(cp, CRASH_MAX_MULTIPLIER));
+  return Math.round(cp * 100) / 100;
+}
+
+function currentCrashMultiplier() {
+  if (crashState.status !== 'running' || !crashState.startedAt) return crashState.multiplier || 1.00;
+  const elapsedSec = (Date.now() - crashState.startedAt) / 1000;
+  let mult = Math.exp(CRASH_GROWTH * elapsedSec);
+  return Math.round(mult * 100) / 100;
+}
+
+function sanitizeCrashState() {
+  return {
+    status: crashState.status,
+    players: crashState.players.map(p => ({
+      id: p.id, username: p.username, photo: p.photo, bet: p.bet,
+      cashedOutAt: p.cashedOutAt, won: p.won,
+    })),
+    multiplier: crashState.multiplier,
+    startedAt: crashState.startedAt,
+    waitingStartedAt: crashState.waitingStartedAt,
+    waitMs: CRASH_WAIT_MS,
+    round_number: crashState.round_number,
+    lastResult: crashLastResult,
+  };
+}
+function emitCrashState() { io.emit('crash:state', sanitizeCrashState()); }
+
+function startCrashWaiting() {
+  clearTimeout(crashWaitTimer); clearInterval(crashRunInterval);
+  const nextRound = (crashState.round_number || 0) + 1;
+  crashState = { status: 'waiting', players: [], multiplier: 1.00, startedAt: null, waitingStartedAt: Date.now(), round_number: nextRound };
+  crashSecretCrashPoint = generateCrashPoint();
+  emitCrashState();
+  crashWaitTimer = setTimeout(startCrashRunning, CRASH_WAIT_MS);
+}
+
+function startCrashRunning() {
+  crashState.status = 'running';
+  crashState.startedAt = Date.now();
+  emitCrashState();
+  crashRunInterval = setInterval(() => {
+    const mult = currentCrashMultiplier();
+    crashState.multiplier = mult;
+    if (mult >= crashSecretCrashPoint) {
+      clearInterval(crashRunInterval);
+      finalizeCrashRound();
+      return;
+    }
+    emitCrashState();
+  }, CRASH_TICK_MS);
+}
+
+function finalizeCrashRound() {
+  crashState.status = 'crashed';
+  crashState.multiplier = crashSecretCrashPoint;
+
+  const historyEntry = {
+    round_number: crashState.round_number,
+    crashPoint: crashSecretCrashPoint,
+    players: crashState.players.map(p => ({ id: p.id, username: p.username, photo: p.photo, bet: p.bet, cashedOutAt: p.cashedOutAt, won: p.won })),
+  };
+  crashLastResult = { round_number: crashState.round_number, crashPoint: crashSecretCrashPoint };
+  gameHistory.crash.unshift(historyEntry);
+  if (gameHistory.crash.length > 10) gameHistory.crash.length = 10;
+
+  emitCrashState();
+  crashWaitTimer = setTimeout(startCrashWaiting, CRASH_COOLDOWN_MS);
+}
+
+/* ---- Tikish (raketa/crash) — faqat "waiting" bosqichida qabul qilinadi ---- */
+app.post('/api/crash/bet', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const amt = Number(req.body?.amount);
+  if (!amt || amt < CRASH_MIN_BET) return res.status(400).json({ error: 'invalid_amount' });
+  if (amt > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
+  if (crashState.status !== 'waiting') return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
+  if (crashState.players.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
+
+  user.balance = round2(user.balance - amt);
+  crashState.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt, cashedOutAt: null, won: 0 });
+  emitCrashState();
+  res.json({ ok: true, balance: user.balance });
+});
+
+/* ============================================================
    MINES 1vs1 — real vaqtli, server-authoritative 2 o'yinchi o'yini
    (mina joylashuvi hech qachon clientga oldindan yuborilmaydi —
    faqat ochilgan katak natijasi yuboriladi, shu bilan haqiqiy pul/
@@ -1277,6 +1394,7 @@ io.on('connection', (socket) => {
   socket.emit('hockey:state', hockeyState);
   socket.emit('drum:state', drumState);
   socket.emit('team_battle:state', teamState);
+  socket.emit('crash:state', sanitizeCrashState());
 
   // MUHIM (bug fix): yuqoridagi emit faqat socket ULANGAN paytda bir marta
   // yuboriladi. Agar foydalanuvchi keyinroq (masalan, boshqa sahifada bir oz
@@ -1289,6 +1407,32 @@ io.on('connection', (socket) => {
     if (game === 'hockey') socket.emit('hockey:state', hockeyState);
     else if (game === 'drum') socket.emit('drum:state', drumState);
     else if (game === 'team_battle') socket.emit('team_battle:state', teamState);
+    else if (game === 'crash') socket.emit('crash:state', sanitizeCrashState());
+  });
+
+  /* -------- RAKETA (CRASH) — "OLISH" real vaqtda, socket orqali -------- */
+  socket.on('crash:cash_out', (payload = {}, cb) => {
+    const ack = typeof cb === 'function' ? cb : () => {};
+    const user = getSocketUser(payload.initData);
+    if (!user) return ack({ error: 'invalid_auth' });
+    if (crashState.status !== 'running') return ack({ error: 'NOT_RUNNING' });
+    const p = crashState.players.find(pl => pl.id === Number(user.id));
+    if (!p) return ack({ error: 'NO_BET' });
+    if (p.cashedOutAt) return ack({ error: 'ALREADY_CASHED_OUT' });
+
+    // Xavfsizlik: "OLISH" so'rovi kelgan lahzadagi multiplikator hech qachon
+    // maxfiy portlash nuqtasidan katta bo'lib qolmasligi kerak (tarmoq
+    // kechikishi tufayli so'rov biroz kech kelib qolishi mumkin).
+    let mult = Math.min(currentCrashMultiplier(), crashSecretCrashPoint);
+    mult = Math.round(mult * 100) / 100;
+    const won = round2(p.bet * mult);
+    p.cashedOutAt = mult;
+    p.won = won;
+    user.balance = round2(user.balance + won);
+    user.total_won = round2((user.total_won || 0) + won);
+    user.wins = (user.wins || 0) + 1;
+    emitCrashState();
+    ack({ ok: true, multiplier: mult, won, balance: user.balance });
   });
 
   /* -------- MINES 1vs1 -------- */
@@ -1402,4 +1546,8 @@ server.listen(PORT, () => {
   console.log(`GIFT FESTI APP server ${PORT}-portda ishga tushdi`);
   console.log(`Admin ID'lar: ${ADMIN_IDS.length ? ADMIN_IDS.join(', ') : "(hech biri belgilanmagan — .env dagi ADMIN_IDS ni to'ldiring)"}`);
   if (!BOT_TOKEN) console.warn("OGOHLANTIRISH: BOT_TOKEN sozlanmagan — initData tekshirilmaydi (faqat dev/test uchun xavfsiz)!");
+  // Raketa (Crash) — barcha foydalanuvchilar uchun umumiy raund tsikli
+  // server ishga tushgan zahoti avtomatik boshlanadi (haqiqiy kazino
+  // o'yinlariga o'xshab, o'yinchi kutib o'tirmasdan ham raundlar davom etadi).
+  startCrashWaiting();
 });

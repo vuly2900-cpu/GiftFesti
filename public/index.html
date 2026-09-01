@@ -258,6 +258,41 @@
   .game-card.drum{background:linear-gradient(135deg,#3A2A1B,#211508);}
   .game-card.team-battle{background:linear-gradient(135deg,#3A1B24,#1F0E14);}
   .game-card.mines{background:linear-gradient(135deg,#123524,#0d211a);}
+  .game-card.crash{background:linear-gradient(135deg,#2A1B4A,#120B24);}
+
+  /* ---- RAKETA (CRASH) ---- */
+  .crash-arena{position:relative; height:230px; border-radius:16px; overflow:hidden; margin-bottom:14px;
+    background:radial-gradient(circle at 30% 20%, #241a45, #0a0b14 75%);
+    border:1px solid var(--border);}
+  .crash-stars{position:absolute; inset:0;
+    background-image:
+      radial-gradient(1.5px 1.5px at 20px 30px, rgba(255,255,255,.5), transparent),
+      radial-gradient(1.5px 1.5px at 90px 80px, rgba(255,255,255,.4), transparent),
+      radial-gradient(1px 1px at 150px 40px, rgba(255,255,255,.6), transparent),
+      radial-gradient(1px 1px at 190px 110px, rgba(255,255,255,.35), transparent),
+      radial-gradient(1.5px 1.5px at 250px 60px, rgba(255,255,255,.5), transparent),
+      radial-gradient(1px 1px at 60px 140px, rgba(255,255,255,.4), transparent);
+    background-repeat:repeat; background-size:280px 180px; opacity:.8;}
+  .crash-status-banner{position:absolute; top:10px; left:0; right:0; text-align:center; font-size:12px; color:var(--text-dim); z-index:3;}
+  .crash-mult{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Sora',sans-serif; font-weight:800; font-size:44px; color:var(--text); z-index:2;
+    text-shadow:0 0 24px rgba(255,255,255,.18); transition:color .15s ease;}
+  .crash-mult.running{color:var(--success); text-shadow:0 0 24px rgba(51,196,129,.35);}
+  .crash-mult.crashed{color:var(--danger); text-shadow:0 0 24px rgba(229,84,75,.4); animation:crashShake .4s ease;}
+  .crash-rocket{position:absolute; left:14px; bottom:14px; font-size:26px; z-index:2;
+    transform:translate(0,0) rotate(-45deg); transition:transform .12s linear; filter:drop-shadow(0 0 6px rgba(255,255,255,.25));}
+  .crash-rocket.crashed{animation:crashBoom .4s ease forwards;}
+  .crash-history-strip{display:flex; gap:6px; overflow-x:auto; padding:2px 1px 10px; margin-bottom:2px;}
+  .crash-history-chip{flex:0 0 auto; padding:5px 9px; border-radius:8px; font-size:11.5px; font-weight:700; font-family:'JetBrains Mono',monospace;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);}
+  .crash-history-chip.win{color:var(--success); border-color:rgba(51,196,129,.3);}
+  .crash-history-chip.lose{color:var(--danger); border-color:rgba(229,84,75,.3);}
+  .crash-cashout-btn{background:linear-gradient(180deg,var(--success),#1f8a5c) !important; color:#08251a !important;}
+  .crash-cashout-btn:disabled{opacity:.5;}
+  .crash-my-status{font-size:12.5px; color:var(--text-dim); text-align:center; margin:-2px 0 10px;}
+  .crash-my-status b{color:var(--success);}
+  @keyframes crashShake{0%,100%{transform:scale(1);} 50%{transform:scale(1.08);}}
+  @keyframes crashBoom{0%{opacity:1; filter:drop-shadow(0 0 6px rgba(255,255,255,.25));} 100%{opacity:0; transform:translate(var(--rx,0),var(--ry,0)) scale(1.6) rotate(20deg);}}
   .game-badge{
     display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
     background:rgba(0,0,0,.35); color:var(--gold); font-size:10px; font-weight:700;
@@ -737,6 +772,10 @@
   <section class="page" id="page-play">
     <h1 class="title">O'ynash</h1>
     <p class="subtitle">Stars yutish uchun o'yinlardan birini tanlang</p>
+    <div class="game-card crash" onclick="openGame('crash')">
+      <span class="game-badge">🚀 Jonli · Multiplayer</span>
+      <span class="game-name">RAKETA</span>
+    </div>
     <div class="game-card hockey" onclick="openGame('hockey')">
       <span class="game-badge">🏒 Mukammal Fizika</span>
       <span class="game-name">Xokkey</span>
@@ -757,6 +796,42 @@
       <span class="game-badge">🎁 24 soatda 1 marta</span>
       <span class="game-name">Kunlik Case</span>
     </div>
+  </section>
+
+  <section class="page" id="page-crash">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('play')">‹</button>
+      <div class="game-number-badge mono" id="crashRoundLabel">Raund #1</div>
+      <button class="history-btn" onclick="openGameHistory('crash')" title="O'yin tarixi">🕒</button>
+    </div>
+
+    <div class="crash-history-strip" id="crashHistoryStrip"></div>
+
+    <div class="crash-arena" id="crashArena">
+      <div class="crash-stars"></div>
+      <div class="crash-status-banner" id="crashStatusBanner">Kutish...</div>
+      <div class="crash-rocket" id="crashRocket">🚀</div>
+      <div class="crash-mult" id="crashMultDisplay">1.00x</div>
+    </div>
+
+    <p class="crash-my-status" id="crashMyStatus"></p>
+
+    <div class="hockey-bet-panel">
+      <p class="hockey-bet-label">Stavka (minimum 0.1 <span class="coin-ico"></span>)</p>
+      <div class="hockey-amounts">
+        <button class="amt-btn active" onclick="crashSetAmount(1, this)">1</button>
+        <button class="amt-btn" onclick="crashSetAmount(5, this)">5</button>
+        <button class="amt-btn" onclick="crashSetAmount(10, this)">10</button>
+        <button class="amt-btn" onclick="crashSetAmount(25, this)">25</button>
+        <button class="amt-btn" onclick="crashSetAmount(50, this)">50</button>
+      </div>
+      <div class="hockey-custom-row">
+        <input type="number" id="crashCustomAmount" value="1" step="0.1" min="0.1" placeholder="Miqdor...">
+        <button class="btn" id="crashActionBtn" onclick="crashActionBtn()">Tikish</button>
+      </div>
+    </div>
+
+    <div class="hockey-players" id="crashPlayersList"></div>
   </section>
 
   <section class="page" id="page-hockey">
@@ -1214,6 +1289,7 @@ const OPEN_CASE_API_URL = '/api/open_case';
 const REFERRAL_API_URL = '/api/referral_reward';
 const REDEEM_PROMO_API_URL = '/api/redeem_promo';
 const PLACE_BET_API_URL = '/api/place_bet';
+const CRASH_BET_API_URL = '/api/crash/bet';
 const PLACE_TEAM_BET_API_URL = '/api/place_team_bet';
 const ADMIN_ACTION_API_URL = '/api/admin_action';
 const CLAIM_TASK_API_URL = '/api/claim_task';
@@ -1774,6 +1850,8 @@ function goTo(pageName) {
   if (pageName === 'case') initCasePage();
   if (pageName === 'mines') initMinesPage();
   else mnLeavePage();
+  if (pageName === 'crash') initCrashPage();
+  else if (crashUnsubscribe) { crashUnsubscribe(); crashUnsubscribe = null; }
 
   // Xokkey/Baraban/Team Battle sahifasidan chiqilganda realtime listenerni
   // to'xtatib, fonda keraksiz o'qishlarning oldini olamiz.
@@ -2170,6 +2248,26 @@ async function openGameHistory(game) {
       return;
     }
 
+    if (game === 'crash') {
+      let html = '';
+      rounds.forEach(r => {
+        const players = [...(r.players || [])].sort((a, b) => (b.won || 0) - (a.won || 0));
+        html += `<div class="history-round">
+          <div class="history-round-title">Raund #${r.round_number} — Portladi: <span class="mono">${Number(r.crashPoint).toFixed(2)}x</span></div>
+          ${players.map(p => `
+          <div class="history-player-row ${p.won ? 'is-winner' : ''}">
+            <img class="avatar" src="${p.photo || avatarFallback(p.username)}" onerror="this.src=avatarFallback('${p.username}')">
+            <div class="uname">${p.username}${p.won ? ' 🏆' : ''}</div>
+            <div class="stake mono"><span class="coin-ico"></span>${p.bet}</div>
+            <div class="chance mono">${p.cashedOutAt ? p.cashedOutAt.toFixed(2) + 'x' : '—'}</div>
+            <div class="won mono ${p.won ? '' : 'zero'}">${p.won ? '+' + p.won : '—'}</div>
+          </div>`).join('')}
+        </div>`;
+      });
+      content.innerHTML = html;
+      return;
+    }
+
     const TEAM_COLOR_LABEL = { red: 'Qizil', green: 'Yashil', blue: "Ko'k" };
     let html = '';
     rounds.forEach(r => {
@@ -2459,13 +2557,226 @@ async function adminResetEverything() {
 }
 
 function openGame(name) {
-  if (name === 'hockey') goTo('hockey');
+  if (name === 'crash') goTo('crash');
+  else if (name === 'hockey') goTo('hockey');
   else if (name === 'drum') goTo('drum');
   else if (name === 'team_battle') goTo('team_battle');
   else if (name === 'mines') goTo('mines');
   else alert("Tez orada...");
 }
 
+
+// ==================== RAKETA (CRASH) — real vaqtli multiplayer ====================
+let crashState = { status: 'waiting', players: [], multiplier: 1.00, round_number: 1, lastResult: null, waitMs: 7000 };
+let crashUnsubscribe = null;
+let crashSelectedAmount = 1;
+let crashCashoutBusy = false;
+
+let crashLocalTickInterval = null;
+function initCrashPage() {
+  if (crashUnsubscribe) crashUnsubscribe();
+  if (crashLocalTickInterval) clearInterval(crashLocalTickInterval);
+
+  const handler = (state) => {
+    crashState = state;
+    renderCrashState();
+  };
+  socket.on('crash:state', handler);
+  crashUnsubscribe = () => { socket.off('crash:state', handler); clearInterval(crashLocalTickInterval); crashLocalTickInterval = null; };
+  socket.emit('get_state', 'crash');
+
+  // Server "waiting" bosqichida faqat bir marta holat yuboradi — sekundlar
+  // sanog'ini mahalliy ravishda yangilab turamiz (server vaqtiga asoslanadi).
+  crashLocalTickInterval = setInterval(() => {
+    if (crashState.status === 'waiting') renderCrashState();
+  }, 500);
+}
+
+function crashSetAmount(v, btn) {
+  crashSelectedAmount = v;
+  document.getElementById('crashCustomAmount').value = v;
+  document.querySelectorAll('#page-crash .amt-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function myCrashPlayer() {
+  if (!currentUserData) return null;
+  return crashState.players.find(p => String(p.id) === String(currentUserData.telegram_id || currentUserData.id));
+}
+
+function renderCrashState() {
+  const label = document.getElementById('crashRoundLabel');
+  if (label) label.textContent = `Raund #${crashState.round_number || 1}`;
+
+  const banner = document.getElementById('crashStatusBanner');
+  const multEl = document.getElementById('crashMultDisplay');
+  const rocket = document.getElementById('crashRocket');
+  const mult = Number(crashState.multiplier || 1);
+
+  multEl.textContent = mult.toFixed(2) + 'x';
+  multEl.classList.remove('running', 'crashed');
+  rocket.classList.remove('crashed');
+
+  if (crashState.status === 'waiting') {
+    const startedAt = crashState.waitingStartedAt;
+    const waitMs = crashState.waitMs || 7000;
+    const remaining = startedAt ? Math.max(0, Math.ceil((waitMs - (Date.now() - startedAt)) / 1000)) : Math.ceil(waitMs / 1000);
+    banner.textContent = `Tikish ochiq — ${remaining}s`;
+    rocket.style.transform = 'translate(0px,0px) rotate(-45deg)';
+  } else if (crashState.status === 'running') {
+    banner.textContent = "Uchmoqda...";
+    multEl.classList.add('running');
+    // Multiplikatorga qarab raketani asta-sekin yuqoriga siljitamiz (0..10x oralig'ida).
+    const progress = Math.min(1, Math.log(mult) / Math.log(10));
+    const arena = document.getElementById('crashArena');
+    const maxX = (arena?.clientWidth || 300) - 60;
+    const maxY = (arena?.clientHeight || 230) - 60;
+    rocket.style.transform = `translate(${progress * maxX}px, ${-progress * maxY}px) rotate(-45deg)`;
+  } else if (crashState.status === 'crashed') {
+    banner.textContent = `💥 ${mult.toFixed(2)}x da portladi`;
+    multEl.classList.add('crashed');
+    rocket.classList.add('crashed');
+  }
+
+  renderCrashHistoryStrip();
+  renderCrashPlayers();
+  updateCrashActionBtn();
+}
+
+function renderCrashHistoryStrip() {
+  const strip = document.getElementById('crashHistoryStrip');
+  if (!strip) return;
+  const last = crashState.lastResult;
+  if (!last) { if (!strip.dataset.filled) strip.innerHTML = ''; return; }
+  // Faqat yangi natija kelganda chapga bitta chip qo'shamiz (server bir marta
+  // oxirgi natijani yuboradi, shu sababli takrorlanib qo'shilib ketmasligi
+  // uchun round_number bo'yicha tekshiramiz).
+  if (strip.dataset.lastRound === String(last.round_number)) return;
+  strip.dataset.lastRound = String(last.round_number);
+  strip.dataset.filled = '1';
+  const chip = document.createElement('div');
+  const isWin = last.crashPoint >= 2;
+  chip.className = 'crash-history-chip ' + (isWin ? 'win' : 'lose');
+  chip.textContent = last.crashPoint.toFixed(2) + 'x';
+  strip.prepend(chip);
+  while (strip.children.length > 12) strip.removeChild(strip.lastChild);
+}
+
+function renderCrashPlayers() {
+  const wrap = document.getElementById('crashPlayersList');
+  if (!wrap) return;
+  if (!crashState.players.length) {
+    wrap.innerHTML = '<p class="empty" style="font-size:13px; text-align:center; padding:14px 0;">Hali hech kim tikmagan — birinchi bo\'ling!</p>';
+    return;
+  }
+  const sorted = [...crashState.players].sort((a, b) => b.bet - a.bet);
+  wrap.innerHTML = sorted.map(p => {
+    let right;
+    if (p.cashedOutAt) right = `<span class="stake mono" style="color:var(--success);">✔ ${p.cashedOutAt.toFixed(2)}x · +${p.won}</span>`;
+    else if (crashState.status === 'crashed') right = `<span class="stake mono" style="color:var(--danger);">−${p.bet}</span>`;
+    else right = `<span class="stake mono"><span class="coin-ico"></span>${p.bet}</span>`;
+    return `<div class="hockey-player-row">
+      <img class="avatar" src="${p.photo || avatarFallback(p.username)}" onerror="this.src=avatarFallback('${p.username}')">
+      <div class="uname">${p.username}</div>
+      ${right}
+    </div>`;
+  }).join('');
+}
+
+function updateCrashActionBtn() {
+  const btn = document.getElementById('crashActionBtn');
+  if (!btn) return;
+  const mine = myCrashPlayer();
+  btn.classList.remove('crash-cashout-btn');
+  btn.disabled = false;
+
+  if (crashState.status === 'waiting') {
+    if (mine) { btn.textContent = 'Stavka qo\'yildi ✓'; btn.disabled = true; }
+    else btn.textContent = 'Tikish';
+  } else if (crashState.status === 'running') {
+    if (mine && !mine.cashedOutAt) {
+      btn.classList.add('crash-cashout-btn');
+      const mult = Number(crashState.multiplier || 1);
+      btn.textContent = `🟢 OLISH — ${(mine.bet * mult).toFixed(2)}`;
+      btn.disabled = crashCashoutBusy;
+    } else if (mine && mine.cashedOutAt) {
+      btn.textContent = `✔ Olindi ${mine.cashedOutAt.toFixed(2)}x`;
+      btn.disabled = true;
+    } else {
+      btn.textContent = 'O\'yin ketmoqda...';
+      btn.disabled = true;
+    }
+  } else {
+    btn.textContent = 'Keyingi raundni kuting...';
+    btn.disabled = true;
+  }
+
+  const status = document.getElementById('crashMyStatus');
+  if (status) {
+    if (mine && mine.cashedOutAt) status.innerHTML = `Siz <b>${mine.cashedOutAt.toFixed(2)}x</b> da chiqdingiz — <b>+${mine.won}</b> yutdingiz`;
+    else if (mine && crashState.status === 'crashed') status.innerHTML = `Ulgurmadingiz — <span style="color:var(--danger);">−${mine.bet}</span>`;
+    else status.textContent = '';
+  }
+}
+
+async function crashActionBtn() {
+  const mine = myCrashPlayer();
+  if (crashState.status === 'running' && mine && !mine.cashedOutAt) {
+    await crashCashOut();
+  } else if (crashState.status === 'waiting' && !mine) {
+    await crashPlaceBet();
+  }
+}
+
+async function crashPlaceBet() {
+  const btn = document.getElementById('crashActionBtn');
+  const amount = parseFloat(document.getElementById('crashCustomAmount').value);
+  if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
+  if (currentUserData.balance < amount) { alert('Stars yetarli emas!'); return; }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch(CRASH_BET_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', amount })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'INSUFFICIENT_BALANCE') alert('Stars yetarli emas!');
+      else if (data.error === 'GAME_NOT_ACCEPTING_BETS') alert("Tikish vaqti tugadi, keyingi raundni kuting!");
+      else if (data.error === 'ALREADY_BET') { /* jim, holat allaqachon yangilangan */ }
+      else alert('Xatolik yuz berdi!');
+      return;
+    }
+    currentUserData.balance = data.balance;
+    document.getElementById('topBalance').textContent = currentUserData.balance;
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
+  } finally {
+    updateCrashActionBtn();
+  }
+}
+
+function crashCashOut() {
+  return new Promise((resolve) => {
+    if (crashCashoutBusy) return resolve();
+    crashCashoutBusy = true;
+    updateCrashActionBtn();
+    socket.emit('crash:cash_out', { initData: tg?.initData || '' }, (res) => {
+      crashCashoutBusy = false;
+      if (res && res.ok) {
+        currentUserData.balance = res.balance;
+        document.getElementById('topBalance').textContent = currentUserData.balance;
+      } else if (res && res.error && res.error !== 'NOT_RUNNING' && res.error !== 'ALREADY_CASHED_OUT') {
+        alert('Xatolik: ulgurmadingiz yoki stavka topilmadi!');
+      }
+      updateCrashActionBtn();
+      resolve();
+    });
+  });
+}
 
 // ==================== MULTIPLAYER XOKKEY DYNAMIC ZOOM FIZIKASI ====================
 let hockeyState = { status: 'idle', players: [], pot: 0, game_number: 1 };

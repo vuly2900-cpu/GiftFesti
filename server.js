@@ -40,6 +40,8 @@ function createUser(id, username) {
     referredBy: null,
     referralRewarded: false,
     isAdmin: ADMIN_IDS.includes(String(id)),
+    nftInventory: {},      // itemId(NFT_CATALOG dagi) -> dona soni
+    nftInitialized: false, // starter (tekin) NFT'lar berilganmi
   };
 }
 function serializeUser(u) {
@@ -77,7 +79,12 @@ function loadDb() {
   try {
     const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
     (data.users || []).forEach(u => {
-      users.set(String(u.id), { ...u, completedTasks: new Set(u.completedTasks || []) });
+      users.set(String(u.id), {
+        ...u,
+        completedTasks: new Set(u.completedTasks || []),
+        nftInventory: u.nftInventory || {},
+        nftInitialized: u.nftInitialized || false,
+      });
     });
     (data.friends || []).forEach(([k, v]) => friends.set(k, v));
     tasks = data.tasks || [];
@@ -282,6 +289,79 @@ function pickCaseReward() {
 }
 
 /* ============================================================
+   NFT INVENTAR (Telegram premium custom emoji asosida)
+   — bu real Telegram NFT/gift emas, faqat ilova ichida beriladigan
+   kolleksiya predmeti: sotib qo'shib bo'lmaydi, faqat sotib coin olish
+   mumkin. Animatsiya Telegram custom emoji fayli orqali chiziladi.
+   ============================================================ */
+const NFT_CATALOG = [
+  {
+    id: 'lol_pop',
+    name: 'Lol Pop',
+    custom_emoji_id: '5278223019590850728',
+    sell_price: 380,
+    free: true, // hozircha hammaga tekin beriladi
+  },
+];
+const NFT_BY_ID = new Map(NFT_CATALOG.map(i => [i.id, i]));
+
+function ensureNftStarterPack(user) {
+  if (!user.nftInventory) user.nftInventory = {};
+  if (user.nftInitialized) return;
+  NFT_CATALOG.forEach(item => {
+    if (item.free) user.nftInventory[item.id] = (user.nftInventory[item.id] || 0) + 1;
+  });
+  user.nftInitialized = true;
+}
+
+/* ---- Telegram custom emoji fayli: metadata + fayl keshi ---- */
+const NFT_MEDIA_CACHE_DIR = path.join(__dirname, 'nft_media_cache');
+if (!fs.existsSync(NFT_MEDIA_CACHE_DIR)) fs.mkdirSync(NFT_MEDIA_CACHE_DIR, { recursive: true });
+const emojiMetaCache = new Map(); // custom_emoji_id -> {is_video, is_animated}
+
+async function fetchCustomEmojiSticker(customEmojiId) {
+  if (!BOT_TOKEN) return null;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getCustomEmojiStickers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ custom_emoji_ids: [customEmojiId] }),
+    });
+    const data = await res.json();
+    if (!data.ok || !data.result || !data.result[0]) return null;
+    return data.result[0];
+  } catch (e) { console.error('getCustomEmojiStickers xatolik:', e.message); return null; }
+}
+
+async function getEmojiMeta(customEmojiId) {
+  if (emojiMetaCache.has(customEmojiId)) return emojiMetaCache.get(customEmojiId);
+  const sticker = await fetchCustomEmojiSticker(customEmojiId);
+  const meta = sticker ? { is_video: !!sticker.is_video, is_animated: !!sticker.is_animated } : { is_video: false, is_animated: true };
+  emojiMetaCache.set(customEmojiId, meta);
+  return meta;
+}
+
+function cachedNftMediaPath(customEmojiId) {
+  const found = fs.readdirSync(NFT_MEDIA_CACHE_DIR).find(f => f.startsWith(customEmojiId + '.'));
+  return found ? path.join(NFT_MEDIA_CACHE_DIR, found) : null;
+}
+
+async function downloadAndCacheNftMedia(customEmojiId) {
+  const sticker = await fetchCustomEmojiSticker(customEmojiId);
+  if (!sticker) return null;
+  const fRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${sticker.file_id}`);
+  const fData = await fRes.json();
+  if (!fData.ok) return null;
+  const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fData.result.file_path}`;
+  const mediaRes = await fetch(fileUrl);
+  const buffer = Buffer.from(await mediaRes.arrayBuffer());
+  const ext = path.extname(fData.result.file_path) || (sticker.is_video ? '.webm' : '.tgs');
+  const outPath = path.join(NFT_MEDIA_CACHE_DIR, customEmojiId + ext);
+  fs.writeFileSync(outPath, buffer);
+  return outPath;
+}
+
+/* ============================================================
    EXPRESS + SOCKET.IO SETUP
    ============================================================ */
 const app = express();
@@ -392,6 +472,60 @@ app.post('/api/claim_task', async (req, res) => {
   user.completedTasks.add(taskId);
   user.balance += task.stars_reward;
   res.json({ ok: true, reward: task.stars_reward });
+});
+
+/* ============================================================
+   NFT INVENTAR
+   ============================================================ */
+app.get('/api/inventory', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  ensureNftStarterPack(user);
+
+  const items = [];
+  for (const item of NFT_CATALOG) {
+    const count = user.nftInventory[item.id] || 0;
+    if (count <= 0) continue;
+    const meta = await getEmojiMeta(item.custom_emoji_id);
+    items.push({
+      id: item.id,
+      name: item.name,
+      custom_emoji_id: item.custom_emoji_id,
+      sell_price: item.sell_price,
+      count,
+      is_video: meta.is_video,
+    });
+  }
+  res.json({ ok: true, items });
+});
+
+app.post('/api/sell_nft', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { itemId } = req.body || {};
+  const item = NFT_BY_ID.get(itemId);
+  if (!item) return res.status(404).json({ error: 'NOT_FOUND' });
+
+  ensureNftStarterPack(user);
+  const have = user.nftInventory[itemId] || 0;
+  if (have <= 0) return res.status(400).json({ error: 'NOT_OWNED' });
+
+  user.nftInventory[itemId] = have - 1;
+  user.balance += item.sell_price;
+  res.json({ ok: true, balance: user.balance, sold_for: item.sell_price });
+});
+
+/* ---- NFT animatsiya faylini proksi qilish (bot token frontendga chiqmaydi) ---- */
+app.get('/api/nft_media/:customEmojiId', async (req, res) => {
+  const customEmojiId = req.params.customEmojiId;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  try {
+    let filePath = cachedNftMediaPath(customEmojiId);
+    if (!filePath) filePath = await downloadAndCacheNftMedia(customEmojiId);
+    if (!filePath) return res.status(404).json({ error: 'NOT_FOUND' });
+    res.sendFile(filePath);
+  } catch (e) {
+    console.error('nft_media xatolik:', e.message);
+    res.status(500).json({ error: 'SERVER_ERROR' });
+  }
 });
 
 /* ============================================================

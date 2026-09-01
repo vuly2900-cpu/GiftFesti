@@ -181,6 +181,15 @@
   .case-item.tier-50{border-color:#5A4A2A;}
   .case-item.tier-100{border-color:var(--gold);}
   .case-item.tier-100 .val{color:var(--gold);}
+
+  .nft-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:10px;}
+  .nft-card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:10px 6px; text-align:center;}
+  .nft-card .nft-anim{width:100%; aspect-ratio:1/1; border-radius:10px; overflow:hidden; background:var(--surface-2); display:flex; align-items:center; justify-content:center;}
+  .nft-card .nft-anim video, .nft-card .nft-anim .lottie-box{width:100%; height:100%; object-fit:contain;}
+  .nft-card .nft-name{font-size:12px; font-weight:700; margin-top:8px;}
+  .nft-card .nft-count{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .nft-card .nft-sell-btn{width:100%; margin-top:8px; padding:8px; font-size:12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); color:var(--gold); font-weight:700;}
+  .nft-card .nft-sell-btn:active{opacity:.7;}
   .case-timer{
     text-align:center; font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace;
     color:var(--text-dim); margin-bottom:12px;
@@ -648,6 +657,8 @@
 </style>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 </head>
 <body>
 
@@ -1065,6 +1076,13 @@
     </div>
 
     <div class="card">
+      <p style="font-size:13px; font-weight:600; margin-bottom:8px;">🖼️ NFT Inventar</p>
+      <div class="nft-grid" id="nftGrid">
+        <p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>
+      </div>
+    </div>
+
+    <div class="card">
       <p style="font-size:13px; font-weight:600; margin-bottom:8px;">Promokod</p>
       <div style="display:flex; gap:8px;">
         <input type="text" id="promoInput" placeholder="Kodni kiriting">
@@ -1195,6 +1213,8 @@ const LEADERBOARD_API_URL = '/api/leaderboard';
 const TASKS_API_URL = '/api/tasks';
 const FRIENDS_API_URL = '/api/friends';
 const GAME_HISTORY_API_URL = '/api/game_history';
+const INVENTORY_API_URL = '/api/inventory';
+const SELL_NFT_API_URL = '/api/sell_nft';
 const CHANNEL_URL = 'https://t.me/GiftFesti';
 let caseSubscriptionVerified = false; // shu sessiyada bir marta tekshirilgach true bo'ladi
 
@@ -1941,6 +1961,84 @@ async function loadProfile() {
   document.getElementById('profWins').textContent = currentUserData.wins || 0;
   if (tgUser && tgUser.id === ADMIN_ID) {
     document.getElementById('adminOpenerBtn').style.display = 'block';
+  }
+  loadInventory();
+}
+
+async function loadInventory() {
+  const grid = document.getElementById('nftGrid');
+  try {
+    const res = await fetch(`${INVENTORY_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`);
+    const data = await res.json();
+    const items = data.items || [];
+
+    if (!items.length) {
+      grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Hozircha inventaringizda hech narsa yo\'q</p>';
+      return;
+    }
+
+    grid.innerHTML = items.map(it => `
+      <div class="nft-card">
+        <div class="nft-anim" id="nftAnim_${it.id}"></div>
+        <div class="nft-name">${it.name}</div>
+        <div class="nft-count">x${it.count}</div>
+        <button class="nft-sell-btn" onclick="sellNft('${it.id}', ${it.sell_price})">💰 Sotish — ${it.sell_price}</button>
+      </div>
+    `).join('');
+
+    items.forEach(it => renderNftAnim(it));
+  } catch (e) {
+    console.error(e);
+    grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklab bo\'lmadi</p>';
+  }
+}
+
+function renderNftAnim(item) {
+  const container = document.getElementById(`nftAnim_${item.id}`);
+  if (!container) return;
+  const mediaUrl = `/api/nft_media/${item.custom_emoji_id}`;
+
+  if (item.is_video) {
+    container.innerHTML = `<video src="${mediaUrl}" autoplay loop muted playsinline></video>`;
+  } else {
+    const box = document.createElement('div');
+    box.className = 'lottie-box';
+    container.appendChild(box);
+    // Telegram custom emoji animatsiyasi .tgs (gzip'langan Lottie JSON) —
+    // lottie-web buni to'g'ridan-to'g'ri o'qiy olmagani uchun avval yechib olamiz.
+    fetch(mediaUrl)
+      .then(r => r.arrayBuffer())
+      .then(buf => window.pako ? pako.inflate(new Uint8Array(buf), { to: 'string' }) : null)
+      .then(jsonStr => {
+        if (!jsonStr) return;
+        lottie.loadAnimation({
+          container: box, renderer: 'svg', loop: true, autoplay: true,
+          animationData: JSON.parse(jsonStr),
+        });
+      })
+      .catch(err => console.error('NFT animatsiya xatolik:', err));
+  }
+}
+
+async function sellNft(itemId, sellPrice) {
+  if (!confirm(`Ushbu NFT'ni ${sellPrice} coin'ga sotmoqchimisiz?`)) return;
+  try {
+    const res = await fetch(SELL_NFT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', itemId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) { alert('Xatolik yuz berdi!'); return; }
+
+    currentUserData.balance = data.balance;
+    document.getElementById('topBalance').textContent = currentUserData.balance;
+    document.getElementById('profBalance').textContent = currentUserData.balance;
+    alert(`Sotildi! +${data.sold_for} coin`);
+    loadInventory();
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
   }
 }
 

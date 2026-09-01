@@ -4945,7 +4945,10 @@ function mnLeavePage() {
 // Boshlanishida captcha tekshiriladi
 checkCaptchaRequirement();
 // Coin logotipini premium animatsiyali emoji bilan almashtiramiz
-initCoinIcons();
+// initCoinIcons() — coin ikonkasi animatsiyasi ba'zi telefonlarda qotib qolgani uchun o'chirilgan.
+// Shu bilan coin doim statik icon (PNG) sifatida ko'rinadi.
+// Yoqish uchun quyidagi qatorni izohdan chiqaring:
+// initCoinIcons();
 // Reytingdagi top 1/2/3 medal ikonkalarini ham premium animatsiyali emoji bilan almashtiramiz
 initMedalIcons();
 </script>

@@ -29,7 +29,7 @@ const friends = new Map();   // referrerId(string) -> [{id,username,photo_url,jo
 let tasks = [];              // [{id, channel_link, channel_title, stars_reward}]
 let promos = [];             // [{code, reward, maxUses, used, usedBy:Set}]
 let vouchers = [];           // [{id, reward, maxUses, used, usedBy:Set, requireType, requireTarget, requireLabel, createdAt}]
-const gameHistory = { hockey: [], drum: [], team_battle: [], crash: [] };
+const gameHistory = { hockey: [], drum: [], crash: [] };
 
 function createUser(id, username) {
   return {
@@ -68,7 +68,7 @@ function serializeState() {
     promos: promos.map(p => ({ ...p, usedBy: Array.from(p.usedBy) })),
     vouchers: vouchers.map(v => ({ ...v, usedBy: Array.from(v.usedBy) })),
     gameHistory,
-    gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number, team_battle: teamState.game_number },
+    gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number },
   };
 }
 function saveDb() {
@@ -96,7 +96,6 @@ function loadDb() {
     if (data.gameNumbers) {
       hockeyState.game_number = data.gameNumbers.hockey || 1;
       drumState.game_number = data.gameNumbers.drum || 1;
-      teamState.game_number = data.gameNumbers.team_battle || 1;
     }
     console.log(`DB yuklandi: ${users.size} foydalanuvchi, ${tasks.length} vazifa, ${promos.length} promo, ${vouchers.length} voucher`);
   } catch (e) { console.error('DB yuklashda xatolik:', e.message); }
@@ -777,7 +776,6 @@ function requireAdmin(req, res) {
 function resetGameState(game) {
   if (game === 'hockey') { clearTimeout(gameTimers.hockey); hockeyState = defaultHockeyState(); emitState('hockey'); }
   else if (game === 'drum') { clearTimeout(gameTimers.drum); drumState = defaultDrumState(); emitState('drum'); }
-  else if (game === 'team_battle') { clearTimeout(gameTimers.team_battle); teamState = defaultTeamState(); emitState('team_battle'); }
   gameHistory[game] = [];
 }
 
@@ -797,7 +795,6 @@ app.get('/api/internal_stats', (req, res) => {
     activeVouchers: vouchers.filter(v => v.used < v.maxUses).length,
     hockey: { status: hockeyState.status, players: hockeyState.players.length, round: hockeyState.game_number },
     drum: { status: drumState.status, players: drumState.players.length, round: drumState.game_number },
-    teamBattle: { status: teamState.status, players: teamState.players.length, round: teamState.game_number },
   });
 });
 
@@ -868,7 +865,7 @@ app.post('/api/admin_action', (req, res) => {
       }
       case 'reset_everything': {
         users.forEach(u => { u.balance = 0; u.total_won = 0; u.wins = 0; u.completedTasks = new Set(); u.lastCaseOpenedAt = null; });
-        resetGameState('hockey'); resetGameState('drum'); resetGameState('team_battle');
+        resetGameState('hockey'); resetGameState('drum');
         break;
       }
       default:
@@ -1165,23 +1162,21 @@ function hkResolveZoneWinner(players, gameNumber, finalPos) {
 }
 
 /* ============================================================
-   O'YINLAR: umumiy holat mashinasi (hockey, drum, team_battle)
+   O'YINLAR: umumiy holat mashinasi (hockey, drum)
    idle -> betting -> spinning_visual -> cooldown -> idle
    ============================================================ */
-const WAIT_SECONDS = { hockey: 15, drum: 15, team_battle: 20 };
-const ANIM_MS = { hockey: 9250, drum: 6150, team_battle: 7250 };
+const WAIT_SECONDS = { hockey: 15, drum: 15 };
+const ANIM_MS = { hockey: 9250, drum: 6150 };
 const COOLDOWN_MS = 5000;
-const gameTimers = { hockey: null, drum: null, team_battle: null };
+const gameTimers = { hockey: null, drum: null };
 
 function defaultHockeyState() { return { status: 'idle', players: [], pot: 0, game_number: 1, bettingStartedAt: null, cooldownStartedAt: null, winner: null, puckSeed: null }; }
 function defaultDrumState() { return { status: 'idle', players: [], pot: 0, game_number: 1, bettingStartedAt: null, cooldownStartedAt: null, winner: null, drumSeed: null }; }
-function defaultTeamState() { return { status: 'idle', players: [], pot: 0, game_number: 1, bettingStartedAt: null, cooldownStartedAt: null, winner: null, teamSeed: null, colorTotals: { red: 0, green: 0, blue: 0 } }; }
 
 let hockeyState = defaultHockeyState();
 let drumState = defaultDrumState();
-let teamState = defaultTeamState();
 
-function getState(game) { return game === 'hockey' ? hockeyState : game === 'drum' ? drumState : teamState; }
+function getState(game) { return game === 'hockey' ? hockeyState : drumState; }
 function emitState(game) { io.emit(`${game}:state`, getState(game)); }
 
 function startBettingTimer(game) {
@@ -1191,7 +1186,7 @@ function startBettingTimer(game) {
 function onBettingTimeout(game) {
   const state = getState(game);
   // Taймер endi faqat 2+ o'yinchi tikkandan keyingina boshlanadi (yuqoridagi
-  // /api/place_bet va /api/place_team_bet ga qarang), shuning uchun bu yerga
+  // /api/place_bet ga qarang), shuning uchun bu yerga
   // 2 kishidan kam bilan kelib qolish odatda mumkin emas. Baribir xavfsizlik
   // uchun tekshiruv qoldirilgan.
   if (state.players.length < 2) return;
@@ -1227,30 +1222,6 @@ function resolveRound(game) {
     const angle = start + Math.random() * Math.max(end - start, 0.001);
     state.winner = { id: winner.id, username: winner.username, photo: winner.photo, stars: winner.stars };
     state.drumSeed = { angle };
-  } else if (game === 'team_battle') {
-    const colors = ['red', 'green', 'blue'];
-    const totals = state.colorTotals;
-    const totalAll = colors.reduce((s, c) => s + (totals[c] || 0), 0) || 1;
-    let r = Math.random() * totalAll;
-    let winColor = colors[colors.length - 1];
-    for (const c of colors) {
-      const w = totals[c] || 0;
-      if (r < w) { winColor = c; break; }
-      r -= w;
-    }
-    const winners = state.players.filter(p => p.color === winColor);
-    const winTotal = totals[winColor] || 1;
-    const payouts = {};
-    let distributed = 0;
-    winners.forEach((p, idx) => {
-      let amt;
-      if (idx === winners.length - 1) amt = state.pot - distributed;
-      else amt = Math.floor(state.pot * (p.stars / winTotal));
-      distributed += amt;
-      payouts[String(p.id)] = amt;
-    });
-    state.winner = { color: winColor, payouts };
-    state.teamSeed = { angle: Math.random() * 360 };
   }
 
   emitState(game);
@@ -1288,21 +1259,6 @@ function finalizeRound(game) {
       chance: pot ? Number(((playerWeight(p) / pot) * 100).toFixed(1)) : 0,
       won: p.id === winner.id ? coinPot : 0,
     }));
-  } else if (game === 'team_battle') {
-    historyEntry.winner_color = state.winner.color;
-    const payouts = state.winner.payouts;
-    state.players.forEach(p => {
-      const won = payouts[String(p.id)] || 0;
-      if (won > 0) {
-        const u = users.get(String(p.id));
-        if (u) { u.balance = round2(u.balance + won); u.total_won += won; u.wins += 1; }
-      }
-    });
-    historyEntry.players = state.players.map(p => ({
-      id: p.id, username: p.username, photo: p.photo, stars: p.stars, color: p.color,
-      chance: pot ? Number(((p.stars / pot) * 100).toFixed(1)) : 0,
-      won: payouts[String(p.id)] || 0,
-    }));
   }
 
   gameHistory[game].unshift(historyEntry);
@@ -1316,7 +1272,6 @@ function finalizeRound(game) {
     const gnum = state.game_number + 1;
     if (game === 'hockey') hockeyState = { ...defaultHockeyState(), game_number: gnum };
     else if (game === 'drum') drumState = { ...defaultDrumState(), game_number: gnum };
-    else teamState = { ...defaultTeamState(), game_number: gnum };
     emitState(game);
   }, COOLDOWN_MS);
 }
@@ -1413,43 +1368,6 @@ app.post('/api/place_bet_nft', (req, res) => {
   res.json({ ok: true, staked });
 });
 
-
-app.post('/api/place_team_bet', (req, res) => {
-  const user = requireUser(req, res); if (!user) return;
-  const { amount, color } = req.body || {};
-  if (!['red', 'green', 'blue'].includes(color)) return res.status(400).json({ error: 'invalid_color' });
-
-  const amt = Number(amount);
-  if (!amt || amt < 0.1) return res.status(400).json({ error: 'invalid_amount' });
-  if (amt > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
-
-  const state = teamState;
-  if (state.status === 'spinning_visual' || state.status === 'cooldown') {
-    return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
-  }
-  const existing = state.players.find(p => p.id === Number(user.id));
-  if (existing && existing.color !== color) return res.status(400).json({ error: 'COLOR_LOCKED' });
-
-  user.balance = round2(user.balance - amt);
-  if (existing) existing.stars = round2(existing.stars + amt);
-  else state.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, stars: amt, color });
-  state.pot = round2(state.pot + amt);
-  state.colorTotals[color] = round2((state.colorTotals[color] || 0) + amt);
-
-  if (state.status === 'idle') {
-    // 1-o'yinchi tikkanda o'yin "betting" holatiga o'tadi, LEKIN таймer
-    // hali boshlanmaydi — kamida 2 XIL RANGGA tikilmaguncha kutamiz
-    // (bitta rangga bir nechta kishi tiksa ham yetarli emas).
-    state.status = 'betting';
-  }
-  const distinctColorsWithBets = Object.values(state.colorTotals).filter(v => v > 0).length;
-  if (distinctColorsWithBets >= 2 && !state.bettingStartedAt) {
-    state.bettingStartedAt = Date.now();
-    startBettingTimer('team_battle');
-  }
-  emitState('team_battle');
-  res.json({ ok: true, balance: user.balance });
-});
 
 /* ============================================================
    RAKETA (CRASH) — bitta umumiy raundda barcha ulangan
@@ -1832,12 +1750,11 @@ function handleMinesDisconnect(socketId) {
 io.on('connection', (socket) => {
   socket.emit('hockey:state', hockeyState);
   socket.emit('drum:state', drumState);
-  socket.emit('team_battle:state', teamState);
   socket.emit('crash:state', sanitizeCrashState());
 
   // MUHIM (bug fix): yuqoridagi emit faqat socket ULANGAN paytda bir marta
   // yuboriladi. Agar foydalanuvchi keyinroq (masalan, boshqa sahifada bir oz
-  // vaqt o'tkazgach) Hokkey/Baraban/Team Battle sahifasiga o'tsa, o'sha
+  // vaqt o'tkazgach) Hokkey/Baraban sahifasiga o'tsa, o'sha
   // eventni allaqachon "o'tkazib yuborgan" bo'ladi va navbatdagi haqiqiy
   // holat o'zgarishigacha (masalan, kimdir tikish qilmaguncha) "Yuklanmoqda..."
   // holatida qolib ketadi. Shu sababli mijoz sahifaga har safar kirganda
@@ -1845,7 +1762,6 @@ io.on('connection', (socket) => {
   socket.on('get_state', (game) => {
     if (game === 'hockey') socket.emit('hockey:state', hockeyState);
     else if (game === 'drum') socket.emit('drum:state', drumState);
-    else if (game === 'team_battle') socket.emit('team_battle:state', teamState);
     else if (game === 'crash') socket.emit('crash:state', sanitizeCrashState());
   });
 

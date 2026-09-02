@@ -213,7 +213,7 @@ async function handleStart(msg) {
   if (startParam) url += (url.includes('?') ? '&' : '?') + `startapp=${encodeURIComponent(startParam)}`;
 
   await sendMessage(msg.chat.id,
-    "🎁 GIFT FESTI ga xush kelibsiz!\n\nKunlik case oching, xokkey/baraban/team battle o'ynang va yulduzlar (⭐) yig'ing.",
+    "🎁 GIFT FESTI ga xush kelibsiz!\n\nKunlik case oching, xokkey/baraban o'ynang va yulduzlar (⭐) yig'ing.",
     {
       reply_markup: {
         inline_keyboard: [[{ text: "🎮 O'yinni ochish", web_app: { url } }]],
@@ -269,8 +269,7 @@ async function handleStats(chatId) {
       `🎟 Faol promokodlar: *${s.activePromos}*\n` +
       `🎁 Faol voucherlar: *${s.activeVouchers ?? 0}*\n\n` +
       `🏒 ${gameLine('Xokkey', s.hockey)}\n` +
-      `🥁 ${gameLine('Baraban', s.drum)}\n` +
-      `⚔️ ${gameLine('Team Battle', s.teamBattle)}\n\n` +
+      `🥁 ${gameLine('Baraban', s.drum)}\n\n` +
       `📩 Botga start bosganlar: *${chatIds.size}*`;
     await sendMessage(chatId, text, { parse_mode: 'Markdown' });
   } catch (e) {

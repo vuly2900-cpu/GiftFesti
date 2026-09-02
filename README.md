@@ -9,7 +9,7 @@ Bu loyiha avvalgi Firebase (Firestore) asosidagi frontendni o'zgartirmasdan,
 - Barcha ma'lumotlar (foydalanuvchilar, vazifalar, promo-kodlar, o'yin tarixi) shu
   serverning xotirasida saqlanadi va har 10 soniyada `db.json` fayliga yoziladi
   (server qayta ishga tushganda avtomatik o'qib olinadi — ma'lumot yo'qolmaydi).
-- Xokkey / Baraban (drum) / Team battle — bu uchala o'yin ham endi Firestore
+- Xokkey / Baraban (drum) — bu ikkala o'yin ham endi Firestore
   `onSnapshot` o'rniga **Socket.io** orqali real vaqtda barcha foydalanuvchilarga
   translatsiya qilinadi.
 - `public/index.html` — bitta faylning o'zi frontend, `server.js` esa uni xuddi
@@ -56,15 +56,14 @@ GET  /api/tasks
 POST /api/claim_task           {initData, taskId}
 GET  /api/leaderboard
 GET  /api/friends              ?user_id=
-GET  /api/game_history/:game   (game = hockey | drum | team_battle)
+GET  /api/game_history/:game   (game = hockey | drum)
 POST /api/redeem_promo         {initData, code}
 POST /api/admin_action         {initData, action, payload}
 POST /api/place_bet            {initData, game, amount}   (game = hockey | drum)
-POST /api/place_team_bet       {initData, amount, color}  (color = red|green|blue)
 ```
 
-Real vaqt o'yin holati: socket.io orqali `hockey:state`, `drum:state`,
-`team_battle:state` eventlari barcha ulangan clientlarga yuboriladi.
+Real vaqt o'yin holati: socket.io orqali `hockey:state`, `drum:state`
+eventlari barcha ulangan clientlarga yuboriladi.
 
 ## Muhim eslatma
 

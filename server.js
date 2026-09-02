@@ -348,9 +348,10 @@ const ROCKET_CUSTOM_EMOJI_IDS = ['5188481279963715781', '5463424023734014980'];
 const GAME_CARD_EMOJI_IDS = {
   crash: '5341655069462910390',
   case: '5203919539909182007',
-  mines: '5346248751734341189',
+  mines: '5388733670578206009',
   hockey: '5415590569231532234',
   drum: '5994377540246966428',
+  pvp: '5391267224541474941',
 };
 
 /* ---- Reytingdagi top 1/2/3 medal ikonkalari uchun premium animatsiyali emoji ---- */

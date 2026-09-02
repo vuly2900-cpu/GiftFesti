@@ -1145,7 +1145,7 @@ function hkSimulatePuckFinalPosition(angle) {
 // yoki to'g'ri burchakli treemap) ishlatiladi.
 function hkResolveZoneWinner(players, gameNumber, finalPos) {
   if (!players.length) return null;
-  const items = players.map((p, idx) => ({ index: idx, value: p.stars || 1 }));
+  const items = players.map((p, idx) => ({ index: idx, value: playerWeight(p) || 1 }));
   const roundSeed = gameNumber || 0;
   const useDiagonal = (roundSeed % 2 === 0);
 

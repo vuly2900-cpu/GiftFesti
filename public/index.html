@@ -3899,12 +3899,12 @@ async function finishHockeyRound(winner) {
 function renderHockeyArena() {
   const zonesEl = document.getElementById('hockeyZones');
   if (!hockeyState.players || !hockeyState.players.length) {
-    zonesEl.innerHTML = '<div class="hockey-empty">Kamida 2 kishi stars tiksin</div>';
+    zonesEl.innerHTML = '<div class="hockey-empty">Kamida 2 kishi coin tiksin</div>';
     hockeyZoneRects = null;
     return;
   }
 
-  const items = hockeyState.players.map((p, idx) => ({ index: idx, value: p.stars || 1 }));
+  const items = hockeyState.players.map((p, idx) => ({ index: idx, value: playerWeightClient(p) || 1 }));
   // Har bir raund uchun stil (to'g'ri burchakli treemap yoki qiya/uchburchak bo'linish)
   // va yo'nalish game_number asosida aniqlanadi — shu tufayli har doim bir xil
   // ko'rinish emas, lekin BARCHA foydalanuvchilarda (va g'olibni aniqlashda)

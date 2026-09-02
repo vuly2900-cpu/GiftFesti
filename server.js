@@ -1437,11 +1437,13 @@ app.post('/api/place_team_bet', (req, res) => {
   state.colorTotals[color] = round2((state.colorTotals[color] || 0) + amt);
 
   if (state.status === 'idle') {
-    // 1-o'yinchi tikkanda o'yin "betting" holatiga o'tadi, LEKIN taймer
-    // hali boshlanmaydi — kamida 2-o'yinchi tikmaguncha kutamiz.
+    // 1-o'yinchi tikkanda o'yin "betting" holatiga o'tadi, LEKIN таймer
+    // hali boshlanmaydi — kamida 2 XIL RANGGA tikilmaguncha kutamiz
+    // (bitta rangga bir nechta kishi tiksa ham yetarli emas).
     state.status = 'betting';
   }
-  if (state.players.length >= 2 && !state.bettingStartedAt) {
+  const distinctColorsWithBets = Object.values(state.colorTotals).filter(v => v > 0).length;
+  if (distinctColorsWithBets >= 2 && !state.bettingStartedAt) {
     state.bettingStartedAt = Date.now();
     startBettingTimer('team_battle');
   }

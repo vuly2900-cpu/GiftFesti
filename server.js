@@ -295,6 +295,18 @@ const NFT_CATALOG = [
   { id: 'fine_pen', name: 'Fine Pen', custom_emoji_id: '5278356498584472070', sell_price: 8.4 },
   { id: 'pool_float', name: 'Pool Float', custom_emoji_id: '5278758099501495237', sell_price: 3.7 },
   { id: 'surge_board', name: 'Surge Board', custom_emoji_id: '5278537162088812151', sell_price: 6.8 },
+
+  // ---- Yangi qo'shilgan NFT'lar ----
+  { id: 'westside_sign', name: 'Westside Sign', custom_emoji_id: '5278250228208667424', sell_price: 94 },
+  { id: 'low_lider', name: 'Low Lider', custom_emoji_id: '5278633987831534549', sell_price: 51 },
+  { id: 'snoop_cigar', name: 'Snoop Cigar', custom_emoji_id: '5278384342857454502', sell_price: 14.5 },
+  { id: 'swag_bag', name: 'Swag Bag', custom_emoji_id: '5278749973423361220', sell_price: 5.4 },
+  { id: 'snoop_dogg', name: 'Snoop Dogg', custom_emoji_id: '5278434624039587214', sell_price: 5.2 },
+  { id: 'rare_bird', name: 'Rare Bird', custom_emoji_id: '5278619973353245735', sell_price: 24.7 },
+  { id: 'liberty_figure', name: 'Liberty Figure', custom_emoji_id: '5278780789813712092', sell_price: 4.7 },
+  { id: 'chill_flame', name: 'Chill Flame', custom_emoji_id: '5278575464607156333', sell_price: 3.9 },
+  { id: 'bling_binky', name: 'Bling Binky', custom_emoji_id: '5276131087049858607', sell_price: 24 },
+  { id: 'ice_cream', name: 'Ice Cream', custom_emoji_id: '5278640275663653377', sell_price: 3.9 },
 ];
 const NFT_BY_ID = new Map(NFT_CATALOG.map(i => [i.id, i]));
 const CASE_ITEM_IDS = ['teddy', 'heart_gift', 'gift_box', 'rose', 'cake', 'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond'];

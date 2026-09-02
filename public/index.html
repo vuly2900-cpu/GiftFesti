@@ -1290,7 +1290,7 @@
     </div>
 
     <div class="hockey-bet-panel">
-      <p class="hockey-bet-label">Stars tikish (minimum 0.1 <span class="coin-ico"></span>)</p>
+      <p class="hockey-bet-label">Coin tikish (minimum 0.1 <span class="coin-ico"></span>)</p>
       <div class="hockey-amounts">
         <button class="amt-btn active" onclick="hockeySetAmount(10, this)">10</button>
         <button class="amt-btn" onclick="hockeySetAmount(25, this)">25</button>
@@ -1339,7 +1339,7 @@
     </div>
 
     <div class="hockey-bet-panel">
-      <p class="hockey-bet-label">Stars tikish (minimum 0.1 <span class="coin-ico"></span>)</p>
+      <p class="hockey-bet-label">Coin tikish (minimum 0.1 <span class="coin-ico"></span>)</p>
       <div class="hockey-amounts">
         <button class="amt-btn active" onclick="drumSetAmount(10, this)">10</button>
         <button class="amt-btn" onclick="drumSetAmount(25, this)">25</button>
@@ -1530,7 +1530,7 @@
       <div class="uname" id="profName">—</div>
     </div>
     <div class="stat-grid">
-      <div class="stat"><div class="num" id="profBalance">0</div><div class="lbl">Stars</div></div>
+      <div class="stat"><div class="num" id="profBalance">0</div><div class="lbl">Coin</div></div>
       <div class="stat"><div class="num" id="profTotalWon">0</div><div class="lbl">Yutilgan (reyting)</div></div>
       <div class="stat"><div class="num" id="profWins">0</div><div class="lbl">G'alabalar</div></div>
     </div>
@@ -1627,10 +1627,10 @@
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px; color:var(--gold);">⚙️ Admin boshqaruv paneli</h2>
     
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--success);"><span class="coin-ico"></span> Foydalanuvchiga Stars berish</p>
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--success);"><span class="coin-ico"></span> Foydalanuvchiga Coin berish</p>
       <input type="text" id="a_userTid" placeholder="Foydalanuvchi Telegram ID si">
-      <input type="number" id="a_giveStars" placeholder="Stars miqdori">
-      <button class="btn" style="width:100%;" onclick="adminGiveStars()">Stars Yuborish</button>
+      <input type="number" id="a_giveStars" placeholder="Coin miqdori">
+      <button class="btn" style="width:100%;" onclick="adminGiveStars()">Coin Yuborish</button>
     </div>
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
@@ -1670,7 +1670,7 @@
       <p style="font-size:13px; font-weight:600; margin-bottom:4px;">📋 Yangi vazifa qo'shish</p>
       <input type="text" id="a_channelLink" placeholder="Kanal havolasi (t.me/...)">
       <input type="text" id="a_channelTitle" placeholder="Kanal nomi">
-      <input type="number" id="a_reward" placeholder="Stars miqdori">
+      <input type="number" id="a_reward" placeholder="Coin miqdori">
       <button class="btn" style="width:100%;" onclick="adminAddTask()">Vazifa qo'shish</button>
 
       <p style="font-size:12px; font-weight:600; margin:12px 0 6px; color:var(--text-dim);">Yaratilgan vazifalar</p>
@@ -2853,7 +2853,7 @@ async function adminGiveStars() {
   if(!id || !amt) return;
   try {
     await callAdminAction('give_stars', { userId: id, amount: amt });
-    alert("Stars berildi!");
+    alert("Coin berildi!");
   } catch (e) { console.error(e); alert("Xatolik yuz berdi!"); }
 }
 
@@ -3322,7 +3322,7 @@ async function crashPlaceBet() {
   const btn = document.getElementById('crashActionBtn');
   const amount = parseFloat(document.getElementById('crashCustomAmount').value);
   if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
-  if (currentUserData.balance < amount) { alert('Stars yetarli emas!'); return; }
+  if (currentUserData.balance < amount) { alert('Coin yetarli emas!'); return; }
 
   btn.disabled = true;
   try {
@@ -3333,7 +3333,7 @@ async function crashPlaceBet() {
     });
     const data = await res.json();
     if (!res.ok) {
-      if (data.error === 'INSUFFICIENT_BALANCE') alert('Stars yetarli emas!');
+      if (data.error === 'INSUFFICIENT_BALANCE') alert('Coin yetarli emas!');
       else if (data.error === 'GAME_NOT_ACCEPTING_BETS') alert("Tikish vaqti tugadi, keyingi raundni kuting!");
       else if (data.error === 'ALREADY_BET') { /* jim, holat allaqachon yangilangan */ }
       else alert('Xatolik yuz berdi!');
@@ -3693,7 +3693,7 @@ async function hockeyPlaceBet() {
 
   const amount = parseFloat(document.getElementById('hockeyCustomAmount').value);
   if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
-  if (currentUserData.balance < amount) { alert("Stars yetarli emas!"); return; }
+  if (currentUserData.balance < amount) { alert("Coin yetarli emas!"); return; }
 
   btn.disabled = true;
 
@@ -3708,7 +3708,7 @@ async function hockeyPlaceBet() {
     });
     const data = await res.json();
     if (!res.ok) {
-      if (data.error === 'INSUFFICIENT_BALANCE') alert("Stars yetarli emas!");
+      if (data.error === 'INSUFFICIENT_BALANCE') alert("Coin yetarli emas!");
       else if (data.error === 'GAME_NOT_ACCEPTING_BETS') alert("O'yin jarayoni kutilmoqda, yangi davr boshlanishini kuting!");
       else alert("Xatolik yuz berdi!");
       return;
@@ -4283,7 +4283,7 @@ async function drumPlaceBet() {
 
   const amount = parseFloat(document.getElementById('drumCustomAmount').value);
   if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
-  if (currentUserData.balance < amount) { alert("Stars yetarli emas!"); return; }
+  if (currentUserData.balance < amount) { alert("Coin yetarli emas!"); return; }
 
   btn.disabled = true;
 
@@ -4297,7 +4297,7 @@ async function drumPlaceBet() {
     });
     const data = await res.json();
     if (!res.ok) {
-      if (data.error === 'INSUFFICIENT_BALANCE') alert("Stars yetarli emas!");
+      if (data.error === 'INSUFFICIENT_BALANCE') alert("Coin yetarli emas!");
       else if (data.error === 'GAME_NOT_ACCEPTING_BETS') alert("O'yin jarayoni kutilmoqda, yangi davr boshlanishini kuting!");
       else alert("Xatolik yuz berdi!");
       return;

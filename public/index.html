@@ -378,7 +378,7 @@
     min-height:100px; display:flex; flex-direction:column; justify-content:space-between;
     border:1px solid var(--border);
   }
-  .game-card.hockey{background:linear-gradient(135deg,#1B3A34,#0E211D);}
+  .game-card.hockey{background:linear-gradient(135deg,#1B4A6B,#0E2A3D);}
   .game-card.drum{background:linear-gradient(135deg,#3A2A1B,#211508);}
   .game-card.team-battle{background:linear-gradient(135deg,#3A1B24,#1F0E14);}
   .game-card.mines{background:linear-gradient(135deg,#123524,#0d211a);}
@@ -540,6 +540,14 @@
     padding:4px 8px; border-radius:999px; letter-spacing:.03em;
   }
   .mini-icon{font-size:30px; margin-top:10px;}
+  .mini-icon-visual{
+    width:34px; height:34px; margin-top:10px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mini-icon-visual video, .mini-icon-visual .lottie-box{width:100%; height:100%;}
+  .mini-icon-visual .fallback-emoji{
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:30px;
+  }
   .game-card.case-mini{background:linear-gradient(135deg,#3A2E12,#1F1706);}
   .game-card.mines-mini{background:linear-gradient(135deg,#123524,#0d211a);}
   .game-card.mines-mini .mini-badge{color:#22C55E;}
@@ -1231,12 +1239,12 @@
     <div class="mini-row">
       <div class="game-card case-mini" onclick="goTo('case')">
         <span class="mini-badge">FREE 24H</span>
-        <span class="mini-icon">🏅</span>
+        <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
         <span class="game-name">Kunlik Case</span>
       </div>
       <div class="game-card mines-mini" onclick="openGame('mines')">
         <span class="mini-badge">FREE</span>
-        <span class="mini-icon">🎁</span>
+        <div class="mini-icon-visual" id="gcVisualMines"><span class="fallback-emoji">🎁</span></div>
         <span class="game-name">MINES 1vs1</span>
       </div>
     </div>
@@ -1251,10 +1259,12 @@
     <div class="game-card hockey" onclick="openGame('hockey')">
       <span class="game-badge">🏒 Mukammal Fizika</span>
       <span class="game-name">Xokkey</span>
+      <div class="game-card-visual" id="gcVisualHockey"><span class="fallback-emoji">🏒</span></div>
     </div>
     <div class="game-card drum" onclick="openGame('drum')">
       <span class="game-badge">🥁 Hit</span>
       <span class="game-name">Baraban</span>
+      <div class="game-card-visual" id="gcVisualDrum"><span class="fallback-emoji">🥁</span></div>
     </div>
     <div class="game-card team-battle" onclick="openGame('team_battle')">
       <span class="game-badge">⚔️ 3 Zona</span>

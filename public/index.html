@@ -4699,13 +4699,24 @@ function renderTeamBattleArena() {
   const widths = computeTeamZoneWidths();
   const polygons = computeTeamFanPolygons(widths);
   const players = teamState.players || [];
+  const totals = teamState.colorTotals || { red: 0, green: 0, blue: 0 };
+  const grandTotal = TEAM_COLORS.reduce((s, c) => s + Math.max(totals[c] || 0, 0), 0);
 
   zonesEl.innerHTML = TEAM_COLORS.map(c => {
+    const amt = totals[c] || 0;
+    // Hech kim tikmagan (0 stars) rangning zonasi, agar boshqa ranglarga
+    // allaqachon tikilgan bo'lsa, chizilmaydi — aks holda fan-poligon
+    // formulasi (tepadagi qat'iy markaz nuqtasi tufayli) 0 ulushli
+    // rangga ham noto'g'ri, ko'rinadigan uchburchak chizib qo'yardi.
+    // Hali hech kim umuman tikmagan bo'lsa (grandTotal===0), barcha 3
+    // rang neytral tarzda teng uchdan bo'lib ko'rsatiladi — bu holatda
+    // hech narsani yashirmaymiz.
+    if (grandTotal > 0 && amt <= 0) return '';
+
     const poly = polygons[c];
     const clip = `polygon(${poly.map(pt => `${pt[0].toFixed(2)}% ${pt[1].toFixed(2)}%`).join(', ')})`;
     const centroid = polygonCentroid(poly);
     const colorPlayers = players.filter(p => p.color === c);
-    const amt = (teamState.colorTotals && teamState.colorTotals[c]) || 0;
     const avatarsHtml = colorPlayers.slice(0, 8).map(p => `
       <img src="${p.photo || avatarFallback(p.username)}" onerror="this.src=avatarFallback('${p.username}')">
     `).join('');

@@ -476,6 +476,69 @@
   @keyframes crashFloatDown{0%,100%{transform:translate(-50%,-50%) rotate(180deg) translateY(0px);} 50%{transform:translate(-50%,-50%) rotate(180deg) translateY(8px);}}
   @keyframes crashGrowDown{0%{transform:translate(-50%,-50%) rotate(180deg) scale(1);} 100%{transform:translate(-50%,-50%) rotate(180deg) scale(1.18);}}
   @keyframes crashBoomDown{0%{opacity:1; transform:translate(-50%,-50%) rotate(180deg) scale(1);} 100%{opacity:0; transform:translate(-50%,-50%) rotate(180deg) scale(1.8) rotate(15deg);}}
+
+  /* RAKETA — o'tgan raundlar tarixi (rangli x-belgilar) */
+  .crash-history-strip{display:flex; gap:6px; overflow-x:auto; padding:2px 2px 10px; margin-bottom:2px; scrollbar-width:none;}
+  .crash-history-strip::-webkit-scrollbar{display:none;}
+  .crash-hist-chip{
+    flex:0 0 auto; padding:6px 10px; border-radius:10px; font-family:'JetBrains Mono',monospace;
+    font-size:12px; font-weight:700; border:1px solid var(--border);
+  }
+  .crash-hist-chip.chip-red{background:rgba(229,84,75,.16); color:#ff8078; border-color:rgba(229,84,75,.35);}
+  .crash-hist-chip.chip-green{background:rgba(51,196,129,.16); color:#4fe8a0; border-color:rgba(51,196,129,.35);}
+  .crash-hist-chip.chip-blue{background:rgba(77,171,247,.16); color:#7cc4ff; border-color:rgba(77,171,247,.35);}
+  .crash-hist-chip.chip-purple{background:rgba(179,102,255,.18); color:#c896ff; border-color:rgba(179,102,255,.4);}
+  .crash-hist-chip.chip-gold{background:rgba(255,196,0,.18); color:var(--gold); border-color:rgba(255,196,0,.4);}
+
+  /* RAKETA — katta "Stavka qilish" tugmasi (miqdor knopkalari o'rniga) */
+  .crash-big-bet-btn{
+    width:100%; padding:16px; border-radius:16px; border:none; cursor:pointer;
+    background:linear-gradient(180deg,var(--gold),#c99400); color:#1A1400;
+    font-size:16px; font-weight:800; margin-bottom:14px;
+  }
+  .crash-big-bet-btn.crash-cashout-btn{background:linear-gradient(180deg,var(--success),#1f8a5c); color:#08251a;}
+  .crash-big-bet-btn:disabled{opacity:.55; cursor:default;}
+  .crash-bet-anim{width:16px; height:16px; border-radius:4px; display:inline-block; vertical-align:middle; margin-right:2px; background:var(--surface-2);}
+  .crash-bet-anim .anim-slot, .crash-bet-anim{width:16px; height:16px;}
+
+  /* RAKETA — "Stavka qilish" modali (Sovg'a / TON tablari) */
+  .crash-bet-overlay{
+    position:fixed; inset:0; background:rgba(5,8,14,.85); z-index:230;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .crash-bet-overlay.active{display:flex;}
+  .crash-bet-sheet{
+    width:100%; max-width:480px; max-height:85vh; overflow-y:auto;
+    background:var(--surface); border-radius:20px 20px 0 0; padding:16px;
+    border:1px solid var(--border); border-bottom:none;
+  }
+  .crash-bet-sheet-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .crash-bet-sheet-head h3{font-size:16px;}
+  .crash-bet-tabs{display:flex; gap:8px; background:var(--surface-2); border-radius:12px; padding:4px; margin-bottom:16px;}
+  .crash-bet-tab{flex:1; text-align:center; padding:10px 0; border-radius:9px; font-size:13.5px; font-weight:700; color:var(--text-dim); cursor:pointer;}
+  .crash-bet-tab.active{background:var(--gold); color:#1A1400;}
+  .crash-bet-panel-ton{}
+  .crash-bet-row{display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--text-dim); margin-bottom:8px;}
+  .crash-bet-row b{color:var(--text); font-size:14px;}
+  .crash-bet-amount-input{width:100%; margin-bottom:14px; font-size:15px; text-align:left;}
+  .crash-bet-quick{display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:14px;}
+  .crash-auto-row{display:flex; align-items:center; justify-content:space-between; padding:10px 2px; margin-bottom:10px;}
+  .crash-auto-row .lbl{font-size:13.5px; font-weight:600;}
+  .crash-toggle{position:relative; width:42px; height:24px; border-radius:14px; background:var(--surface-2); border:1px solid var(--border); cursor:pointer; flex:0 0 auto;}
+  .crash-toggle::after{content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--text-dim); transition:transform .18s ease, background .18s ease;}
+  .crash-toggle.on{background:rgba(51,196,129,.25); border-color:var(--success);}
+  .crash-toggle.on::after{transform:translateX(18px); background:var(--success);}
+  .crash-auto-target{display:none; margin-bottom:10px;}
+  .crash-auto-target.show{display:block;}
+  .crash-bet-confirm{width:100%; padding:14px; border-radius:14px; border:none; cursor:pointer;
+    background:linear-gradient(180deg,var(--gold),#c99400); color:#1A1400; font-size:15px; font-weight:800;}
+  .crash-bet-confirm:disabled{opacity:.5;}
+  .crash-gift-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; min-height:80px;}
+  .crash-gift-item{background:var(--surface-2); border:2px solid var(--border); border-radius:12px; padding:8px 6px; text-align:center; cursor:pointer;}
+  .crash-gift-item.selected{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset;}
+  .crash-gift-item .anim-slot{width:100%; aspect-ratio:1/1; border-radius:8px; margin-bottom:6px;}
+  .crash-gift-item .n-name{font-size:11px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .crash-gift-item .n-price{font-size:10px; color:var(--text-dim);}
   .game-badge{
     display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
     background:rgba(0,0,0,.35); color:var(--gold); font-size:10px; font-weight:700;
@@ -1245,20 +1308,9 @@
 
     <p class="crash-my-status" id="crashMyStatus"></p>
 
-    <div class="hockey-bet-panel">
-      <p class="hockey-bet-label">Stavka (minimum 0.1 <span class="coin-ico"></span>)</p>
-      <div class="hockey-amounts">
-        <button class="amt-btn active" onclick="crashSetAmount(1, this)">1</button>
-        <button class="amt-btn" onclick="crashSetAmount(5, this)">5</button>
-        <button class="amt-btn" onclick="crashSetAmount(10, this)">10</button>
-        <button class="amt-btn" onclick="crashSetAmount(25, this)">25</button>
-        <button class="amt-btn" onclick="crashSetAmount(50, this)">50</button>
-      </div>
-      <div class="hockey-custom-row">
-        <input type="number" id="crashCustomAmount" value="1" step="0.1" min="0.1" placeholder="Miqdor...">
-        <button class="btn" id="crashActionBtn" onclick="crashActionBtn()">Tikish</button>
-      </div>
-    </div>
+    <div class="crash-history-strip" id="crashHistoryStrip"></div>
+
+    <button class="crash-big-bet-btn" id="crashActionBtn" onclick="crashActionBtn()">Stavka qilish</button>
 
     <div class="hockey-players" id="crashPlayersList"></div>
   </section>
@@ -1606,6 +1658,49 @@
   </div>
 </div>
 
+<!-- RAKETA — STAVKA QILISH MODALI (TON / Sovg'a) -->
+<div class="crash-bet-overlay" id="crashBetOverlay" onclick="if(event.target===this) closeCrashBetModal()">
+  <div class="crash-bet-sheet">
+    <div class="crash-bet-sheet-head">
+      <h3>Stavka qilish</h3>
+      <button class="modal-close" style="position:static;" onclick="closeCrashBetModal()">×</button>
+    </div>
+
+    <div class="crash-bet-tabs">
+      <div class="crash-bet-tab" id="crashTabGift" onclick="crashSwitchBetTab('gift')">🎁 Sovg'alar</div>
+      <div class="crash-bet-tab active" id="crashTabTon" onclick="crashSwitchBetTab('ton')">💎 TON</div>
+    </div>
+
+    <!-- TON (coin) bilan tikish -->
+    <div class="crash-bet-panel-ton" id="crashPanelTon">
+      <div class="crash-bet-row"><span>Mavjud balans</span><b id="crashBetBalance"><span class="coin-ico"></span> 0</b></div>
+      <p class="hockey-bet-label" style="margin-bottom:6px;">Stavka summasi</p>
+      <input type="number" class="crash-bet-amount-input" id="crashCustomAmount" value="1" step="0.1" min="0.1" placeholder="Miqdor...">
+      <div class="crash-bet-quick">
+        <button class="amt-btn active" onclick="crashSetAmount(1, this)">1</button>
+        <button class="amt-btn" onclick="crashSetAmount(5, this)">5</button>
+        <button class="amt-btn" onclick="crashSetAmount(10, this)">10</button>
+        <button class="amt-btn" onclick="crashSetAmount(25, this)">25</button>
+        <button class="amt-btn" onclick="crashSetAmount(50, this)">50</button>
+      </div>
+      <div class="crash-auto-row">
+        <span class="lbl">Avto olish</span>
+        <div class="crash-toggle" id="crashAutoToggle" onclick="crashToggleAuto()"></div>
+      </div>
+      <input type="number" class="crash-bet-amount-input crash-auto-target" id="crashAutoTarget" value="2.00" step="0.1" min="1.01" placeholder="Multiplikator (masalan 2.00)">
+      <button class="crash-bet-confirm" id="crashTonConfirmBtn" onclick="crashPlaceBet()">Stavka qo'yish 🚀</button>
+    </div>
+
+    <!-- Sovg'a (NFT) bilan tikish -->
+    <div class="crash-bet-panel-gift" id="crashPanelGift" style="display:none;">
+      <div class="crash-gift-grid" id="crashGiftGrid">
+        <p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>
+      </div>
+      <button class="crash-bet-confirm" id="crashGiftConfirmBtn" onclick="crashPlaceBetNft()">Sovg'a bilan tikish 🚀</button>
+    </div>
+  </div>
+</div>
+
 <!-- RAKETA SOZLAMALARI MODAL -->
 <div class="modal-overlay" id="crashSettingsModal">
   <div class="modal-window">
@@ -1732,6 +1827,7 @@ const REDEEM_PROMO_API_URL = '/api/redeem_promo';
 const PLACE_BET_API_URL = '/api/place_bet';
 const PLACE_BET_NFT_API_URL = '/api/place_bet_nft';
 const CRASH_BET_API_URL = '/api/crash/bet';
+const CRASH_BET_NFT_API_URL = '/api/crash/bet_nft';
 const ADMIN_ACTION_API_URL = '/api/admin_action';
 const CLAIM_TASK_API_URL = '/api/claim_task';
 const LEADERBOARD_API_URL = '/api/leaderboard';
@@ -3152,10 +3248,14 @@ function mountRocketForRound(roundNumber, force) {
 }
 
 // ==================== RAKETA (CRASH) — real vaqtli multiplayer ====================
-let crashState = { status: 'waiting', players: [], multiplier: 1.00, round_number: 1, lastResult: null, waitMs: 7000 };
+let crashState = { status: 'waiting', players: [], multiplier: 1.00, round_number: 1, lastResult: null, waitMs: 7000, history: [] };
 let crashUnsubscribe = null;
 let crashSelectedAmount = 1;
 let crashCashoutBusy = false;
+let crashBetTab = 'ton';
+let crashGiftInventory = [];
+let crashGiftSelectedId = null;
+let crashAutoEnabled = false;
 
 let crashLocalTickInterval = null;
 function initCrashPage() {
@@ -3181,13 +3281,115 @@ function initCrashPage() {
 function crashSetAmount(v, btn) {
   crashSelectedAmount = v;
   document.getElementById('crashCustomAmount').value = v;
-  document.querySelectorAll('#page-crash .amt-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#crashBetOverlay .amt-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+}
+
+/* ---- Raketa — "Stavka qilish" modali (TON / Sovg'a tablari) ---- */
+function openCrashBetModal() {
+  const overlay = document.getElementById('crashBetOverlay');
+  overlay.classList.add('active');
+  const balEl = document.getElementById('crashBetBalance');
+  if (balEl) balEl.innerHTML = `<span class="coin-ico"></span> ${(currentUserData?.balance ?? 0)}`;
+  crashSwitchBetTab('ton');
+}
+function closeCrashBetModal() {
+  document.getElementById('crashBetOverlay').classList.remove('active');
+}
+function crashSwitchBetTab(tab) {
+  crashBetTab = tab;
+  document.getElementById('crashTabTon').classList.toggle('active', tab === 'ton');
+  document.getElementById('crashTabGift').classList.toggle('active', tab === 'gift');
+  document.getElementById('crashPanelTon').style.display = tab === 'ton' ? '' : 'none';
+  document.getElementById('crashPanelGift').style.display = tab === 'gift' ? '' : 'none';
+  if (tab === 'gift') loadCrashGiftGrid();
+}
+function crashToggleAuto() {
+  crashAutoEnabled = !crashAutoEnabled;
+  document.getElementById('crashAutoToggle').classList.toggle('on', crashAutoEnabled);
+  document.getElementById('crashAutoTarget').classList.toggle('show', crashAutoEnabled);
+}
+
+async function loadCrashGiftGrid() {
+  const grid = document.getElementById('crashGiftGrid');
+  crashGiftSelectedId = null;
+  grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>';
+  try {
+    const res = await fetch(`${INVENTORY_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`);
+    const data = await res.json();
+    crashGiftInventory = data.items || [];
+    renderCrashGiftGrid();
+  } catch (e) {
+    console.error(e);
+    grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklab bo\'lmadi</p>';
+  }
+}
+function renderCrashGiftGrid() {
+  const grid = document.getElementById('crashGiftGrid');
+  if (!crashGiftInventory.length) {
+    grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Inventoringizda NFT yo\'q</p>';
+    return;
+  }
+  grid.innerHTML = crashGiftInventory.map(it => `
+    <div class="crash-gift-item ${crashGiftSelectedId === it.id ? 'selected' : ''}" onclick="crashSelectGift('${it.id}')">
+      <div class="anim-slot" id="crashGiftAnim_${it.id}"></div>
+      <div class="n-name">${it.name}</div>
+      <div class="n-price"><span class="coin-ico"></span> ${it.sell_price} · x${it.count}</div>
+    </div>
+  `).join('');
+  crashGiftInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`crashGiftAnim_${it.id}`), it.custom_emoji_id, it.is_video));
+}
+function crashSelectGift(itemId) {
+  crashGiftSelectedId = crashGiftSelectedId === itemId ? null : itemId;
+  renderCrashGiftGrid();
+}
+
+async function crashPlaceBetNft() {
+  if (!crashGiftSelectedId) { alert('Bitta sovg\'a (NFT) tanlang!'); return; }
+  const btn = document.getElementById('crashGiftConfirmBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(CRASH_BET_NFT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', itemIds: [crashGiftSelectedId] })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'NOT_ENOUGH_NFT') alert("Bu NFT topilmadi!");
+      else if (data.error === 'GAME_NOT_ACCEPTING_BETS') alert("Tikish vaqti tugadi, keyingi raundni kuting!");
+      else if (data.error === 'ALREADY_BET') { closeCrashBetModal(); }
+      else alert('Xatolik yuz berdi!');
+      return;
+    }
+    closeCrashBetModal();
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function myCrashPlayer() {
   if (!currentUserData) return null;
   return crashState.players.find(p => String(p.id) === String(currentUserData.telegram_id || currentUserData.id));
+}
+
+function renderCrashHistory() {
+  const wrap = document.getElementById('crashHistoryStrip');
+  if (!wrap) return;
+  const hist = crashState.history || [];
+  if (!hist.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = hist.map(cp => {
+    const v = Number(cp);
+    let cls = 'chip-red';
+    if (v >= 15) cls = 'chip-gold';
+    else if (v >= 5) cls = 'chip-purple';
+    else if (v >= 2) cls = 'chip-blue';
+    else if (v >= 1.5) cls = 'chip-green';
+    return `<span class="crash-hist-chip ${cls}">${v.toFixed(2)}x</span>`;
+  }).join('');
 }
 
 function renderCrashState() {
@@ -3246,8 +3448,19 @@ function renderCrashState() {
     if (ring) ring.classList.add('crash-hidden');
   }
 
+  renderCrashHistory();
   renderCrashPlayers();
   updateCrashActionBtn();
+
+  // Avto-olish: agar yoqilgan bo'lsa va joriy multiplikator maqsadga yetsa,
+  // avtomatik ravishda "OLISH" chaqiriladi.
+  if (crashState.status === 'running' && crashAutoEnabled) {
+    const mine = myCrashPlayer();
+    const target = parseFloat(document.getElementById('crashAutoTarget')?.value);
+    if (mine && !mine.cashedOutAt && target && mult >= target) {
+      crashCashOut();
+    }
+  }
 }
 
 function renderCrashPlayers() {
@@ -3257,19 +3470,29 @@ function renderCrashPlayers() {
     wrap.innerHTML = '<p class="empty" style="font-size:13px; text-align:center; padding:14px 0;">Hali hech kim tikmagan — birinchi bo\'ling!</p>';
     return;
   }
+  const mult = Number(crashState.multiplier || 1);
   const sorted = [...crashState.players].sort((a, b) => b.bet - a.bet);
   wrap.innerHTML = sorted.map(p => {
+    const isNft = p.betType === 'nft' && p.betNfts && p.betNfts.length;
+    const betIcon = isNft ? `<span class="crash-bet-anim" id="crashBetAnim_${p.id}"></span>` : `<span class="coin-ico"></span>`;
     let right;
     if (p.wonNft) right = `<span class="stake mono" style="color:var(--gold);">✔ ${p.cashedOutAt.toFixed(2)}x · 🖼️ ${p.wonNft.name}</span>`;
     else if (p.cashedOutAt) right = `<span class="stake mono" style="color:var(--success);">✔ ${p.cashedOutAt.toFixed(2)}x · +${p.won}</span>`;
-    else if (crashState.status === 'crashed') right = `<span class="stake mono" style="color:var(--danger);">−${p.bet}</span>`;
-    else right = `<span class="stake mono"><span class="coin-ico"></span>${p.bet}</span>`;
+    else if (crashState.status === 'crashed') right = `<span class="stake mono" style="color:var(--danger);">${betIcon}−${p.bet}</span>`;
+    else if (crashState.status === 'running') right = `<span class="stake mono">${betIcon}${(p.bet * mult).toFixed(2)} <b style="color:var(--success); margin-left:3px;">x${mult.toFixed(2)}</b></span>`;
+    else right = `<span class="stake mono">${betIcon}${p.bet}</span>`;
     return `<div class="hockey-player-row">
       <img class="avatar" src="${p.photo || avatarFallback(p.username)}" onerror="this.src=avatarFallback('${p.username}')">
       <div class="uname">${p.username}</div>
       ${right}
     </div>`;
   }).join('');
+  sorted.forEach(p => {
+    if (p.betType === 'nft' && p.betNfts && p.betNfts.length) {
+      const el = document.getElementById(`crashBetAnim_${p.id}`);
+      if (el) mountAnimatedEmoji(el, p.betNfts[0].custom_emoji_id, p.betNfts[0].is_video);
+    }
+  });
 }
 
 function updateCrashActionBtn() {
@@ -3281,7 +3504,7 @@ function updateCrashActionBtn() {
 
   if (crashState.status === 'waiting') {
     if (mine) { btn.textContent = 'Stavka qo\'yildi ✓'; btn.disabled = true; }
-    else btn.textContent = 'Tikish';
+    else btn.textContent = 'Stavka qilish';
   } else if (crashState.status === 'running') {
     if (mine && !mine.cashedOutAt) {
       btn.classList.add('crash-cashout-btn');
@@ -3314,12 +3537,12 @@ async function crashActionBtn() {
   if (crashState.status === 'running' && mine && !mine.cashedOutAt) {
     await crashCashOut();
   } else if (crashState.status === 'waiting' && !mine) {
-    await crashPlaceBet();
+    openCrashBetModal();
   }
 }
 
 async function crashPlaceBet() {
-  const btn = document.getElementById('crashActionBtn');
+  const btn = document.getElementById('crashTonConfirmBtn');
   const amount = parseFloat(document.getElementById('crashCustomAmount').value);
   if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
   if (currentUserData.balance < amount) { alert('Coin yetarli emas!'); return; }
@@ -3335,16 +3558,18 @@ async function crashPlaceBet() {
     if (!res.ok) {
       if (data.error === 'INSUFFICIENT_BALANCE') alert('Coin yetarli emas!');
       else if (data.error === 'GAME_NOT_ACCEPTING_BETS') alert("Tikish vaqti tugadi, keyingi raundni kuting!");
-      else if (data.error === 'ALREADY_BET') { /* jim, holat allaqachon yangilangan */ }
+      else if (data.error === 'ALREADY_BET') { closeCrashBetModal(); }
       else alert('Xatolik yuz berdi!');
       return;
     }
     currentUserData.balance = data.balance;
     syncBalanceDisplays(currentUserData.balance);
+    closeCrashBetModal();
   } catch (e) {
     console.error(e);
     alert('Xatolik yuz berdi!');
   } finally {
+    btn.disabled = false;
     updateCrashActionBtn();
   }
 }

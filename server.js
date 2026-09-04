@@ -1456,6 +1456,7 @@ function sanitizeCrashState() {
     players: crashState.players.map(p => ({
       id: p.id, username: p.username, photo: p.photo, bet: p.bet,
       cashedOutAt: p.cashedOutAt, won: p.won, wonNft: p.wonNft || null,
+      betType: p.betType || 'coin', betNfts: p.betNfts || null,
     })),
     multiplier: crashState.multiplier,
     startedAt: crashState.startedAt,
@@ -1463,6 +1464,7 @@ function sanitizeCrashState() {
     waitMs: CRASH_WAIT_MS,
     round_number: crashState.round_number,
     lastResult: crashLastResult,
+    history: gameHistory.crash.slice(0, 12).map(h => h.crashPoint),
   };
 }
 function emitCrashState() { io.emit('crash:state', sanitizeCrashState()); }
@@ -1519,9 +1521,52 @@ app.post('/api/crash/bet', (req, res) => {
   if (crashState.players.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
 
   user.balance = round2(user.balance - amt);
-  crashState.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt, cashedOutAt: null, won: 0, wonNft: null });
+  crashState.players.push({
+    id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt,
+    cashedOutAt: null, won: 0, wonNft: null, betType: 'coin', betNfts: null,
+  });
   emitCrashState();
   res.json({ ok: true, balance: user.balance });
+});
+
+/* ---- Tikish — NFT (sovg'a) bilan (raketa/crash). Inventoridan bitta yoki
+   bir nechta NFT'ni joriy raundga tikadi; uning narxi coin stavkasi o'rnini
+   bosadi. Yutgan taqdirda (bet * multiplikator) qiymati odatdagidek
+   hisoblanadi — asl tikilgan NFT esa, agar ulgurmasa, boy beriladi. ---- */
+app.post('/api/crash/bet_nft', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { itemIds } = req.body || {};
+  if (!Array.isArray(itemIds) || !itemIds.length) return res.status(400).json({ error: 'invalid_items' });
+  if (crashState.status !== 'waiting') return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
+  if (crashState.players.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
+
+  ensureNftStarterPack(user);
+
+  const needCounts = {};
+  for (const id of itemIds) needCounts[id] = (needCounts[id] || 0) + 1;
+  for (const [id, need] of Object.entries(needCounts)) {
+    const item = NFT_BY_ID.get(id);
+    if (!item) return res.status(404).json({ error: 'ITEM_NOT_FOUND' });
+    if ((user.nftInventory[id] || 0) < need) return res.status(400).json({ error: 'NOT_ENOUGH_NFT' });
+  }
+
+  const staked = [];
+  for (const id of itemIds) {
+    const item = NFT_BY_ID.get(id);
+    user.nftInventory[id] -= 1;
+    let price = item.sell_price;
+    const customPrices = user.nftInstancePrices && user.nftInstancePrices[id];
+    if (customPrices && customPrices.length) price = customPrices.shift();
+    staked.push({ itemId: id, name: item.name, custom_emoji_id: item.custom_emoji_id, price: round2(price) });
+  }
+  const nftValue = round2(staked.reduce((s, n) => s + n.price, 0));
+
+  crashState.players.push({
+    id: Number(user.id), username: user.username, photo: user.photo_url, bet: nftValue,
+    cashedOutAt: null, won: 0, wonNft: null, betType: 'nft', betNfts: staked,
+  });
+  emitCrashState();
+  res.json({ ok: true, staked });
 });
 
 /* ============================================================

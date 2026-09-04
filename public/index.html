@@ -2625,12 +2625,41 @@ async function loadInventory() {
   }
 }
 
+// ==================== OG'IR ANIMATSIYALAR — PERFORMANCE ====================
+// Muammo: har bir NFT ikonkasi (hokkey/baraban o'yinchilar ro'yxatida,
+// inventarda va h.k.) o'zining Lottie/video animatsiyasini doim fonda
+// aylantirib turadi. Hokkeyda "tosh" uchayotgan payt esa JS orqali har
+// ~16ms'da DOM'ni yangilab turadigan og'ir fizika animatsiyasi ishlaydi —
+// bir vaqtning o'zida o'nlab Lottie/video animatsiyasi ham ishlab tursa,
+// zaif telefonlarda bosh oqim (main thread) ortiqcha yuklanib, tosh
+// "qotib" qoladi. Yechim: shu kabi og'ir/muhim animatsiya ketayotganda
+// barcha orqa fon NFT animatsiyalarini VAQTINCHA to'xtatib qo'yamiz va
+// tugagach qayta ishga tushiramiz.
+const bgAnimRegistry = { lotties: new Set(), videos: new Set() };
+let heavyAnimRunning = false;
+
+function pauseBgAnimations() {
+  heavyAnimRunning = true;
+  bgAnimRegistry.lotties.forEach(a => { try { a.pause(); } catch (e) {} });
+  bgAnimRegistry.videos.forEach(v => { try { v.pause(); } catch (e) {} });
+}
+function resumeBgAnimations() {
+  heavyAnimRunning = false;
+  bgAnimRegistry.lotties.forEach(a => { try { a.play(); } catch (e) {} });
+  bgAnimRegistry.videos.forEach(v => { try { v.play().catch(() => {}); } catch (e) {} });
+}
+
 function mountAnimatedEmoji(container, customEmojiId, isVideo) {
   if (!container) return;
   const mediaUrl = `/api/nft_media/${customEmojiId}`;
 
   if (isVideo) {
-    container.innerHTML = `<video src="${mediaUrl}" autoplay loop muted playsinline></video>`;
+    const v = document.createElement('video');
+    v.src = mediaUrl; v.loop = true; v.muted = true; v.playsInline = true;
+    container.innerHTML = '';
+    container.appendChild(v);
+    bgAnimRegistry.videos.add(v);
+    if (heavyAnimRunning) v.pause(); else v.play().catch(() => {});
   } else {
     const box = document.createElement('div');
     box.className = 'lottie-box';
@@ -2642,10 +2671,13 @@ function mountAnimatedEmoji(container, customEmojiId, isVideo) {
       .then(buf => window.pako ? pako.inflate(new Uint8Array(buf), { to: 'string' }) : null)
       .then(jsonStr => {
         if (!jsonStr) return;
-        lottie.loadAnimation({
-          container: box, renderer: 'svg', loop: true, autoplay: true,
+        // canvas renderer SVG'ga qaraganda ancha yengil — bir vaqtda ko'p
+        // animatsiya ishlaganda protsessorni kamroq band qiladi.
+        const anim = lottie.loadAnimation({
+          container: box, renderer: 'canvas', loop: true, autoplay: !heavyAnimRunning,
           animationData: JSON.parse(jsonStr),
         });
+        bgAnimRegistry.lotties.add(anim);
       })
       .catch(err => console.error('Animatsiya xatolik:', err));
   }
@@ -2674,14 +2706,17 @@ function mountEmojiAsset(el, asset) {
     v.src = asset.videoUrl;
     v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
     el.appendChild(v);
+    bgAnimRegistry.videos.add(v);
+    if (heavyAnimRunning) v.pause();
   } else {
     const box = document.createElement('div');
     box.className = 'lottie-box';
     el.appendChild(box);
-    lottie.loadAnimation({
-      container: box, renderer: 'svg', loop: true, autoplay: true,
+    const anim = lottie.loadAnimation({
+      container: box, renderer: 'canvas', loop: true, autoplay: !heavyAnimRunning,
       animationData: asset.lottieData,
     });
+    bgAnimRegistry.lotties.add(anim);
   }
 }
 
@@ -3783,6 +3818,7 @@ function resetPuckVisual() {
   
   if (physicsInterval) { clearInterval(physicsInterval); physicsInterval = null; }
   puckAnimationRunning = false;
+  resumeBgAnimations();
   puck.style.display = 'none';
   arrow.style.display = 'none';
   arena.style.transform = "scale(1)"; // Zoomni tiklash
@@ -3953,6 +3989,9 @@ async function hockeyPlaceBet() {
 
 function startPuckPhysicsAnimation(seed) {
   if (physicsInterval) clearInterval(physicsInterval);
+  // Tosh uchish fizikasi bosh oqimni band qiladi — shu payt orqa fondagi
+  // barcha NFT animatsiyalarini to'xtatib, "qotib qolish"ning oldini olamiz.
+  pauseBgAnimations();
   
   const arena = document.getElementById('hockeyArena');
   const puck = document.getElementById('hockeyPuck');
@@ -4052,6 +4091,7 @@ function startPuckPhysicsAnimation(seed) {
 
       if (progress >= 1) {
         clearInterval(physicsInterval);
+        resumeBgAnimations();
 
         const endPx = toPx(finalPos.x, finalPos.y);
         puck.style.left = `${endPx.left}px`;

@@ -3744,8 +3744,15 @@ function updateCrashActionBtn() {
       btn.textContent = `✔ Olindi ${mine.cashedOutAt.toFixed(2)}x`;
       btn.disabled = true;
     } else {
-      btn.textContent = 'O\'yin ketmoqda...';
-      btn.disabled = true;
+      // Bu raundda tikmagan bo'lsa ham, KEYINGI raund uchun oldindan tikish mumkin
+      const queued = myCrashQueuedBet();
+      if (queued) {
+        btn.textContent = 'Keyingi raundga tikildi ✓';
+        btn.disabled = true;
+      } else {
+        btn.textContent = 'Keyingi raundga tikish';
+        btn.disabled = false;
+      }
     }
   } else {
     // status === 'crashed' — natija ko'rsatilmoqda, lekin foydalanuvchi
@@ -3771,11 +3778,19 @@ function updateCrashActionBtn() {
 
 async function crashActionBtn() {
   const mine = myCrashPlayer();
-  if (crashState.status === 'running' && mine && !mine.cashedOutAt) {
-    await crashCashOut();
-  } else if (crashState.status === 'waiting' && !mine) {
+  if (crashState.status === 'running') {
+    if (mine && !mine.cashedOutAt) {
+      await crashCashOut();
+    } else if (!mine && !myCrashQueuedBet()) {
+      openCrashBetModal();
+    }
+    return;
+  }
+  if (crashState.status === 'waiting' && !mine) {
     openCrashBetModal();
-  } else if (crashState.status === 'crashed' && !myCrashQueuedBet()) {
+    return;
+  }
+  if (crashState.status === 'crashed' && !myCrashQueuedBet()) {
     openCrashBetModal();
   }
 }

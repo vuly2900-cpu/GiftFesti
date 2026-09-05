@@ -1530,17 +1530,18 @@ function finalizeCrashRound() {
   crashWaitTimer = setTimeout(startCrashWaiting, CRASH_COOLDOWN_MS);
 }
 
-/* ---- Tikish (raketa/crash) — "waiting" bosqichida joriy raundga, "crashed"
-   bosqichida esa KEYINGI raund uchun oldindan (navbatga) qabul qilinadi ---- */
+/* ---- Tikish (raketa/crash) — "waiting" bosqichida joriy raundga, "running"
+   yoki "crashed" bosqichida esa KEYINGI raund uchun oldindan (navbatga)
+   qabul qilinadi ---- */
 app.post('/api/crash/bet', (req, res) => {
   const user = requireUser(req, res); if (!user) return;
   const amt = Number(req.body?.amount);
   if (!amt || amt < CRASH_MIN_BET) return res.status(400).json({ error: 'invalid_amount' });
   if (amt > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
-  if (crashState.status === 'running') return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
 
-  if (crashState.status === 'crashed') {
-    // Raund natijasi ko'rsatilmoqda — keyingi raund uchun navbatga qo'shamiz
+  if (crashState.status !== 'waiting') {
+    // Raund allaqachon uchmoqda yoki natija ko'rsatilmoqda — keyingi
+    // raund uchun navbatga qo'shamiz
     if (crashNextQueue.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
     user.balance = round2(user.balance - amt);
     crashNextQueue.push({
@@ -1563,17 +1564,16 @@ app.post('/api/crash/bet', (req, res) => {
 });
 
 /* ---- Tikish — NFT (sovg'a) bilan (raketa/crash). Inventoridan bitta yoki
-   bir nechta NFT'ni joriy (yoki "crashed" bosqichida — keyingi) raundga
-   tikadi; uning narxi coin stavkasi o'rnini bosadi. Yutgan taqdirda
-   (bet * multiplikator) qiymati odatdagidek hisoblanadi — asl tikilgan NFT
-   esa, agar ulgurmasa, boy beriladi. ---- */
+   bir nechta NFT'ni joriy (yoki "running"/"crashed" bosqichida — keyingi)
+   raundga tikadi; uning narxi coin stavkasi o'rnini bosadi. Yutgan
+   taqdirda (bet * multiplikator) qiymati odatdagidek hisoblanadi — asl
+   tikilgan NFT esa, agar ulgurmasa, boy beriladi. ---- */
 app.post('/api/crash/bet_nft', (req, res) => {
   const user = requireUser(req, res); if (!user) return;
   const { itemIds } = req.body || {};
   if (!Array.isArray(itemIds) || !itemIds.length) return res.status(400).json({ error: 'invalid_items' });
-  if (crashState.status === 'running') return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
 
-  const queueMode = crashState.status === 'crashed';
+  const queueMode = crashState.status !== 'waiting';
   const existingList = queueMode ? crashNextQueue : crashState.players;
   if (existingList.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
 

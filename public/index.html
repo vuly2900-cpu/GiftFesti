@@ -1821,6 +1821,14 @@
       </div>
     </div>
 
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">⏳ Reyting qachon tugashini belgilash</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Reyting sahifasidagi "Tugashiga" taymer shu vaqtga qarab hisoblanadi.</p>
+      <input type="datetime-local" id="a_lbEndAt" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminSetLeaderboardEnd()">Tugash vaqtini saqlash</button>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:6px;" id="a_lbEndCurrent"></p>
+    </div>
+
     <div>
       <p style="font-size:13px; font-weight:600; margin-bottom:4px; color:var(--danger);">⚠️ Tizimni tozalash</p>
       <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Hamma narsa (balanslar, reytinglar, o'yinlar) 0 dan boshlanadi.</p>
@@ -2213,6 +2221,7 @@ async function rewardReferrer(referrerId) {
 const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 let caseCountdownInterval = null;
 let lbCountdownInterval = null;
+let currentLeaderboardEndAt = null; // Backend/admin tomonidan belgilangan tugash vaqti (ms)
 
 // Case'dagi gift'lar endi backend'dan (custom emoji + tier/narx bilan) olinadi —
 // shu bilan birga qanday og'irlik (weight) bilan tushishi ham backend bilan bir xil.
@@ -2483,7 +2492,7 @@ function goTo(pageName) {
   const navBtn = document.querySelector(`.navbtn[data-page="${pageName}"]`);
   if (navBtn) navBtn.classList.add('active');
 
-  if (pageName === 'rating') { loadLeaderboard(); updateLeaderboardCountdown(); }
+  if (pageName === 'rating') loadLeaderboard();
   if (pageName === 'tasks') loadTasks();
   if (pageName === 'referral') loadReferral();
   if (pageName === 'profile') loadProfile();
@@ -2578,24 +2587,19 @@ function renderLeaderboard(leaderboard) {
   `).join('');
 }
 
-// Reyting haftalik tsiklda ishlaydi: har yakshanba kuni soat 23:59:59'da
-// tugaydi va admin "Reyting" tugmasi bosilganda qayta boshlanadi.
-// Bu yerda faqat "necha vaqtdan keyin tugaydi" ko'rsatkichi hisoblanadi.
-function getLeaderboardCycleEnd() {
-  const now = new Date();
-  const end = new Date(now);
-  const daysUntilSunday = (7 - now.getDay()) % 7;
-  end.setDate(now.getDate() + daysUntilSunday);
-  end.setHours(23, 59, 59, 999);
-  if (end.getTime() <= now.getTime()) end.setDate(end.getDate() + 7);
-  return end.getTime();
-}
-
+// Reyting tugash vaqti endi admin panel orqali serverda belgilanadi
+// (backend /api/leaderboard javobidagi "endAt" maydoni). Bu yerda faqat
+// o'sha vaqtga qarab "necha vaqtdan keyin tugaydi" ko'rsatkichi hisoblanadi.
 function updateLeaderboardCountdown() {
   if (lbCountdownInterval) clearInterval(lbCountdownInterval);
   const el = document.getElementById('lbCountdownText');
   if (!el) return;
-  const endMs = getLeaderboardCycleEnd();
+
+  if (!currentLeaderboardEndAt) {
+    el.textContent = 'Belgilanmagan';
+    return;
+  }
+  const endMs = currentLeaderboardEndAt;
 
   function tick() {
     const remain = endMs - Date.now();
@@ -2622,6 +2626,8 @@ async function loadLeaderboard(force = false) {
   // saqlangan natijani darhol ko'rsatamiz — ortiqcha read sarflanmaydi.
   if (!force && isCacheFresh('leaderboard')) {
     renderLeaderboard(dataCache.leaderboard.data);
+    currentLeaderboardEndAt = dataCache.leaderboard.endAt || null;
+    updateLeaderboardCountdown();
     return;
   }
 
@@ -2630,8 +2636,10 @@ async function loadLeaderboard(force = false) {
     const res = await fetch(LEADERBOARD_API_URL);
     const data = await res.json();
     const leaderboard = data.leaderboard || [];
-    dataCache.leaderboard = { data: leaderboard, ts: Date.now() };
+    dataCache.leaderboard = { data: leaderboard, ts: Date.now(), endAt: data.endAt || null };
+    currentLeaderboardEndAt = data.endAt || null;
     renderLeaderboard(leaderboard);
+    updateLeaderboardCountdown();
   } catch (e) { list.innerHTML = '<p class="empty">Xatolik yuz berdi</p>'; }
 }
 
@@ -3092,8 +3100,30 @@ async function sellNft(itemId, sellPrice) {
 
 function toggleAdminModal(show) {
   const modal = document.getElementById('adminModal');
-  if(show) { modal.classList.add('active'); loadAdminTasksList(); loadAdminNftSelect(); }
+  if(show) { modal.classList.add('active'); loadAdminTasksList(); loadAdminNftSelect(); loadAdminLeaderboardEndDisplay(); }
   else modal.classList.remove('active');
+}
+
+async function loadAdminLeaderboardEndDisplay() {
+  const el = document.getElementById('a_lbEndCurrent');
+  const input = document.getElementById('a_lbEndAt');
+  if (!currentLeaderboardEndAt) {
+    try {
+      const res = await fetch(LEADERBOARD_API_URL);
+      const data = await res.json();
+      currentLeaderboardEndAt = data.endAt || null;
+    } catch (e) { /* jim */ }
+  }
+  if (currentLeaderboardEndAt) {
+    if (el) el.textContent = `Hozirgi tugash vaqti: ${new Date(currentLeaderboardEndAt).toLocaleString('uz-UZ')}`;
+    if (input) {
+      const d = new Date(currentLeaderboardEndAt);
+      const pad = n => String(n).padStart(2, '0');
+      input.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+  } else if (el) {
+    el.textContent = 'Hozircha belgilanmagan.';
+  }
 }
 
 // MUHIM: tarix faqat O'QISH uchun ishlatiladi (Firestore Rules'da
@@ -3428,6 +3458,25 @@ async function adminResetRatingOnly() {
     await callAdminAction('reset_rating');
     dataCache.leaderboard = { data: null, ts: 0 }; // reyting 0 qilindi, kesh eskirdi
     alert("Reyting 0 dan boshlandi!");
+  } catch (e) {
+    console.error(e);
+    alert("Xatolik yuz berdi!");
+  }
+}
+
+async function adminSetLeaderboardEnd() {
+  const input = document.getElementById('a_lbEndAt');
+  const val = input.value;
+  if (!val) { alert("Iltimos, sana va vaqtni tanlang!"); return; }
+  const endAt = new Date(val).getTime();
+  if (!endAt || Number.isNaN(endAt)) { alert("Sana noto'g'ri!"); return; }
+  if (endAt <= Date.now()) { if (!confirm("Tanlangan vaqt allaqachon o'tib ketgan — davom etamizmi?")) return; }
+  try {
+    await callAdminAction('set_leaderboard_end', { endAt });
+    currentLeaderboardEndAt = endAt;
+    dataCache.leaderboard = { data: null, ts: 0 }; // kesh eskirdi, keyingi ochilishda yangi endAt keladi
+    document.getElementById('a_lbEndCurrent').textContent = `Hozirgi tugash vaqti: ${new Date(endAt).toLocaleString('uz-UZ')}`;
+    alert("Reyting tugash vaqti saqlandi!");
   } catch (e) {
     console.error(e);
     alert("Xatolik yuz berdi!");

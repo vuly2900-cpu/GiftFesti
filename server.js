@@ -29,6 +29,7 @@ const friends = new Map();   // referrerId(string) -> [{id,username,photo_url,jo
 let tasks = [];              // [{id, channel_link, channel_title, stars_reward}]
 let promos = [];             // [{code, reward, maxUses, used, usedBy:Set}]
 let vouchers = [];           // [{id, reward, maxUses, used, usedBy:Set, requireType, requireTarget, requireLabel, createdAt}]
+let leaderboardEndAt = null; // Reyting tugash vaqti (ms, epoch) — admin panel orqali belgilanadi
 const gameHistory = { hockey: [], drum: [], crash: [] };
 
 function createUser(id, username) {
@@ -69,6 +70,7 @@ function serializeState() {
     vouchers: vouchers.map(v => ({ ...v, usedBy: Array.from(v.usedBy) })),
     gameHistory,
     gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number },
+    leaderboardEndAt,
   };
 }
 function saveDb() {
@@ -97,6 +99,7 @@ function loadDb() {
       hockeyState.game_number = data.gameNumbers.hockey || 1;
       drumState.game_number = data.gameNumbers.drum || 1;
     }
+    leaderboardEndAt = data.leaderboardEndAt || null;
     console.log(`DB yuklandi: ${users.size} foydalanuvchi, ${tasks.length} vazifa, ${promos.length} promo, ${vouchers.length} voucher`);
   } catch (e) { console.error('DB yuklashda xatolik:', e.message); }
 }
@@ -739,7 +742,7 @@ app.get('/api/leaderboard', (req, res) => {
     .sort((a, b) => b.total_won - a.total_won)
     .slice(0, 50)
     .map((u, i) => ({ place: i + 1, username: u.username, stars: u.total_won, photo_url: u.photo_url }));
-  res.json({ leaderboard: list });
+  res.json({ leaderboard: list, endAt: leaderboardEndAt });
 });
 
 app.get('/api/friends', (req, res) => {
@@ -856,6 +859,12 @@ app.post('/api/admin_action', (req, res) => {
       }
       case 'reset_rating': {
         users.forEach(u => { u.total_won = 0; u.wins = 0; });
+        break;
+      }
+      case 'set_leaderboard_end': {
+        const endAt = Number(payload.endAt);
+        if (!endAt || Number.isNaN(endAt)) throw new Error('INVALID_END_TIME');
+        leaderboardEndAt = endAt;
         break;
       }
       case 'reset_game': {

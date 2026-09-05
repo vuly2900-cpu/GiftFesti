@@ -1341,21 +1341,7 @@
       </div>
     </div>
 
-    <div class="hockey-bet-panel">
-      <p class="hockey-bet-label">Coin tikish (minimum 0.1 <span class="coin-ico"></span>)</p>
-      <div class="hockey-amounts">
-        <button class="amt-btn active" onclick="hockeySetAmount(10, this)">10</button>
-        <button class="amt-btn" onclick="hockeySetAmount(25, this)">25</button>
-        <button class="amt-btn" onclick="hockeySetAmount(50, this)">50</button>
-        <button class="amt-btn" onclick="hockeySetAmount(75, this)">75</button>
-        <button class="amt-btn" onclick="hockeySetAmount(100, this)">100</button>
-      </div>
-      <div class="hockey-custom-row">
-        <button class="nft-stake-btn" id="hockeyNftBtn" onclick="openNftStakeModal('hockey')" title="NFT tikish">🎁</button>
-        <input type="number" id="hockeyCustomAmount" value="0.1" step="0.1" min="0.1" placeholder="Miqdor...">
-        <button class="btn" id="hockeyBetBtn" onclick="hockeyPlaceBet()">Tikish</button>
-      </div>
-    </div>
+    <button class="crash-big-bet-btn" id="hockeyBigBetBtn" onclick="openGameBetModal('hockey')">Stavka qilish</button>
     <div class="hockey-players" id="hockeyPlayersList"></div>
   </section>
 
@@ -1390,21 +1376,7 @@
       </div>
     </div>
 
-    <div class="hockey-bet-panel">
-      <p class="hockey-bet-label">Coin tikish (minimum 0.1 <span class="coin-ico"></span>)</p>
-      <div class="hockey-amounts">
-        <button class="amt-btn active" onclick="drumSetAmount(10, this)">10</button>
-        <button class="amt-btn" onclick="drumSetAmount(25, this)">25</button>
-        <button class="amt-btn" onclick="drumSetAmount(50, this)">50</button>
-        <button class="amt-btn" onclick="drumSetAmount(75, this)">75</button>
-        <button class="amt-btn" onclick="drumSetAmount(100, this)">100</button>
-      </div>
-      <div class="hockey-custom-row">
-        <button class="nft-stake-btn" id="drumNftBtn" onclick="openNftStakeModal('drum')" title="NFT tikish">🎁</button>
-        <input type="number" id="drumCustomAmount" value="0.1" step="0.1" min="0.1" placeholder="Miqdor...">
-        <button class="btn" id="drumBetBtn" onclick="drumPlaceBet()">Tikish</button>
-      </div>
-    </div>
+    <button class="crash-big-bet-btn" id="drumBigBetBtn" onclick="openGameBetModal('drum')">Stavka qilish</button>
     <div class="hockey-players" id="drumPlayersList"></div>
   </section>
 
@@ -1643,17 +1615,43 @@
   </div>
 </div>
 
-<!-- HOCKEY/DRUM — NFT TIKISH MODALI -->
-<div class="nft-stake-overlay" id="nftStakeOverlay" onclick="if(event.target===this) closeNftStakeModal()">
-  <div class="nft-stake-sheet">
-    <h3>🎁 Inventoringizdan NFT tikish</h3>
-    <div class="nft-stake-grid" id="nftStakeGrid">
-      <p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>
+<!-- HOCKEY/DRUM — STAVKA QILISH MODALI (TON / Sovg'a) -->
+<div class="crash-bet-overlay" id="gameBetOverlay" onclick="if(event.target===this) closeGameBetModal()">
+  <div class="crash-bet-sheet">
+    <div class="crash-bet-sheet-head">
+      <h3>Stavka qilish</h3>
+      <button class="modal-close" style="position:static;" onclick="closeGameBetModal()">×</button>
     </div>
-    <div class="nft-stake-footer">
-      <div class="n-total" id="nftStakeTotal">Tanlanmadi</div>
-      <button class="btn" style="flex:0 0 auto; padding:10px 18px;" onclick="closeNftStakeModal()">Bekor</button>
-      <button class="btn" style="flex:0 0 auto; padding:10px 18px;" id="nftStakeConfirmBtn" onclick="confirmNftStake()">Tikish</button>
+
+    <div class="crash-bet-tabs">
+      <div class="crash-bet-tab" id="gameTabGift" onclick="gameSwitchBetTab('gift')">🎁 Sovg'alar</div>
+      <div class="crash-bet-tab active" id="gameTabTon" onclick="gameSwitchBetTab('ton')">💎 TON</div>
+    </div>
+
+    <!-- TON (coin) bilan tikish -->
+    <div class="crash-bet-panel-ton" id="gamePanelTon">
+      <div class="crash-bet-row"><span>Mavjud balans</span><b id="gameBetBalance"><span class="coin-ico"></span> 0</b></div>
+      <p class="hockey-bet-label" style="margin-bottom:6px;">Stavka summasi (minimum 0.1 <span class="coin-ico"></span>)</p>
+      <input type="number" class="crash-bet-amount-input" id="gameCustomAmount" value="10" step="0.1" min="0.1" placeholder="Miqdor...">
+      <div class="crash-bet-quick">
+        <button class="amt-btn active" onclick="gameSetAmount(10, this)">10</button>
+        <button class="amt-btn" onclick="gameSetAmount(25, this)">25</button>
+        <button class="amt-btn" onclick="gameSetAmount(50, this)">50</button>
+        <button class="amt-btn" onclick="gameSetAmount(75, this)">75</button>
+        <button class="amt-btn" onclick="gameSetAmount(100, this)">100</button>
+      </div>
+      <button class="crash-bet-confirm" id="gameTonConfirmBtn" onclick="gamePlaceBetConfirm()">Stavka qo'yish 🚀</button>
+    </div>
+
+    <!-- Sovg'a (NFT) bilan tikish — inventardan bir yoki bir nechta NFT tanlab tikish -->
+    <div class="crash-bet-panel-gift" id="gamePanelGift" style="display:none;">
+      <div class="nft-stake-grid" id="nftStakeGrid">
+        <p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>
+      </div>
+      <div class="nft-stake-footer">
+        <div class="n-total" id="nftStakeTotal">Tanlanmadi</div>
+        <button class="btn" style="flex:0 0 auto; padding:10px 18px;" id="nftStakeConfirmBtn" onclick="confirmNftStake()">Tikish</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3004,10 +3002,38 @@ function closeGameHistory() {
   document.getElementById('historyModal').classList.remove('active');
 }
 
-function hockeySetAmount(v, btn) {
-  document.getElementById('hockeyCustomAmount').value = v;
-  document.querySelectorAll('.amt-btn').forEach(b => b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
+/* ---- Hokkey/Baraban — birlashtirilgan "Stavka qilish" modali (TON / Sovg'a) ---- */
+let gameBetTarget = 'hockey'; // 'hockey' yoki 'drum'
+
+function openGameBetModal(game) {
+  gameBetTarget = game;
+  const state = game === 'hockey' ? hockeyState : drumState;
+  if (state.status === 'spinning_visual' || state.status === 'cooldown') {
+    alert("O'yin jarayoni kutilmoqda, yangi davr boshlanishini kuting!");
+    return;
+  }
+  document.getElementById('gameBetOverlay').classList.add('active');
+  document.getElementById('gameBetBalance').innerHTML = `<span class="coin-ico"></span> ${(currentUserData?.balance ?? 0)}`;
+  gameSwitchBetTab('ton');
+}
+function closeGameBetModal() {
+  document.getElementById('gameBetOverlay').classList.remove('active');
+}
+function gameSwitchBetTab(tab) {
+  document.getElementById('gameTabTon').classList.toggle('active', tab === 'ton');
+  document.getElementById('gameTabGift').classList.toggle('active', tab === 'gift');
+  document.getElementById('gamePanelTon').style.display = tab === 'ton' ? '' : 'none';
+  document.getElementById('gamePanelGift').style.display = tab === 'gift' ? '' : 'none';
+  if (tab === 'gift') openNftStakeModal(gameBetTarget);
+}
+function gameSetAmount(v, btn) {
+  document.getElementById('gameCustomAmount').value = v;
+  document.querySelectorAll('#gameBetOverlay .crash-bet-quick .amt-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+async function gamePlaceBetConfirm() {
+  if (gameBetTarget === 'hockey') await hockeyPlaceBet();
+  else await drumPlaceBet();
 }
 
 async function activatePromo() {
@@ -3924,9 +3950,7 @@ let nftStakeSelection = {};       // itemId -> tanlangan dona soni
 async function openNftStakeModal(game) {
   nftStakeGame = game;
   nftStakeSelection = {};
-  const overlay = document.getElementById('nftStakeOverlay');
   const grid = document.getElementById('nftStakeGrid');
-  overlay.classList.add('active');
   grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>';
   updateNftStakeTotal();
 
@@ -3942,7 +3966,7 @@ async function openNftStakeModal(game) {
 }
 
 function closeNftStakeModal() {
-  document.getElementById('nftStakeOverlay').classList.remove('active');
+  closeGameBetModal();
 }
 
 function renderNftStakeGrid() {
@@ -4028,7 +4052,7 @@ async function confirmNftStake() {
 }
 
 async function hockeyPlaceBet() {
-  const btn = document.getElementById('hockeyBetBtn');
+  const btn = document.getElementById('gameTonConfirmBtn');
   if (btn.disabled) return;
   
   if (hockeyState.status === 'spinning_visual' || hockeyState.status === 'cooldown') {
@@ -4036,7 +4060,7 @@ async function hockeyPlaceBet() {
     return;
   }
 
-  const amount = parseFloat(document.getElementById('hockeyCustomAmount').value);
+  const amount = parseFloat(document.getElementById('gameCustomAmount').value);
   if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
   if (currentUserData.balance < amount) { alert("Coin yetarli emas!"); return; }
 
@@ -4060,6 +4084,7 @@ async function hockeyPlaceBet() {
     }
     currentUserData.balance -= amount;
     syncBalanceDisplays(currentUserData.balance);
+    closeGameBetModal();
   } catch(e) {
     console.error(e);
     alert("Xatolik yuz berdi!");
@@ -4611,14 +4636,8 @@ function resetDrumVisual() {
   wheel.style.transition = '';
 }
 
-function drumSetAmount(v, btn) {
-  document.getElementById('drumCustomAmount').value = v;
-  document.querySelectorAll('#page-drum .amt-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
 async function drumPlaceBet() {
-  const btn = document.getElementById('drumBetBtn');
+  const btn = document.getElementById('gameTonConfirmBtn');
   if (btn.disabled) return;
 
   if (drumState.status === 'spinning_visual' || drumState.status === 'cooldown') {
@@ -4626,7 +4645,7 @@ async function drumPlaceBet() {
     return;
   }
 
-  const amount = parseFloat(document.getElementById('drumCustomAmount').value);
+  const amount = parseFloat(document.getElementById('gameCustomAmount').value);
   if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
   if (currentUserData.balance < amount) { alert("Coin yetarli emas!"); return; }
 
@@ -4649,6 +4668,7 @@ async function drumPlaceBet() {
     }
     currentUserData.balance -= amount;
     syncBalanceDisplays(currentUserData.balance);
+    closeGameBetModal();
   } catch(e) {
     console.error(e);
     alert("Xatolik yuz berdi!");

@@ -454,9 +454,10 @@
   .crash-mult.crashed{color:var(--danger); text-shadow:0 0 24px rgba(229,84,75,.4); animation:crashShake .4s ease;}
   .crash-rocket{position:absolute; left:50%; top:38%; width:94px; height:94px; z-index:2;
     transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center;
-    animation:crashFloat 2.2s ease-in-out infinite; transition:opacity .25s ease;}
+    animation:crashFloat 2.2s ease-in-out infinite; transition:opacity .25s ease; overflow:hidden;}
   .crash-rocket .fallback-emoji{font-size:56px;}
-  .crash-rocket video, .crash-rocket .lottie-box{width:100%; height:100%;}
+  .crash-rocket video, .crash-rocket .lottie-box{width:100%; height:100%; max-width:100%; max-height:100%; object-fit:contain;}
+  .crash-rocket .lottie-box svg, .crash-rocket .lottie-box canvas{width:100% !important; height:100% !important;}
   .crash-rocket.running{animation:crashFloat 0.6s ease-in-out infinite, crashGrow 1.4s ease forwards;}
   .crash-rocket.crashed{animation:crashBoom .5s ease forwards;}
   @keyframes crashFloat{0%,100%{transform:translate(-50%,-50%) translateY(0px);} 50%{transform:translate(-50%,-50%) translateY(-8px);}}
@@ -2778,14 +2779,24 @@ function mountEmojiAsset(el, asset) {
     const v = document.createElement('video');
     v.src = asset.videoUrl;
     v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
+    v.style.width = '100%'; v.style.height = '100%'; v.style.objectFit = 'contain';
     el.appendChild(v);
   } else {
     const box = document.createElement('div');
     box.className = 'lottie-box';
+    box.style.width = '100%'; box.style.height = '100%';
     el.appendChild(box);
-    lottie.loadAnimation({
+    // Konteyner o'lchamiga aniq moslashtirish uchun lottie'ga qat'iy piksel
+    // o'lchami beramiz — aks holda ba'zi animatsiyalar o'zining asl (katta)
+    // o'lchamida chizilib, konteynerdan tashqariga chiqib ketishi mumkin edi.
+    const anim = lottie.loadAnimation({
       container: box, renderer: 'svg', loop: true, autoplay: true,
       animationData: asset.lottieData,
+      rendererSettings: { preserveAspectRatio: 'xMidYMid meet' },
+    });
+    anim.addEventListener('DOMLoaded', () => {
+      const svg = box.querySelector('svg');
+      if (svg) { svg.style.width = '100%'; svg.style.height = '100%'; }
     });
   }
 }

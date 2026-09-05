@@ -215,12 +215,11 @@
   .podium .name{font-size:12px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .podium .stars{font-size:13px; color:var(--gold); font-weight:600; margin-top:4px;}
   .gift-badge{
-    display:inline-flex; align-items:center; gap:3px; margin-top:6px;
-    background:rgba(232,185,35,.12); border:1px solid var(--gold-dim);
-    color:var(--gold); font-size:10px; font-weight:600;
-    border-radius:20px; padding:2px 8px;
+    display:flex; align-items:center; justify-content:center;
+    width:32px; height:32px; margin:8px auto 0;
+    background:rgba(232,185,35,.14); border:1px solid var(--gold-dim);
+    border-radius:8px; font-size:16px; line-height:1;
   }
-  .lb-row .gift-badge{margin-top:0; margin-left:6px;}
 
   .lb-row{
     display:flex; align-items:center; gap:12px;
@@ -1239,7 +1238,7 @@
       <div class="lb-timer-label">⏳ Tugashiga</div>
       <div class="lb-timer-value" id="lbCountdownText">--:--:--</div>
     </div>
-    <p class="subtitle">Eng ko'p stars yutgan TOP o'yinchilar &mdash; TOP 15'ga 🧸 gift beriladi!</p>
+    <p class="subtitle">Eng ko'p stars yutgan TOP o'yinchilar &mdash; TOP 3'ga 🧸 gift beriladi!</p>
     <div id="podium" class="podium"></div>
     <div id="lbList"></div>
   </section>
@@ -2552,7 +2551,6 @@ function renderLeaderboard(leaderboard) {
       <img class="avatar" src="${u.photo_url || avatarFallback(u.username)}" onerror="this.src=avatarFallback('${u.username}')">
       <div class="uname">${u.username}</div>
       <div class="stars"><span class="coin-ico"></span> ${u.stars}</div>
-      ${u.place <= 15 ? `<div class="gift-badge">🧸</div>` : ''}
     </div>
   `).join('');
 }

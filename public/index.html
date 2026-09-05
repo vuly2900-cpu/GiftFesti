@@ -221,6 +221,7 @@
     border-radius:8px; padding:5px;
   }
   .gift-badge img{width:100%; height:100%; object-fit:contain;}
+  .gift-badge .anim-slot{width:100%; height:100%;}
   .lb-row .gift-badge{width:28px; height:28px; margin:0 0 0 6px; padding:4px;}
 
   .lb-row{
@@ -2535,6 +2536,19 @@ function lbGiftIconFor(place) {
   return '/gifts/teddy.png';
 }
 
+function mountLbGiftIcons(placesToMount) {
+  const teddyItem = CASE_ITEMS.find(it => it.id === 'teddy');
+  placesToMount.forEach(place => {
+    const el = document.getElementById(`lbGiftAnim_${place}`);
+    if (!el) return;
+    if (teddyItem) {
+      mountAnimatedEmoji(el, teddyItem.custom_emoji_id, teddyItem.is_video, teddyItem.id);
+    } else {
+      el.innerHTML = `<img src="/gifts/teddy.png" alt="gift" style="width:100%;height:100%;object-fit:contain;">`;
+    }
+  });
+}
+
 function renderLeaderboard(leaderboard) {
   const podium = document.getElementById('podium');
   const list = document.getElementById('lbList');
@@ -2547,10 +2561,13 @@ function renderLeaderboard(leaderboard) {
       <img class="avatar" src="${u.photo_url || avatarFallback(u.username)}" onerror="this.src=avatarFallback('${u.username}')">
       <div class="name">${u.username}</div>
       <div class="stars"><span class="coin-ico"></span> ${u.stars}</div>
-      <div class="gift-badge"><img src="${lbGiftIconFor(u.place)}" alt="gift"></div>
+      <div class="gift-badge"><div class="anim-slot" id="lbGiftAnim_${u.place}"></div></div>
     </div>
   `).join('');
   mountMedalIcons();
+  // Ayiqcha ikonkasi ham case sahifasidagi kabi haqiqiy Telegram premium
+  // animatsion emoji'dan (custom_emoji_id) olinadi — oddiy statik rasm emas.
+  loadCaseItemsCatalog().then(() => mountLbGiftIcons(top3.map(u => u.place)));
   list.innerHTML = rest.map(u => `
     <div class="lb-row">
       <div class="place">${u.place}</div>

@@ -2144,7 +2144,7 @@ function renderCaseItems() {
     </div>
   `).join('');
   CASE_ITEMS.forEach(item => {
-    mountAnimatedEmoji(document.getElementById(`caseGridAnim_${item.id}`), item.custom_emoji_id, item.is_video);
+    mountAnimatedEmoji(document.getElementById(`caseGridAnim_${item.id}`), item.custom_emoji_id, item.is_video, item.id);
   });
 }
 
@@ -2193,7 +2193,7 @@ function runCaseReelAnimation(reward) {
     track.innerHTML = seq.map((it, i) => reelItemHTML(it, i === CASE_REEL_WIN_INDEX ? 'win-slot' : '', `reelAnim_${i}`)).join('');
     // DOM joylashgandan keyin har bir gift slot uchun haqiqiy animatsiyani mount qilamiz.
     seq.forEach((it, i) => {
-      if (it.isGift) mountAnimatedEmoji(document.getElementById(`reelAnim_${i}`), it.custom_emoji_id, it.is_video);
+      if (it.isGift) mountAnimatedEmoji(document.getElementById(`reelAnim_${i}`), it.custom_emoji_id, it.is_video, it.itemId || it.id);
     });
 
     if (grid) grid.style.display = 'none';
@@ -2271,7 +2271,7 @@ function showCaseResult(reward) {
   if (!banner) return;
   if (reward.isGift) {
     banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'caseResultAnim')}</div><div>Siz <b>${reward.name || ''} (${reward.stars} <span class="coin-ico"></span>)</b> lik gift yutdingiz! Inventoringizga tushdi — Profil bo'limidan sotishingiz mumkin.</div>`;
-    mountAnimatedEmoji(document.getElementById('caseResultAnim'), reward.custom_emoji_id, reward.is_video);
+    mountAnimatedEmoji(document.getElementById('caseResultAnim'), reward.custom_emoji_id, reward.is_video, reward.itemId || reward.id);
   } else if (reward.stars > 0) {
     banner.innerHTML = `<div class="case-result-emoji"><span class="coin-ico"></span></div><div>Siz <b>${reward.stars} <span class="coin-ico"></span></b> yutdingiz!</div>`;
   } else {
@@ -2625,62 +2625,144 @@ async function loadInventory() {
   }
 }
 
-// ==================== OG'IR ANIMATSIYALAR — PERFORMANCE ====================
-// Muammo: har bir NFT ikonkasi (hokkey/baraban o'yinchilar ro'yxatida,
-// inventarda va h.k.) o'zining Lottie/video animatsiyasini doim fonda
-// aylantirib turadi. Hokkeyda "tosh" uchayotgan payt esa JS orqali har
-// ~16ms'da DOM'ni yangilab turadigan og'ir fizika animatsiyasi ishlaydi —
-// bir vaqtning o'zida o'nlab Lottie/video animatsiyasi ham ishlab tursa,
-// zaif telefonlarda bosh oqim (main thread) ortiqcha yuklanib, tosh
-// "qotib" qoladi. Yechim: shu kabi og'ir/muhim animatsiya ketayotganda
-// barcha orqa fon NFT animatsiyalarini VAQTINCHA to'xtatib qo'yamiz va
-// tugagach qayta ishga tushiramiz.
-const bgAnimRegistry = { lotties: new Set(), videos: new Set() };
-let heavyAnimRunning = false;
+/* ===== NFT/emoji ikonkalarni STATIK rasm sifatida ko'rsatish =====
+   ILGARI: har bir ikonka video/lottie animatsiya sifatida chizilardi va HECH
+   QACHON to'xtatilmasdi (destroy() hech qayerda chaqirilmagan). Ro'yxat qayta
+   chizilganda (masalan hockey/baraban o'yinida har bir tikish paytida) eski
+   konteyner innerHTML orqali o'chirilardi-yu, lekin lottie-web ichkarida
+   animatsiya obyekti hali ham global rAF-tsiklida "tirik" qolardi — vaqt
+   o'tishi bilan fonda o'nlab-yuzlab animatsiya to'planib, asosiy o'yin
+   animatsiyasi (masalan tosh parvozi) bilan protsessor vaqtini talashib,
+   zaif telefonlarda "qotib qolish"ga sabab bo'lardi.
+   ENDI: har bir NFT/emoji uchun FAQAT BIR MARTA statik rasm olinadi — asosiy
+   gift'lar uchun tayyor PNG (public/gifts/), qolgan (nodir) NFT'lar uchun esa
+   media birinchi marta o'qilganda uning bitta freymi <canvas> orqali rasmga
+   olinib xotirada keshlanadi — va shundan keyin faqat <img> qo'yiladi. Demak
+   animatsiya HECH QACHON fonda ishlab turmaydi. */
+const NFT_STATIC_PNG_IDS = new Set([
+  'teddy', 'heart_gift', 'gift_box', 'rose', 'cake',
+  'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond',
+]);
+const nftSnapshotCache = new Map();   // customEmojiId -> dataURL (yoki null)
+const nftSnapshotPending = new Map(); // customEmojiId -> Promise<dataURL|null>
 
-function pauseBgAnimations() {
-  heavyAnimRunning = true;
-  bgAnimRegistry.lotties.forEach(a => { try { a.pause(); } catch (e) {} });
-  bgAnimRegistry.videos.forEach(v => { try { v.pause(); } catch (e) {} });
-}
-function resumeBgAnimations() {
-  heavyAnimRunning = false;
-  bgAnimRegistry.lotties.forEach(a => { try { a.play(); } catch (e) {} });
-  bgAnimRegistry.videos.forEach(v => { try { v.play().catch(() => {}); } catch (e) {} });
-}
-
-function mountAnimatedEmoji(container, customEmojiId, isVideo) {
-  if (!container) return;
+function generateNftSnapshot(customEmojiId, isVideo) {
   const mediaUrl = `/api/nft_media/${customEmojiId}`;
 
   if (isVideo) {
-    const v = document.createElement('video');
-    v.src = mediaUrl; v.loop = true; v.muted = true; v.playsInline = true;
-    container.innerHTML = '';
-    container.appendChild(v);
-    bgAnimRegistry.videos.add(v);
-    if (heavyAnimRunning) v.pause(); else v.play().catch(() => {});
-  } else {
-    const box = document.createElement('div');
-    box.className = 'lottie-box';
-    container.appendChild(box);
-    // Telegram custom emoji animatsiyasi .tgs (gzip'langan Lottie JSON) —
-    // lottie-web buni to'g'ridan-to'g'ri o'qiy olmagani uchun avval yechib olamiz.
-    fetch(mediaUrl)
-      .then(r => r.arrayBuffer())
-      .then(buf => window.pako ? pako.inflate(new Uint8Array(buf), { to: 'string' }) : null)
-      .then(jsonStr => {
-        if (!jsonStr) return;
-        // canvas renderer SVG'ga qaraganda ancha yengil — bir vaqtda ko'p
-        // animatsiya ishlaganda protsessorni kamroq band qiladi.
-        const anim = lottie.loadAnimation({
-          container: box, renderer: 'canvas', loop: true, autoplay: !heavyAnimRunning,
-          animationData: JSON.parse(jsonStr),
-        });
-        bgAnimRegistry.lotties.add(anim);
-      })
-      .catch(err => console.error('Animatsiya xatolik:', err));
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.crossOrigin = 'anonymous';
+      video.preload = 'auto';
+      let done = false;
+      const finish = (result) => {
+        if (done) return;
+        done = true;
+        try { video.pause(); video.removeAttribute('src'); video.load(); } catch (e) {}
+        resolve(result);
+      };
+      const draw = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth || 100;
+          canvas.height = video.videoHeight || 100;
+          canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+          finish(canvas.toDataURL('image/png'));
+        } catch (e) {
+          console.error('Video freym rasmga olinmadi:', e);
+          finish(null);
+        }
+      };
+      video.addEventListener('loadeddata', () => {
+        try { video.currentTime = Math.min(0.15, (video.duration || 1) / 3); }
+        catch (e) { draw(); }
+      });
+      video.addEventListener('seeked', draw);
+      video.addEventListener('error', () => finish(null));
+      video.src = mediaUrl;
+      video.load();
+    });
   }
+
+  // Telegram custom emoji animatsiyasi .tgs (gzip'langan Lottie JSON) —
+  // uni ekrandan tashqarida (canvas renderer bilan) chizib, bitta freymini
+  // rasmga olamiz, so'ng animatsiya obyektini darhol destroy qilamiz.
+  return fetch(mediaUrl)
+    .then(r => r.arrayBuffer())
+    .then(buf => {
+      const jsonStr = window.pako ? pako.inflate(new Uint8Array(buf), { to: 'string' }) : null;
+      if (!jsonStr) return null;
+      return new Promise((resolve) => {
+        const tempEl = document.createElement('div');
+        tempEl.style.cssText = 'position:fixed; left:-9999px; top:-9999px; width:120px; height:120px; pointer-events:none;';
+        document.body.appendChild(tempEl);
+        let anim;
+        const cleanup = (result) => {
+          try { if (anim) anim.destroy(); } catch (e) {}
+          tempEl.remove();
+          resolve(result);
+        };
+        try {
+          anim = lottie.loadAnimation({
+            container: tempEl, renderer: 'canvas', loop: false, autoplay: false,
+            animationData: JSON.parse(jsonStr),
+          });
+        } catch (e) {
+          console.error('Lottie snapshot xatolik:', e);
+          cleanup(null);
+          return;
+        }
+        anim.addEventListener('DOMLoaded', () => {
+          try {
+            const mid = Math.max(0, Math.floor((anim.totalFrames || 1) / 2));
+            anim.goToAndStop(mid, true);
+            const canvasEl = tempEl.querySelector('canvas');
+            cleanup(canvasEl ? canvasEl.toDataURL('image/png') : null);
+          } catch (e) {
+            console.error('Lottie freym rasmga olinmadi:', e);
+            cleanup(null);
+          }
+        });
+      });
+    })
+    .catch(err => {
+      console.error('NFT snapshot uchun media yuklanmadi:', err.message);
+      return null;
+    });
+}
+
+function getNftStaticSrc(customEmojiId, isVideo, itemId) {
+  if (itemId && NFT_STATIC_PNG_IDS.has(itemId)) {
+    return Promise.resolve(`/gifts/${itemId}.png`);
+  }
+  if (!customEmojiId) return Promise.resolve(null);
+  if (nftSnapshotCache.has(customEmojiId)) {
+    return Promise.resolve(nftSnapshotCache.get(customEmojiId));
+  }
+  let pending = nftSnapshotPending.get(customEmojiId);
+  if (!pending) {
+    pending = generateNftSnapshot(customEmojiId, isVideo)
+      .then(url => { nftSnapshotCache.set(customEmojiId, url); return url; })
+      .finally(() => nftSnapshotPending.delete(customEmojiId));
+    nftSnapshotPending.set(customEmojiId, pending);
+  }
+  return pending;
+}
+
+function mountAnimatedEmoji(container, customEmojiId, isVideo, itemId) {
+  if (!container) return;
+  container.innerHTML = '';
+  const img = document.createElement('img');
+  img.className = 'lottie-box';
+  img.alt = '';
+  img.loading = 'lazy';
+  container.appendChild(img);
+
+  getNftStaticSrc(customEmojiId, isVideo, itemId).then(src => {
+    if (src && container.isConnected) img.src = src;
+  });
 }
 
 /* ===== Umumiy: Telegram premium custom emoji'ni video/lottie sifatida yuklab olish ===== */
@@ -2706,17 +2788,14 @@ function mountEmojiAsset(el, asset) {
     v.src = asset.videoUrl;
     v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
     el.appendChild(v);
-    bgAnimRegistry.videos.add(v);
-    if (heavyAnimRunning) v.pause();
   } else {
     const box = document.createElement('div');
     box.className = 'lottie-box';
     el.appendChild(box);
-    const anim = lottie.loadAnimation({
-      container: box, renderer: 'canvas', loop: true, autoplay: !heavyAnimRunning,
+    lottie.loadAnimation({
+      container: box, renderer: 'svg', loop: true, autoplay: true,
       animationData: asset.lottieData,
     });
-    bgAnimRegistry.lotties.add(anim);
   }
 }
 
@@ -2817,7 +2896,7 @@ function mountMedalIcons() {
 }
 
 function renderNftAnim(item) {
-  mountAnimatedEmoji(document.getElementById(`nftAnim_${item.id}`), item.custom_emoji_id, item.is_video);
+  mountAnimatedEmoji(document.getElementById(`nftAnim_${item.id}`), item.custom_emoji_id, item.is_video, item.id);
 }
 
 async function sellNft(itemId, sellPrice) {
@@ -3372,7 +3451,7 @@ function renderCrashGiftGrid() {
       <div class="n-price"><span class="coin-ico"></span> ${it.sell_price} · x${it.count}</div>
     </div>
   `).join('');
-  crashGiftInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`crashGiftAnim_${it.id}`), it.custom_emoji_id, it.is_video));
+  crashGiftInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`crashGiftAnim_${it.id}`), it.custom_emoji_id, it.is_video, it.id));
 }
 function crashSelectGift(itemId) {
   crashGiftSelectedId = crashGiftSelectedId === itemId ? null : itemId;
@@ -3525,7 +3604,7 @@ function renderCrashPlayers() {
   sorted.forEach(p => {
     if (p.betType === 'nft' && p.betNfts && p.betNfts.length) {
       const el = document.getElementById(`crashBetAnim_${p.id}`);
-      if (el) mountAnimatedEmoji(el, p.betNfts[0].custom_emoji_id, p.betNfts[0].is_video);
+      if (el) mountAnimatedEmoji(el, p.betNfts[0].custom_emoji_id, p.betNfts[0].is_video, p.betNfts[0].itemId);
     }
   });
 }
@@ -3621,7 +3700,7 @@ function showNftWinModal(wonNft, multiplier) {
   const animEl = document.getElementById('nftWinAnim');
   animEl.innerHTML = '';
   if (wonNft.custom_emoji_id) {
-    mountAnimatedEmoji(animEl, wonNft.custom_emoji_id, wonNft.is_video);
+    mountAnimatedEmoji(animEl, wonNft.custom_emoji_id, wonNft.is_video, wonNft.itemId);
   }
 
   overlay.classList.add('active');
@@ -3677,7 +3756,7 @@ async function showRoundWinModal(winner, coinAmount, nftItems) {
     const emojiId = c.custom_emoji_id || meta.custom_emoji_id;
     if (!emojiId) return;
     const el = document.getElementById(`roundWinAnim_${i}`);
-    if (el) mountAnimatedEmoji(el, emojiId, c.is_video ?? meta.is_video);
+    if (el) mountAnimatedEmoji(el, emojiId, c.is_video ?? meta.is_video, c.itemId);
   });
 }
 
@@ -3818,7 +3897,6 @@ function resetPuckVisual() {
   
   if (physicsInterval) { clearInterval(physicsInterval); physicsInterval = null; }
   puckAnimationRunning = false;
-  resumeBgAnimations();
   puck.style.display = 'none';
   arrow.style.display = 'none';
   arena.style.transform = "scale(1)"; // Zoomni tiklash
@@ -3879,7 +3957,7 @@ function renderNftStakeGrid() {
       </div>
     </div>
   `).join('');
-  nftStakeInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`stakeAnim_${it.id}`), it.custom_emoji_id, it.is_video));
+  nftStakeInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`stakeAnim_${it.id}`), it.custom_emoji_id, it.is_video, it.id));
 }
 
 function nftStakeAdjust(itemId, delta) {
@@ -3989,9 +4067,6 @@ async function hockeyPlaceBet() {
 
 function startPuckPhysicsAnimation(seed) {
   if (physicsInterval) clearInterval(physicsInterval);
-  // Tosh uchish fizikasi bosh oqimni band qiladi — shu payt orqa fondagi
-  // barcha NFT animatsiyalarini to'xtatib, "qotib qolish"ning oldini olamiz.
-  pauseBgAnimations();
   
   const arena = document.getElementById('hockeyArena');
   const puck = document.getElementById('hockeyPuck');
@@ -4091,7 +4166,6 @@ function startPuckPhysicsAnimation(seed) {
 
       if (progress >= 1) {
         clearInterval(physicsInterval);
-        resumeBgAnimations();
 
         const endPx = toPx(finalPos.x, finalPos.y);
         puck.style.left = `${endPx.left}px`;
@@ -4419,7 +4493,7 @@ function stakeNftsHTML(p) {
   const extra = p.nfts.length - shown.length;
   const icons = shown.map((n, i) => `<div class="anim-slot" id="stakeRowAnim_${p.id}_${i}"></div>`).join('');
   setTimeout(() => {
-    shown.forEach((n, i) => mountAnimatedEmoji(document.getElementById(`stakeRowAnim_${p.id}_${i}`), n.custom_emoji_id, n.is_video));
+    shown.forEach((n, i) => mountAnimatedEmoji(document.getElementById(`stakeRowAnim_${p.id}_${i}`), n.custom_emoji_id, n.is_video, n.itemId));
   }, 0);
   return `<div class="stake-nfts">${icons}${extra > 0 ? `<span class="nft-more">+${extra}</span>` : ''}</div>`;
 }

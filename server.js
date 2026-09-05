@@ -1431,6 +1431,11 @@ let crashSecretCrashPoint = null; // MAXFIY — sanitizeCrashState() bu qiymatni
 let crashLastResult = null;
 let crashWaitTimer = null;
 let crashRunInterval = null;
+// "crashed" bosqichida (natija ko'rsatilayotgan 4 soniya ichida) o'yinchilar
+// KEYINGI raund uchun oldindan tikish qilishlari mumkin — bu tikishlar shu
+// navbatda saqlanadi va keyingi "waiting" bosqichi boshlanganda avtomatik
+// ravishda o'sha raundning ishtirokchilar ro'yxatiga qo'shiladi.
+let crashNextQueue = [];
 
 function generateCrashPoint() {
   // Klassik "crash" o'yinlarida ishlatiladigan taqsimot: uzun quyruqli
@@ -1458,6 +1463,12 @@ function sanitizeCrashState() {
       cashedOutAt: p.cashedOutAt, won: p.won, wonNft: p.wonNft || null,
       betType: p.betType || 'coin', betNfts: p.betNfts || null,
     })),
+    // "crashed" bosqichida keyingi raund uchun oldindan qo'yilgan tikishlar —
+    // clientda "Keyingi raundga tikildi ✓" holatini ko'rsatish uchun kerak.
+    nextQueue: crashNextQueue.map(p => ({
+      id: p.id, username: p.username, photo: p.photo, bet: p.bet,
+      betType: p.betType || 'coin', betNfts: p.betNfts || null,
+    })),
     multiplier: crashState.multiplier,
     startedAt: crashState.startedAt,
     waitingStartedAt: crashState.waitingStartedAt,
@@ -1472,7 +1483,15 @@ function emitCrashState() { io.emit('crash:state', sanitizeCrashState()); }
 function startCrashWaiting() {
   clearTimeout(crashWaitTimer); clearInterval(crashRunInterval);
   const nextRound = (crashState.round_number || 0) + 1;
-  crashState = { status: 'waiting', players: [], multiplier: 1.00, startedAt: null, waitingStartedAt: Date.now(), round_number: nextRound };
+  // "crashed" bosqichida navbatga qo'yilgan tikishlarni yangi raundning
+  // ishtirokchilar ro'yxatiga o'tkazamiz — ular uchun raund allaqachon
+  // "band" qilingan hisoblanadi, endi faqat "OLISH" bosishlari kerak.
+  const carriedPlayers = crashNextQueue.map(p => ({
+    id: p.id, username: p.username, photo: p.photo, bet: p.bet,
+    cashedOutAt: null, won: 0, wonNft: null, betType: p.betType || 'coin', betNfts: p.betNfts || null,
+  }));
+  crashNextQueue = [];
+  crashState = { status: 'waiting', players: carriedPlayers, multiplier: 1.00, startedAt: null, waitingStartedAt: Date.now(), round_number: nextRound };
   crashSecretCrashPoint = generateCrashPoint();
   emitCrashState();
   crashWaitTimer = setTimeout(startCrashRunning, CRASH_WAIT_MS);
@@ -1511,13 +1530,27 @@ function finalizeCrashRound() {
   crashWaitTimer = setTimeout(startCrashWaiting, CRASH_COOLDOWN_MS);
 }
 
-/* ---- Tikish (raketa/crash) — faqat "waiting" bosqichida qabul qilinadi ---- */
+/* ---- Tikish (raketa/crash) — "waiting" bosqichida joriy raundga, "crashed"
+   bosqichida esa KEYINGI raund uchun oldindan (navbatga) qabul qilinadi ---- */
 app.post('/api/crash/bet', (req, res) => {
   const user = requireUser(req, res); if (!user) return;
   const amt = Number(req.body?.amount);
   if (!amt || amt < CRASH_MIN_BET) return res.status(400).json({ error: 'invalid_amount' });
   if (amt > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
-  if (crashState.status !== 'waiting') return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
+  if (crashState.status === 'running') return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
+
+  if (crashState.status === 'crashed') {
+    // Raund natijasi ko'rsatilmoqda — keyingi raund uchun navbatga qo'shamiz
+    if (crashNextQueue.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
+    user.balance = round2(user.balance - amt);
+    crashNextQueue.push({
+      id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt,
+      betType: 'coin', betNfts: null,
+    });
+    emitCrashState();
+    return res.json({ ok: true, balance: user.balance, queued: true });
+  }
+
   if (crashState.players.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
 
   user.balance = round2(user.balance - amt);
@@ -1530,15 +1563,19 @@ app.post('/api/crash/bet', (req, res) => {
 });
 
 /* ---- Tikish — NFT (sovg'a) bilan (raketa/crash). Inventoridan bitta yoki
-   bir nechta NFT'ni joriy raundga tikadi; uning narxi coin stavkasi o'rnini
-   bosadi. Yutgan taqdirda (bet * multiplikator) qiymati odatdagidek
-   hisoblanadi — asl tikilgan NFT esa, agar ulgurmasa, boy beriladi. ---- */
+   bir nechta NFT'ni joriy (yoki "crashed" bosqichida — keyingi) raundga
+   tikadi; uning narxi coin stavkasi o'rnini bosadi. Yutgan taqdirda
+   (bet * multiplikator) qiymati odatdagidek hisoblanadi — asl tikilgan NFT
+   esa, agar ulgurmasa, boy beriladi. ---- */
 app.post('/api/crash/bet_nft', (req, res) => {
   const user = requireUser(req, res); if (!user) return;
   const { itemIds } = req.body || {};
   if (!Array.isArray(itemIds) || !itemIds.length) return res.status(400).json({ error: 'invalid_items' });
-  if (crashState.status !== 'waiting') return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
-  if (crashState.players.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
+  if (crashState.status === 'running') return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
+
+  const queueMode = crashState.status === 'crashed';
+  const existingList = queueMode ? crashNextQueue : crashState.players;
+  if (existingList.find(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_BET' });
 
   ensureNftStarterPack(user);
 
@@ -1561,12 +1598,13 @@ app.post('/api/crash/bet_nft', (req, res) => {
   }
   const nftValue = round2(staked.reduce((s, n) => s + n.price, 0));
 
-  crashState.players.push({
+  const entry = {
     id: Number(user.id), username: user.username, photo: user.photo_url, bet: nftValue,
     cashedOutAt: null, won: 0, wonNft: null, betType: 'nft', betNfts: staked,
-  });
+  };
+  if (queueMode) crashNextQueue.push(entry); else crashState.players.push(entry);
   emitCrashState();
-  res.json({ ok: true, staked });
+  res.json({ ok: true, staked, queued: queueMode });
 });
 
 /* ============================================================

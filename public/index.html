@@ -3485,7 +3485,7 @@ function mountRocketForRound(roundNumber, force) {
 }
 
 // ==================== RAKETA (CRASH) — real vaqtli multiplayer ====================
-let crashState = { status: 'waiting', players: [], multiplier: 1.00, round_number: 1, lastResult: null, waitMs: 7000, history: [] };
+let crashState = { status: 'waiting', players: [], nextQueue: [], multiplier: 1.00, round_number: 1, lastResult: null, waitMs: 7000, history: [] };
 let crashUnsubscribe = null;
 let crashSelectedAmount = 1;
 let crashCashoutBusy = false;
@@ -3605,6 +3605,14 @@ async function crashPlaceBetNft() {
 function myCrashPlayer() {
   if (!currentUserData) return null;
   return crashState.players.find(p => String(p.id) === String(currentUserData.telegram_id || currentUserData.id));
+}
+
+// "crashed" bosqichida (natija ko'rsatilayotganda) foydalanuvchi keyingi
+// raund uchun oldindan tikish qilgan bo'lsa, shu yozuvni qaytaradi.
+function myCrashQueuedBet() {
+  if (!currentUserData) return null;
+  const queue = crashState.nextQueue || [];
+  return queue.find(p => String(p.id) === String(currentUserData.telegram_id || currentUserData.id));
 }
 
 function renderCrashHistory() {
@@ -3740,8 +3748,16 @@ function updateCrashActionBtn() {
       btn.disabled = true;
     }
   } else {
-    btn.textContent = 'Keyingi raundni kuting...';
-    btn.disabled = true;
+    // status === 'crashed' — natija ko'rsatilmoqda, lekin foydalanuvchi
+    // keyingi raund uchun ALLAQACHON oldindan tikish qilishi mumkin.
+    const queued = myCrashQueuedBet();
+    if (queued) {
+      btn.textContent = 'Keyingi raundga tikildi ✓';
+      btn.disabled = true;
+    } else {
+      btn.textContent = 'Keyingi raundga tikish';
+      btn.disabled = false;
+    }
   }
 
   const status = document.getElementById('crashMyStatus');
@@ -3758,6 +3774,8 @@ async function crashActionBtn() {
   if (crashState.status === 'running' && mine && !mine.cashedOutAt) {
     await crashCashOut();
   } else if (crashState.status === 'waiting' && !mine) {
+    openCrashBetModal();
+  } else if (crashState.status === 'crashed' && !myCrashQueuedBet()) {
     openCrashBetModal();
   }
 }

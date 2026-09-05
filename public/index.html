@@ -1799,8 +1799,13 @@
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
       <p style="font-size:13px; font-weight:600; margin-bottom:4px;">📋 Yangi vazifa qo'shish</p>
-      <input type="text" id="a_channelLink" placeholder="Kanal havolasi (t.me/...)">
-      <input type="text" id="a_channelTitle" placeholder="Kanal nomi">
+      <select id="a_taskType" style="width:100%; margin-bottom:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+        <option value="channel">📢 Kanal (obuna tekshiriladi)</option>
+        <option value="chat">💬 Chat/Guruh (a'zolik tekshiriladi)</option>
+        <option value="bot">🤖 Bot (tekshirilmaydi)</option>
+      </select>
+      <input type="text" id="a_channelLink" placeholder="Havola (t.me/...)">
+      <input type="text" id="a_channelTitle" placeholder="Nomi (Kanal/Chat/Bot nomi)">
       <input type="number" id="a_reward" placeholder="Coin miqdori">
       <button class="btn" style="width:100%;" onclick="adminAddTask()">Vazifa qo'shish</button>
 
@@ -2643,21 +2648,31 @@ async function loadLeaderboard(force = false) {
   } catch (e) { list.innerHTML = '<p class="empty">Xatolik yuz berdi</p>'; }
 }
 
+const TASK_TYPE_META = {
+  channel: { icon: '📢', openLabel: 'Obuna', fallbackTitle: "Kanalga a'zo bo'ling" },
+  chat: { icon: '💬', openLabel: "Qo'shilish", fallbackTitle: "Chatga a'zo bo'ling" },
+  bot: { icon: '🤖', openLabel: 'Ishga tushirish', fallbackTitle: "Botni ishga tushiring" },
+};
+
 function renderTasks(tasks) {
   const list = document.getElementById('tasksList');
   if (!tasks.length) { list.innerHTML = '<p class="empty">Vazifalar mavjud emas</p>'; return; }
   const completedTasks = currentUserData.completed_tasks || [];
   list.innerHTML = tasks.map(t => {
     const isDone = completedTasks.includes(t.id);
+    const meta = TASK_TYPE_META[t.type || 'channel'];
+    // Bot turidagi vazifada obuna tekshirilmaydi — shuning uchun tugma
+    // to'g'ridan-to'g'ri "Olish" bo'ladi, "Tekshirish" emas.
+    const claimLabel = t.type === 'bot' ? 'Olish' : 'Tekshirish';
     return `
       <div class="card task-row">
         <div class="info">
-          <div class="ch-title">${t.channel_title || 'Kanalga a\'zo bo\'ling'}</div>
+          <div class="ch-title">${meta.icon} ${t.channel_title || meta.fallbackTitle}</div>
           <div class="reward"><span class="coin-ico"></span> ${t.stars_reward}</div>
         </div>
         ${isDone ? `<button class="btn done" disabled>Bajarildi</button>` : `
-          <button class="btn secondary" onclick="window.open('${t.channel_link}', '_blank')">Obuna</button>
-          <button class="btn" onclick="claimTask('${t.id}', ${t.stars_reward}, this)">Tekshirish</button>
+          <button class="btn secondary" onclick="window.open('${t.channel_link}', '_blank')">${meta.openLabel}</button>
+          <button class="btn" onclick="claimTask('${t.id}', ${t.stars_reward}, this)">${claimLabel}</button>
         `}
       </div>`;
   }).join('');
@@ -2685,9 +2700,10 @@ async function loadTasks(force = false) {
 }
 
 async function claimTask(taskId, reward, btn) {
+  const originalLabel = btn.textContent;
   btn.disabled = true; btn.textContent = '...';
-  // MUHIM: endi backend haqiqatan Telegram orqali kanalga obunani
-  // tekshiradi — avval bu yerda hech qanday tekshiruv bo'lmagan edi.
+  // MUHIM: endi backend haqiqatan Telegram orqali kanalga/chatga a'zolikni
+  // tekshiradi (bot turidagi vazifalarda esa tekshirmasdan beradi).
   try {
     const res = await fetch(CLAIM_TASK_API_URL, {
       method: 'POST',
@@ -2696,10 +2712,10 @@ async function claimTask(taskId, reward, btn) {
     });
     const data = await res.json();
     if (!res.ok) {
-      if (data.error === 'NOT_SUBSCRIBED') alert("Avval kanalga obuna bo'ling!");
+      if (data.error === 'NOT_SUBSCRIBED') alert("Avval a'zo bo'ling!");
       else if (data.error === 'ALREADY_CLAIMED') alert('Siz bu vazifani allaqachon bajargansiz!');
       else alert('Xatolik yuz berdi!');
-      btn.disabled = false; btn.textContent = 'Tekshirish';
+      btn.disabled = false; btn.textContent = originalLabel;
       return;
     }
     currentUserData.balance = (currentUserData.balance || 0) + data.reward;
@@ -2710,7 +2726,7 @@ async function claimTask(taskId, reward, btn) {
   } catch (e) {
     console.error(e);
     alert('Xatolik yuz berdi!');
-    btn.disabled = false; btn.textContent = 'Tekshirish';
+    btn.disabled = false; btn.textContent = originalLabel;
   }
 }
 
@@ -3387,17 +3403,20 @@ async function adminCreateVoucher() {
 }
 
 async function adminAddTask() {
+  const type = document.getElementById('a_taskType').value;
   const link = document.getElementById('a_channelLink').value.trim();
   const title = document.getElementById('a_channelTitle').value.trim();
   const rwd = parseInt(document.getElementById('a_reward').value);
   if(!link || !rwd) return;
   try {
-    await callAdminAction('add_task', { link, title, reward: rwd });
+    await callAdminAction('add_task', { link, title, reward: rwd, type });
     dataCache.tasks = { data: null, ts: 0 }; // yangi vazifa qo'shildi, kesh eskirdi
     loadAdminTasksList();
     alert("Vazifa qo'shildi!");
   } catch (e) { console.error(e); alert("Xatolik yuz berdi!"); }
 }
+
+const TASK_TYPE_ICON = { channel: '📢', chat: '💬', bot: '🤖' };
 
 async function loadAdminTasksList() {
   const box = document.getElementById('adminTasksList');
@@ -3409,10 +3428,11 @@ async function loadAdminTasksList() {
     if (!list.length) { box.innerHTML = '<p class="empty" style="font-size:12px;">Vazifalar mavjud emas</p>'; return; }
     let rows = '';
     list.forEach(t => {
+      const icon = TASK_TYPE_ICON[t.type || 'channel'];
       rows += `
         <div class="admin-task-row">
           <div class="info">
-            <div class="ttl">${t.channel_title || t.channel_link || 'Nomsiz vazifa'}</div>
+            <div class="ttl">${icon} ${t.channel_title || t.channel_link || 'Nomsiz vazifa'}</div>
             <div class="rwd"><span class="coin-ico"></span> ${t.stars_reward || 0}</div>
           </div>
           <button class="del-btn" onclick="adminDeleteTask('${t.id}', this)" title="O'chirish">×</button>

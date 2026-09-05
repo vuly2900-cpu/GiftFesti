@@ -572,7 +572,7 @@ app.get('/api/case_items', async (req, res) => {
    VAZIFALAR
    ============================================================ */
 app.get('/api/tasks', (req, res) => {
-  res.json({ tasks: tasks.map(t => ({ id: t.id, channel_link: t.channel_link, channel_title: t.channel_title, stars_reward: t.stars_reward })) });
+  res.json({ tasks: tasks.map(t => ({ id: t.id, channel_link: t.channel_link, channel_title: t.channel_title, stars_reward: t.stars_reward, type: t.type || 'channel' })) });
 });
 
 app.post('/api/claim_task', async (req, res) => {
@@ -582,8 +582,13 @@ app.post('/api/claim_task', async (req, res) => {
   if (!task) return res.status(404).json({ error: 'NOT_FOUND' });
   if (user.completedTasks.has(taskId)) return res.status(400).json({ error: 'ALREADY_CLAIMED' });
 
-  const subscribed = await isSubscribed(user.id, toChannelId(task.channel_link));
-  if (!subscribed) return res.status(403).json({ error: 'NOT_SUBSCRIBED' });
+  // Bot turidagi vazifalarda obuna tekshiruvi o'tkazilmaydi — Telegram'da
+  // botni "ishga tushirganini" tashqi API orqali tekshirib bo'lmaydi,
+  // shuning uchun foydalanuvchining o'ziga ishonch bilan darhol beriladi.
+  if (task.type !== 'bot') {
+    const subscribed = await isSubscribed(user.id, toChannelId(task.channel_link));
+    if (!subscribed) return res.status(403).json({ error: 'NOT_SUBSCRIBED' });
+  }
 
   user.completedTasks.add(taskId);
   user.balance += task.stars_reward;
@@ -846,7 +851,8 @@ app.post('/api/admin_action', (req, res) => {
         break;
       }
       case 'add_task': {
-        tasks.push({ id: crypto.randomBytes(6).toString('hex'), channel_link: payload.link, channel_title: payload.title || '', stars_reward: Number(payload.reward) || 0 });
+        const type = ['channel', 'chat', 'bot'].includes(payload.type) ? payload.type : 'channel';
+        tasks.push({ id: crypto.randomBytes(6).toString('hex'), channel_link: payload.link, channel_title: payload.title || '', stars_reward: Number(payload.reward) || 0, type });
         break;
       }
       case 'delete_task': {

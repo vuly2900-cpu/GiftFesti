@@ -187,6 +187,14 @@
   h1.title{font-size:20px; font-weight:700; margin-bottom:4px;}
   p.subtitle{color:var(--text-dim); font-size:13px; margin-bottom:18px;}
 
+  .lb-timer-card{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:rgba(232,185,35,.10); border:1px solid var(--gold-dim);
+    border-radius:12px; padding:10px 14px; margin-bottom:14px;
+  }
+  .lb-timer-label{font-size:12px; font-weight:600; color:var(--gold);}
+  .lb-timer-value{font-size:15px; font-weight:700; color:var(--gold); font-family:'Sora',sans-serif; letter-spacing:.5px;}
+
   .podium{display:flex; align-items:flex-end; gap:8px; margin-bottom:20px;}
   .podium .slot{flex:1; min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 8px 12px; text-align:center; position:relative;}
   .podium .slot.first{order:2; padding-top:22px; border-color:var(--gold-dim);}
@@ -1227,7 +1235,11 @@
   <!-- ... Qolgan barcha section sahifalar o'zgarishsiz qoladi ... -->
   <section class="page" id="page-rating">
     <h1 class="title">Reyting</h1>
-    <p class="subtitle">Eng ko'p stars yutgan TOP o'yinchilar &mdash; TOP 10'ga 🧸 gift beriladi!</p>
+    <div class="lb-timer-card">
+      <div class="lb-timer-label">⏳ Tugashiga</div>
+      <div class="lb-timer-value" id="lbCountdownText">--:--:--</div>
+    </div>
+    <p class="subtitle">Eng ko'p stars yutgan TOP o'yinchilar &mdash; TOP 15'ga 🧸 gift beriladi!</p>
     <div id="podium" class="podium"></div>
     <div id="lbList"></div>
   </section>
@@ -2198,6 +2210,7 @@ async function rewardReferrer(referrerId) {
 // ==================== KUNLIK CASE ====================
 const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 let caseCountdownInterval = null;
+let lbCountdownInterval = null;
 
 // Case'dagi gift'lar endi backend'dan (custom emoji + tier/narx bilan) olinadi —
 // shu bilan birga qanday og'irlik (weight) bilan tushishi ham backend bilan bir xil.
@@ -2468,7 +2481,7 @@ function goTo(pageName) {
   const navBtn = document.querySelector(`.navbtn[data-page="${pageName}"]`);
   if (navBtn) navBtn.classList.add('active');
 
-  if (pageName === 'rating') loadLeaderboard();
+  if (pageName === 'rating') { loadLeaderboard(); updateLeaderboardCountdown(); }
   if (pageName === 'tasks') loadTasks();
   if (pageName === 'referral') loadReferral();
   if (pageName === 'profile') loadProfile();
@@ -2489,6 +2502,10 @@ function goTo(pageName) {
   if (pageName !== 'case' && caseCountdownInterval) {
     clearInterval(caseCountdownInterval);
     caseCountdownInterval = null;
+  }
+  if (pageName !== 'rating' && lbCountdownInterval) {
+    clearInterval(lbCountdownInterval);
+    lbCountdownInterval = null;
   }
 }
 
@@ -2517,7 +2534,7 @@ function renderLeaderboard(leaderboard) {
   const podium = document.getElementById('podium');
   const list = document.getElementById('lbList');
   const top3 = leaderboard.slice(0, 3);
-  const rest = leaderboard.slice(3);
+  const rest = leaderboard.slice(3, 15);
   const order = ['first', 'second', 'third'];
   podium.innerHTML = top3.map((u, i) => `
     <div class="slot ${order[i]}">
@@ -2525,7 +2542,7 @@ function renderLeaderboard(leaderboard) {
       <img class="avatar" src="${u.photo_url || avatarFallback(u.username)}" onerror="this.src=avatarFallback('${u.username}')">
       <div class="name">${u.username}</div>
       <div class="stars"><span class="coin-ico"></span> ${u.stars}</div>
-      <div class="gift-badge">🧸 Gift</div>
+      <div class="gift-badge">🧸</div>
     </div>
   `).join('');
   mountMedalIcons();
@@ -2535,9 +2552,45 @@ function renderLeaderboard(leaderboard) {
       <img class="avatar" src="${u.photo_url || avatarFallback(u.username)}" onerror="this.src=avatarFallback('${u.username}')">
       <div class="uname">${u.username}</div>
       <div class="stars"><span class="coin-ico"></span> ${u.stars}</div>
-      ${u.place <= 10 ? `<div class="gift-badge">🧸</div>` : ''}
+      ${u.place <= 15 ? `<div class="gift-badge">🧸</div>` : ''}
     </div>
   `).join('');
+}
+
+// Reyting haftalik tsiklda ishlaydi: har yakshanba kuni soat 23:59:59'da
+// tugaydi va admin "Reyting" tugmasi bosilganda qayta boshlanadi.
+// Bu yerda faqat "necha vaqtdan keyin tugaydi" ko'rsatkichi hisoblanadi.
+function getLeaderboardCycleEnd() {
+  const now = new Date();
+  const end = new Date(now);
+  const daysUntilSunday = (7 - now.getDay()) % 7;
+  end.setDate(now.getDate() + daysUntilSunday);
+  end.setHours(23, 59, 59, 999);
+  if (end.getTime() <= now.getTime()) end.setDate(end.getDate() + 7);
+  return end.getTime();
+}
+
+function updateLeaderboardCountdown() {
+  if (lbCountdownInterval) clearInterval(lbCountdownInterval);
+  const el = document.getElementById('lbCountdownText');
+  if (!el) return;
+  const endMs = getLeaderboardCycleEnd();
+
+  function tick() {
+    const remain = endMs - Date.now();
+    if (remain <= 0) {
+      el.textContent = '00:00:00';
+      clearInterval(lbCountdownInterval);
+      lbCountdownInterval = null;
+      return;
+    }
+    const h = Math.floor(remain / 3600000);
+    const m = Math.floor((remain % 3600000) / 60000);
+    const s = Math.floor((remain % 60000) / 1000);
+    el.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  tick();
+  lbCountdownInterval = setInterval(tick, 1000);
 }
 
 async function loadLeaderboard(force = false) {

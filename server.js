@@ -735,7 +735,7 @@ app.get('/api/nft_media/:customEmojiId', async (req, res) => {
    ============================================================ */
 app.get('/api/leaderboard', (req, res) => {
   const list = Array.from(users.values())
-    .filter(u => u.username !== 'demo_user')
+    .filter(u => u.username !== 'demo_user' && !u.isBot)
     .sort((a, b) => b.total_won - a.total_won)
     .slice(0, 50)
     .map((u, i) => ({ place: i + 1, username: u.username, stars: u.total_won, photo_url: u.photo_url }));
@@ -789,6 +789,7 @@ function resetGameState(game) {
   if (game === 'hockey') { clearTimeout(gameTimers.hockey); hockeyState = defaultHockeyState(); emitState('hockey'); }
   else if (game === 'drum') { clearTimeout(gameTimers.drum); drumState = defaultDrumState(); emitState('drum'); }
   gameHistory[game] = [];
+  scheduleBotBet(game);
 }
 
 /* ---- Bot uchun ichki statistika API (faqat INTERNAL_KEY bilan, /admin90 uchun) ---- */
@@ -796,7 +797,7 @@ app.get('/api/internal_stats', (req, res) => {
   if (!INTERNAL_KEY || req.get('x-internal-key') !== INTERNAL_KEY) {
     return res.status(403).json({ error: 'forbidden' });
   }
-  const allUsers = Array.from(users.values());
+  const allUsers = Array.from(users.values()).filter(u => !u.isBot);
   const totalStars = allUsers.reduce((s, u) => s + (u.balance || 0), 0);
   res.json({
     totalUsers: allUsers.length,
@@ -1187,6 +1188,8 @@ function defaultDrumState() { return { status: 'idle', players: [], pot: 0, game
 
 let hockeyState = defaultHockeyState();
 let drumState = defaultDrumState();
+scheduleBotBet('hockey');
+scheduleBotBet('drum');
 
 function getState(game) { return game === 'hockey' ? hockeyState : drumState; }
 function emitState(game) { io.emit(`${game}:state`, getState(game)); }
@@ -1285,7 +1288,92 @@ function finalizeRound(game) {
     if (game === 'hockey') hockeyState = { ...defaultHockeyState(), game_number: gnum };
     else if (game === 'drum') drumState = { ...defaultDrumState(), game_number: gnum };
     emitState(game);
+    scheduleBotBet(game);
   }, COOLDOWN_MS);
+}
+
+/* ============================================================
+   AVTOMATIK BOT — GiftFestiBot
+   Har bir hockey/baraban raundi boshlanganda (server ochilganda,
+   raund almashganda yoki admin reset qilganda) bir necha soniyadan
+   keyin avtomatik ravishda 0.1-2 coin oralig'ida tikadi, ~20%
+   ehtimol bilan 5 coindan arzon bitta NFT ham qo'shib tikadi.
+   MUHIM:
+   - Balans CHEKSIZ VIRTUAL — haqiqiy foydalanuvchi puliga/hisobiga
+     hech qanday ta'sir qilmaydi, hech qachon HTTP orqali chaqirilmaydi.
+   - G'alaba ehtimoli boshqa har qanday o'yinchi kabi FAQAT tikkan
+     miqdoriga mutanosib hisoblanadi (playerWeight/pickWeighted) —
+     hech qanday tarzda natija oldindan belgilanmaydi yoki "rigged"
+     qilinmaydi.
+   - SHAFFOFLIK: bot username'i doim aniq "🤖" belgisi bilan chiqadi
+     — real odamga o'xshatib yashirilmaydi, o'yinchilar kim bilan
+     o'ynashayotganini bilishadi.
+   ============================================================ */
+const BOT_USER_ID = -1001;
+const BOT_USERNAME = '🤖 GiftFestiBot';
+const BOT_BET_MIN = 0.1;
+const BOT_BET_MAX = 2.0;
+const BOT_NFT_CHANCE = 0.2;        // har raundda ~20% ehtimol bilan NFT ham qo'shadi
+const BOT_NFT_MAX_PRICE = 5;       // faqat 5 coindan ARZON NFT'lar orasidan tanlanadi
+const BOT_BET_DELAY_MIN_MS = 1000;
+const BOT_BET_DELAY_MAX_MS = 4000;
+const BOT_CHEAP_NFTS = NFT_CATALOG.filter(i => i.sell_price < BOT_NFT_MAX_PRICE);
+
+function ensureBotUser() {
+  let bot = users.get(String(BOT_USER_ID));
+  if (!bot) {
+    bot = {
+      id: BOT_USER_ID,
+      username: BOT_USERNAME,
+      photo_url: null,
+      balance: 0,
+      wins: 0,
+      total_won: 0,
+      nftInventory: {},
+      nftInstancePrices: {},
+      isBot: true,
+    };
+    users.set(String(BOT_USER_ID), bot);
+  }
+  return bot;
+}
+
+function botPlaceBet(game) {
+  const state = getState(game);
+  // Faqat tikish hali ochiq bo'lgan holatlarda qo'shiladi (raund allaqachon
+  // "spinning_visual"/"cooldown"ga o'tib ketgan bo'lsa — indamaymiz).
+  if (state.status !== 'idle' && state.status !== 'betting') return;
+
+  ensureBotUser();
+  const amt = round2(BOT_BET_MIN + Math.random() * (BOT_BET_MAX - BOT_BET_MIN));
+
+  let existing = state.players.find(p => p.id === BOT_USER_ID);
+  if (!existing) {
+    existing = { id: BOT_USER_ID, username: BOT_USERNAME, photo: null, stars: 0, nfts: [], isBot: true, color: colorFor(state.players.length) };
+    state.players.push(existing);
+  }
+  existing.stars = round2(existing.stars + amt);
+  state.pot = round2(state.pot + amt);
+
+  if (BOT_CHEAP_NFTS.length && Math.random() < BOT_NFT_CHANCE) {
+    const item = BOT_CHEAP_NFTS[Math.floor(Math.random() * BOT_CHEAP_NFTS.length)];
+    existing.nfts = (existing.nfts || []).concat({
+      itemId: item.id, name: item.name, custom_emoji_id: item.custom_emoji_id, price: item.sell_price,
+    });
+    state.pot = round2(state.pot + item.sell_price);
+  }
+
+  if (state.status === 'idle') state.status = 'betting';
+  if (state.players.length >= 2 && !state.bettingStartedAt) {
+    state.bettingStartedAt = Date.now();
+    startBettingTimer(game);
+  }
+  emitState(game);
+}
+
+function scheduleBotBet(game) {
+  const delay = BOT_BET_DELAY_MIN_MS + Math.random() * (BOT_BET_DELAY_MAX_MS - BOT_BET_DELAY_MIN_MS);
+  setTimeout(() => botPlaceBet(game), delay);
 }
 
 /* ---- Tikish (hockey / drum) ---- */

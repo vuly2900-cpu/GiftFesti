@@ -2734,17 +2734,23 @@ function generateNftSnapshot(customEmojiId, isVideo) {
 }
 
 function getNftStaticSrc(customEmojiId, isVideo, itemId) {
-  if (itemId && NFT_STATIC_PNG_IDS.has(itemId)) {
-    return Promise.resolve(`/gifts/${itemId}.png`);
+  if (!customEmojiId) {
+    // custom_emoji_id umuman yo'q bo'lsa — faqat shunda tayyor PNG'ga tayanamiz
+    return Promise.resolve(itemId && NFT_STATIC_PNG_IDS.has(itemId) ? `/gifts/${itemId}.png` : null);
   }
-  if (!customEmojiId) return Promise.resolve(null);
   if (nftSnapshotCache.has(customEmojiId)) {
     return Promise.resolve(nftSnapshotCache.get(customEmojiId));
   }
   let pending = nftSnapshotPending.get(customEmojiId);
   if (!pending) {
     pending = generateNftSnapshot(customEmojiId, isVideo)
-      .then(url => { nftSnapshotCache.set(customEmojiId, url); return url; })
+      .then(url => {
+        // Haqiqiy emoji rasmi olinmasa (masalan tarmoq xatosi) — faqat shunda
+        // zaxira sifatida tayyor PNG'ga tayanamiz, aks holda doim haqiqiy emoji.
+        const finalUrl = url || (itemId && NFT_STATIC_PNG_IDS.has(itemId) ? `/gifts/${itemId}.png` : null);
+        nftSnapshotCache.set(customEmojiId, finalUrl);
+        return finalUrl;
+      })
       .finally(() => nftSnapshotPending.delete(customEmojiId));
     nftSnapshotPending.set(customEmojiId, pending);
   }

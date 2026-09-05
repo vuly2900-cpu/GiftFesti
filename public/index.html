@@ -522,14 +522,6 @@
   .crash-bet-row b{color:var(--text); font-size:14px;}
   .crash-bet-amount-input{width:100%; margin-bottom:14px; font-size:15px; text-align:left;}
   .crash-bet-quick{display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:14px;}
-  .crash-auto-row{display:flex; align-items:center; justify-content:space-between; padding:10px 2px; margin-bottom:10px;}
-  .crash-auto-row .lbl{font-size:13.5px; font-weight:600;}
-  .crash-toggle{position:relative; width:42px; height:24px; border-radius:14px; background:var(--surface-2); border:1px solid var(--border); cursor:pointer; flex:0 0 auto;}
-  .crash-toggle::after{content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--text-dim); transition:transform .18s ease, background .18s ease;}
-  .crash-toggle.on{background:rgba(51,196,129,.25); border-color:var(--success);}
-  .crash-toggle.on::after{transform:translateX(18px); background:var(--success);}
-  .crash-auto-target{display:none; margin-bottom:10px;}
-  .crash-auto-target.show{display:block;}
   .crash-bet-confirm{width:100%; padding:14px; border-radius:14px; border:none; cursor:pointer;
     background:linear-gradient(180deg,var(--gold),#c99400); color:#1A1400; font-size:15px; font-weight:800;}
   .crash-bet-confirm:disabled{opacity:.5;}
@@ -1310,7 +1302,7 @@
 
     <div class="crash-history-strip" id="crashHistoryStrip"></div>
 
-    <button class="crash-big-bet-btn" id="crashActionBtn" onclick="crashActionBtn()">Stavka qilish</button>
+    <button class="crash-big-bet-btn" id="crashActionBtn" onclick="crashActionBtn()">Tikish</button>
 
     <div class="hockey-players" id="crashPlayersList"></div>
   </section>
@@ -1656,11 +1648,11 @@
   </div>
 </div>
 
-<!-- RAKETA — STAVKA QILISH MODALI (TON / Sovg'a) -->
+<!-- RAKETA — TIKISH MODALI (TON / Sovg'a) -->
 <div class="crash-bet-overlay" id="crashBetOverlay" onclick="if(event.target===this) closeCrashBetModal()">
   <div class="crash-bet-sheet">
     <div class="crash-bet-sheet-head">
-      <h3>Stavka qilish</h3>
+      <h3>Tikish</h3>
       <button class="modal-close" style="position:static;" onclick="closeCrashBetModal()">×</button>
     </div>
 
@@ -1681,12 +1673,7 @@
         <button class="amt-btn" onclick="crashSetAmount(25, this)">25</button>
         <button class="amt-btn" onclick="crashSetAmount(50, this)">50</button>
       </div>
-      <div class="crash-auto-row">
-        <span class="lbl">Avto olish</span>
-        <div class="crash-toggle" id="crashAutoToggle" onclick="crashToggleAuto()"></div>
-      </div>
-      <input type="number" class="crash-bet-amount-input crash-auto-target" id="crashAutoTarget" value="2.00" step="0.1" min="1.01" placeholder="Multiplikator (masalan 2.00)">
-      <button class="crash-bet-confirm" id="crashTonConfirmBtn" onclick="crashPlaceBet()">Stavka qo'yish 🚀</button>
+      <button class="crash-bet-confirm" id="crashTonConfirmBtn" onclick="crashPlaceBet()">Tikish 🚀</button>
     </div>
 
     <!-- Sovg'a (NFT) bilan tikish -->
@@ -3401,7 +3388,6 @@ let crashCashoutBusy = false;
 let crashBetTab = 'ton';
 let crashGiftInventory = [];
 let crashGiftSelectedId = null;
-let crashAutoEnabled = false;
 
 let crashLocalTickInterval = null;
 function initCrashPage() {
@@ -3449,11 +3435,6 @@ function crashSwitchBetTab(tab) {
   document.getElementById('crashPanelTon').style.display = tab === 'ton' ? '' : 'none';
   document.getElementById('crashPanelGift').style.display = tab === 'gift' ? '' : 'none';
   if (tab === 'gift') loadCrashGiftGrid();
-}
-function crashToggleAuto() {
-  crashAutoEnabled = !crashAutoEnabled;
-  document.getElementById('crashAutoToggle').classList.toggle('on', crashAutoEnabled);
-  document.getElementById('crashAutoTarget').classList.toggle('show', crashAutoEnabled);
 }
 
 async function loadCrashGiftGrid() {
@@ -3597,16 +3578,6 @@ function renderCrashState() {
   renderCrashHistory();
   renderCrashPlayers();
   updateCrashActionBtn();
-
-  // Avto-olish: agar yoqilgan bo'lsa va joriy multiplikator maqsadga yetsa,
-  // avtomatik ravishda "OLISH" chaqiriladi.
-  if (crashState.status === 'running' && crashAutoEnabled) {
-    const mine = myCrashPlayer();
-    const target = parseFloat(document.getElementById('crashAutoTarget')?.value);
-    if (mine && !mine.cashedOutAt && target && mult >= target) {
-      crashCashOut();
-    }
-  }
 }
 
 function renderCrashPlayers() {
@@ -3649,8 +3620,8 @@ function updateCrashActionBtn() {
   btn.disabled = false;
 
   if (crashState.status === 'waiting') {
-    if (mine) { btn.textContent = 'Stavka qo\'yildi ✓'; btn.disabled = true; }
-    else btn.textContent = 'Stavka qilish';
+    if (mine) { btn.textContent = 'Tikildi ✓'; btn.disabled = true; }
+    else btn.textContent = 'Tikish';
   } else if (crashState.status === 'running') {
     if (mine && !mine.cashedOutAt) {
       btn.classList.add('crash-cashout-btn');

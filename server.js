@@ -316,6 +316,26 @@ const NFT_CATALOG = [
   { id: 'chill_flame', name: 'Chill Flame', custom_emoji_id: '5278575464607156333', sell_price: 3.9 },
   { id: 'bling_binky', name: 'Bling Binky', custom_emoji_id: '5276131087049858607', sell_price: 24 },
   { id: 'ice_cream', name: 'Ice Cream', custom_emoji_id: '5278640275663653377', sell_price: 3.9 },
+
+  // ---- Yangi qo'shilgan NFT'lar (2) ----
+  { id: 'vice_cream', name: 'Vice Cream', custom_emoji_id: '5278468799094361103', sell_price: 3.88 },
+  { id: 'victory_medal', name: 'Victory Medal', custom_emoji_id: '5278324105941128652', sell_price: 4.46 },
+  { id: 'easter_egg', name: 'Easter Egg', custom_emoji_id: '5276134888095914226', sell_price: 3.95 },
+  { id: 'stellar_rocket', name: 'Stellar Rocket', custom_emoji_id: '5278516614965272110', sell_price: 4.5 },
+  { id: 'artisan_brick', name: 'Artisan Brick', custom_emoji_id: '5278499937607255981', sell_price: 54.47 },
+  { id: 'jack_in_the_box', name: 'Jack-in-the-Box', custom_emoji_id: '5276355155493689822', sell_price: 4.45 },
+  { id: 'jolly_chimp', name: 'Jolly Chimp', custom_emoji_id: '5278689719327167443', sell_price: 6.84 },
+  { id: 'happy_brownie', name: 'Happy Brownie', custom_emoji_id: '5276333508858518495', sell_price: 4.34 },
+  { id: 'instant_ramen', name: 'Instant Ramen', custom_emoji_id: '5278422555181485200', sell_price: 4.28 },
+  { id: 'faith_amulet', name: 'Faith Amulet', custom_emoji_id: '5278375684203384644', sell_price: 5.28 },
+  { id: 'moon_pendant', name: 'Moon Pendant', custom_emoji_id: '5278326863310132266', sell_price: 6.31 },
+  { id: 'clover_pin', name: 'Clover Pin', custom_emoji_id: '5278469636612985475', sell_price: 4.64 },
+  { id: 'money_pot', name: 'Money Pot', custom_emoji_id: '5278641126067178076', sell_price: 4.49 },
+  { id: 'neko_helmet', name: 'Neko Helmet', custom_emoji_id: '5278701096695535210', sell_price: 37.81 },
+  { id: 'ionic_dryer', name: 'Ionic Dryer', custom_emoji_id: '5278738067774015440', sell_price: 15.1 },
+  { id: 'whip_cupcake', name: 'Whip Cupcake', custom_emoji_id: '5278508484592174929', sell_price: 4.38 },
+  { id: 'mousse_cake', name: 'Mousse Cake', custom_emoji_id: '5278666870101153854', sell_price: 4.58 },
+  { id: 'pretty_posy', name: 'Pretty Posy', custom_emoji_id: '5276468461025928085', sell_price: 4.64 },
 ];
 const NFT_BY_ID = new Map(NFT_CATALOG.map(i => [i.id, i]));
 const CASE_ITEM_IDS = ['teddy', 'heart_gift', 'gift_box', 'rose', 'cake', 'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond'];

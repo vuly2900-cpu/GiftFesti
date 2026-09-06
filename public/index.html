@@ -1309,6 +1309,11 @@
   <section class="page" id="page-tasks">
     <h1 class="title">Vazifalar</h1>
     <div class="banner">Vazifalarini bajaring va stars oling</div>
+
+    <p style="font-size:13px; font-weight:600; color:var(--text-dim); margin:14px 0 8px;">🔁 Kunlik vazifalar</p>
+    <div id="dailyTasksList"></div>
+
+    <p style="font-size:13px; font-weight:600; color:var(--text-dim); margin:18px 0 8px;">📋 Boshqa vazifalar</p>
     <div id="tasksList"></div>
   </section>
 
@@ -2006,6 +2011,9 @@ const CRASH_BET_API_URL = '/api/crash/bet';
 const CRASH_BET_NFT_API_URL = '/api/crash/bet_nft';
 const ADMIN_ACTION_API_URL = '/api/admin_action';
 const CLAIM_TASK_API_URL = '/api/claim_task';
+const DAILY_TASKS_API_URL = '/api/daily_tasks';
+const DAILY_TASK_INVITE_PROGRESS_URL = '/api/daily_task/invite_progress';
+const DAILY_TASK_GAME_REWARD = 0.5;
 const LEADERBOARD_API_URL = '/api/leaderboard';
 const TASKS_API_URL = '/api/tasks';
 const FRIENDS_API_URL = '/api/friends';
@@ -2662,7 +2670,7 @@ function goTo(pageName) {
   if (navBtn) navBtn.classList.add('active');
 
   if (pageName === 'rating') loadLeaderboard();
-  if (pageName === 'tasks') loadTasks();
+  if (pageName === 'tasks') { loadTasks(); loadDailyTasks(); }
   if (pageName === 'referral') loadReferral();
   if (pageName === 'profile') loadProfile();
   if (pageName === 'hockey') initHockeyPage();
@@ -2840,6 +2848,129 @@ function renderTasks(tasks) {
         `}
       </div>`;
   }).join('');
+}
+
+/* ===== Kunlik doimiy vazifalar: raketa/hokkey/baraban o'ynash + do'stlarga yuborish ===== */
+const DAILY_TASK_DEFS = [
+  { key: 'crash', icon: '🚀', title: '1 marta Raketa o\'ynang', game: 'crash' },
+  { key: 'hockey', icon: '🏒', title: '1 marta Hokkey o\'ynang', game: 'hockey' },
+  { key: 'drum', icon: '🥁', title: '1 marta Baraban o\'ynang', game: 'drum' },
+];
+let dailyTasksCountdownInterval = null;
+
+function fmtHms(ms) {
+  if (ms < 0) ms = 0;
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function renderDailyTasks(dt) {
+  const list = document.getElementById('dailyTasksList');
+  if (!list) return;
+  if (!dt) { list.innerHTML = '<p class="empty">Yuklab bo\'lmadi</p>'; return; }
+
+  const gameCards = DAILY_TASK_DEFS.map(def => {
+    const st = dt[def.key] || { done: false, resetAt: null };
+    const rewardHtml = `<div class="reward"><span class="coin-ico"></span> ${DAILY_TASK_GAME_REWARD}</div>`;
+    if (st.done) {
+      return `
+        <div class="card task-row" data-daily="${def.key}">
+          <div class="info">
+            <div class="ch-title">${def.icon} ${def.title}</div>
+            ${rewardHtml}
+          </div>
+          <button class="btn done" disabled>Bajarildi <span class="daily-reset-timer" data-reset="${st.resetAt}">${st.resetAt ? fmtHms(st.resetAt - Date.now()) : ''}</span></button>
+        </div>`;
+    }
+    return `
+      <div class="card task-row" data-daily="${def.key}">
+        <div class="info">
+          <div class="ch-title">${def.icon} ${def.title}</div>
+          ${rewardHtml}
+        </div>
+        <button class="btn" onclick="openGame('${def.game}')">O'ynash</button>
+      </div>`;
+  }).join('');
+
+  const inv = dt.invite || { count: 0, target: 3, done: false, resetAt: null };
+  const inviteCard = `
+    <div class="card task-row" data-daily="invite">
+      <div class="info">
+        <div class="ch-title">👥 3 ta do'stga yuboring</div>
+        <div class="reward"><span class="coin-ico"></span> ${DAILY_TASK_GAME_REWARD} &middot; ${inv.count}/${inv.target}</div>
+      </div>
+      ${inv.done
+        ? `<button class="btn done" disabled>Bajarildi <span class="daily-reset-timer" data-reset="${inv.resetAt}">${inv.resetAt ? fmtHms(inv.resetAt - Date.now()) : ''}</span></button>`
+        : `<button class="btn" onclick="sendInviteTask()">Yuborish</button>`}
+    </div>`;
+
+  list.innerHTML = gameCards + inviteCard;
+  startDailyTasksCountdown();
+}
+
+function startDailyTasksCountdown() {
+  if (dailyTasksCountdownInterval) clearInterval(dailyTasksCountdownInterval);
+  dailyTasksCountdownInterval = setInterval(() => {
+    let anyExpired = false;
+    document.querySelectorAll('#dailyTasksList .daily-reset-timer').forEach(el => {
+      const resetAt = Number(el.dataset.reset);
+      if (!resetAt) return;
+      const remain = resetAt - Date.now();
+      if (remain <= 0) { anyExpired = true; return; }
+      el.textContent = fmtHms(remain);
+    });
+    if (anyExpired) { clearInterval(dailyTasksCountdownInterval); loadDailyTasks(true); }
+  }, 1000);
+}
+
+async function loadDailyTasks(force = false) {
+  const list = document.getElementById('dailyTasksList');
+  if (!force && dataCache.dailyTasks && (Date.now() - dataCache.dailyTasks.ts) < 15000) {
+    renderDailyTasks(dataCache.dailyTasks.data);
+    return;
+  }
+  if (list && !list.innerHTML) list.innerHTML = '<p class="empty">Yuklanmoqda...</p>';
+  try {
+    const res = await fetch(DAILY_TASKS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' })
+    });
+    const data = await res.json();
+    if (!res.ok) { if (list) list.innerHTML = '<p class="empty">Yuklab bo\'lmadi</p>'; return; }
+    dataCache.dailyTasks = { data: data.daily_tasks, ts: Date.now() };
+    if (typeof data.balance === 'number') {
+      currentUserData.balance = data.balance;
+      syncBalanceDisplays(currentUserData.balance);
+    }
+    renderDailyTasks(data.daily_tasks);
+  } catch (e) { if (list) list.innerHTML = '<p class="empty">Yuklab bo\'lmadi</p>'; }
+}
+
+/* Do'stga yuborish: Telegramning o'z ulashish oynasini ochadi (do'stlarni
+   tanlab yuborish mumkin) va har bosishda progressni serverga yozadi. */
+function sendInviteTask() {
+  const refUrl = `https://t.me/${BOT_USERNAME}?start=${tgUser?.id || ''}`;
+  const shareText = "🎁 O'ynang, yutib sovg'alarni oling!";
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refUrl)}&text=${encodeURIComponent(shareText)}`;
+  if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
+  else window.open(shareUrl, '_blank');
+
+  fetch(DAILY_TASK_INVITE_PROGRESS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ initData: tg?.initData || '' })
+  }).then(r => r.json()).then(data => {
+    if (!data.ok) return;
+    dataCache.dailyTasks = { data: data.daily_tasks, ts: Date.now() };
+    if (typeof data.balance === 'number') {
+      currentUserData.balance = data.balance;
+      syncBalanceDisplays(currentUserData.balance);
+    }
+    renderDailyTasks(data.daily_tasks);
+  }).catch(() => {});
 }
 
 async function loadTasks(force = false) {

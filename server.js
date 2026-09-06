@@ -20,6 +20,10 @@ const WEBAPP_URL = (process.env.WEBAPP_URL || '').replace(/\/$/, '');
 const DB_FILE = path.join(__dirname, 'db.json');
 const REFERRAL_REWARD = 10;
 const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const DAILY_TASK_MS = 24 * 60 * 60 * 1000;
+const DAILY_GAME_TASK_REWARD = 0.5;
+const DAILY_INVITE_TASK_REWARD = 0.5;
+const DAILY_INVITE_TARGET = 3;
 const COINS_PER_STAR = 100; // Balansni to'ldirish narxi: 1 Telegram Stars = 100 coin
 
 /* ============================================================
@@ -48,7 +52,57 @@ function createUser(id, username) {
     nftInventory: {},      // itemId(NFT_CATALOG dagi) -> dona soni
     nftInstancePrices: {}, // itemId -> [narx1, narx2, ...] (raketa o'yinidan yutilgan NFT'larning haqiqiy narxi)
     nftInitialized: false, // starter (tekin) NFT'lar berilganmi
+    dailyTasks: {
+      crash: 0,   // oxirgi marta "raketa o'ynash" vazifasi uchun coin olingan vaqt (ms)
+      hockey: 0,  // oxirgi marta "hokkey o'ynash" vazifasi uchun coin olingan vaqt (ms)
+      drum: 0,    // oxirgi marta "baraban o'ynash" vazifasi uchun coin olingan vaqt (ms)
+      invite: { count: 0, claimedAt: 0 }, // do'stlarga yuborish: joriy 24soatlik davrdagi yuborishlar soni
+    },
   };
+}
+/* ---- Kunlik (har 24 soatda) doimiy vazifalar holatini клиентга tayyorlab beradi ---- */
+function ensureDailyTasks(user) {
+  if (!user.dailyTasks) {
+    user.dailyTasks = { crash: 0, hockey: 0, drum: 0, invite: { count: 0, claimedAt: 0 } };
+  }
+  if (!user.dailyTasks.invite) user.dailyTasks.invite = { count: 0, claimedAt: 0 };
+  return user.dailyTasks;
+}
+function getDailyTasksView(u) {
+  const dt = ensureDailyTasks(u);
+  const now = Date.now();
+  const gameView = (ts) => {
+    const done = !!ts && (now - ts) < DAILY_TASK_MS;
+    return { done, resetAt: done ? ts + DAILY_TASK_MS : null };
+  };
+  // Yuborish vazifasi: 24 soat o'tsa, hisoblagich avtomatik nolga tushadi (klient uchun ko'rsatiladi)
+  const inviteExpired = dt.invite.claimedAt && (now - dt.invite.claimedAt) >= DAILY_TASK_MS;
+  const inviteCount = inviteExpired ? 0 : dt.invite.count;
+  const inviteDone = inviteCount >= DAILY_INVITE_TARGET;
+  return {
+    crash: gameView(dt.crash),
+    hockey: gameView(dt.hockey),
+    drum: gameView(dt.drum),
+    invite: {
+      count: inviteCount,
+      target: DAILY_INVITE_TARGET,
+      done: inviteDone,
+      resetAt: (inviteDone && dt.invite.claimedAt) ? dt.invite.claimedAt + DAILY_TASK_MS : null,
+    },
+  };
+}
+/* ---- O'yin o'ynalganda (raketa/hokkey/baraban) kunlik vazifa mukofotini
+   (agar so'nggi 24 soat ichida allaqachon olinmagan bo'lsa) avtomatik beradi ---- */
+function maybeGrantDailyGameTask(user, game) {
+  const dt = ensureDailyTasks(user);
+  const now = Date.now();
+  const last = dt[game] || 0;
+  if (now - last >= DAILY_TASK_MS) {
+    dt[game] = now;
+    user.balance = round2(user.balance + DAILY_GAME_TASK_REWARD);
+    return true;
+  }
+  return false;
 }
 function serializeUser(u) {
   return {
@@ -61,6 +115,7 @@ function serializeUser(u) {
     completed_tasks: Array.from(u.completedTasks),
     lastCaseOpenedAt: u.lastCaseOpenedAt ? { seconds: Math.floor(u.lastCaseOpenedAt / 1000) } : null,
     isAdmin: u.isAdmin,
+    daily_tasks: getDailyTasksView(u),
   };
 }
 
@@ -93,6 +148,12 @@ function loadDb() {
         nftInventory: u.nftInventory || {},
         nftInstancePrices: u.nftInstancePrices || {},
         nftInitialized: u.nftInitialized || false,
+        dailyTasks: {
+          crash: (u.dailyTasks && u.dailyTasks.crash) || 0,
+          hockey: (u.dailyTasks && u.dailyTasks.hockey) || 0,
+          drum: (u.dailyTasks && u.dailyTasks.drum) || 0,
+          invite: (u.dailyTasks && u.dailyTasks.invite) || { count: 0, claimedAt: 0 },
+        },
       });
     });
     (data.friends || []).forEach(([k, v]) => friends.set(k, v));
@@ -601,6 +662,15 @@ app.get('/api/tasks', (req, res) => {
   res.json({ tasks: tasks.map(t => ({ id: t.id, channel_link: t.channel_link, channel_title: t.channel_title, stars_reward: t.stars_reward, type: t.type || 'channel' })) });
 });
 
+/* ---- Doimiy (har kuni) vazifalarning joriy holati: raketa/hokkey/baraban
+   o'ynalganmi va do'stlarga yuborish progressi. Vazifalar sahifasi
+   ochilganda va o'yin o'ynalgandan keyin balansni yangilash uchun
+   chaqiriladi. ---- */
+app.post('/api/daily_tasks', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  res.json({ ok: true, balance: user.balance, daily_tasks: getDailyTasksView(user) });
+});
+
 app.post('/api/claim_task', async (req, res) => {
   const user = requireUser(req, res); if (!user) return;
   const { taskId } = req.body || {};
@@ -619,6 +689,33 @@ app.post('/api/claim_task', async (req, res) => {
   user.completedTasks.add(taskId);
   user.balance += task.stars_reward;
   res.json({ ok: true, reward: task.stars_reward });
+});
+
+/* ---- Doimiy kunlik vazifa: "3 ta do'stga yuborish". Har "Yuborish"
+   bosilganda (foydalanuvchi ulash oynasini ochganda) +1 progress qo'shiladi;
+   3 taga yetganda 0.5 coin beriladi. 24 soatdan keyin qaytadan bajarish
+   mumkin (klientda ham, serverda ham vaqt tekshiriladi). ---- */
+app.post('/api/daily_task/invite_progress', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const dt = ensureDailyTasks(user);
+  const now = Date.now();
+
+  // Agar oldingi bajarilgan davrdan 24 soat o'tgan bo'lsa — hisoblagichni yangi davr uchun tozalaymiz
+  if (dt.invite.claimedAt && (now - dt.invite.claimedAt) >= DAILY_TASK_MS) {
+    dt.invite.count = 0;
+    dt.invite.claimedAt = 0;
+  }
+
+  let rewarded = false;
+  if (dt.invite.count < DAILY_INVITE_TARGET) {
+    dt.invite.count += 1;
+    if (dt.invite.count >= DAILY_INVITE_TARGET) {
+      dt.invite.claimedAt = now;
+      user.balance = round2(user.balance + DAILY_INVITE_TASK_REWARD);
+      rewarded = true;
+    }
+  }
+  res.json({ ok: true, balance: user.balance, rewarded, daily_tasks: getDailyTasksView(user) });
 });
 
 /* ============================================================
@@ -1432,6 +1529,7 @@ app.post('/api/place_bet', (req, res) => {
     state.bettingStartedAt = Date.now();
     startBettingTimer(game);
   }
+  maybeGrantDailyGameTask(user, game);
   emitState(game);
   res.json({ ok: true, balance: user.balance });
 });
@@ -1488,8 +1586,9 @@ app.post('/api/place_bet_nft', (req, res) => {
     state.bettingStartedAt = Date.now();
     startBettingTimer(game);
   }
+  maybeGrantDailyGameTask(user, game);
   emitState(game);
-  res.json({ ok: true, staked });
+  res.json({ ok: true, staked, balance: user.balance });
 });
 
 
@@ -1660,6 +1759,7 @@ app.post('/api/crash/bet', (req, res) => {
       id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt,
       betType: 'coin', betNfts: null,
     });
+    maybeGrantDailyGameTask(user, 'crash');
     emitCrashState();
     return res.json({ ok: true, balance: user.balance, queued: true });
   }
@@ -1671,6 +1771,7 @@ app.post('/api/crash/bet', (req, res) => {
     id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt,
     cashedOutAt: null, won: 0, wonNft: null, betType: 'coin', betNfts: null,
   });
+  maybeGrantDailyGameTask(user, 'crash');
   emitCrashState();
   res.json({ ok: true, balance: user.balance });
 });
@@ -1715,8 +1816,9 @@ app.post('/api/crash/bet_nft', (req, res) => {
     cashedOutAt: null, won: 0, wonNft: null, betType: 'nft', betNfts: staked,
   };
   if (queueMode) crashNextQueue.push(entry); else crashState.players.push(entry);
+  maybeGrantDailyGameTask(user, 'crash');
   emitCrashState();
-  res.json({ ok: true, staked, queued: queueMode });
+  res.json({ ok: true, staked, queued: queueMode, balance: user.balance });
 });
 
 /* ============================================================

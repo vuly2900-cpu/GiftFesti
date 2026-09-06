@@ -2800,6 +2800,26 @@ function goTo(pageName) {
     currentUnsubscribe();
     currentUnsubscribe = null;
   }
+  // BUG FIX: Xokkey toshining 60fps fizika animatsiyasi (physicsInterval)
+  // va yo'nalish o'qi animatsiyasi (hockeyArrowTimer) ilgari faqat o'z
+  // sahifasidagi holat orqali to'xtatilardi — agar foydalanuvchi raund
+  // davomida (~2-9s ichida) boshqa o'yinga (masalan, Raketa'ga) o'tib
+  // ketsa, bu interval fonda ishlashda davom etib, ikkinchi o'yin bilan
+  // birga CPU'ni band qilar va kuchsiz telefonlarda qotishga sabab
+  // bo'lardi. Endi sahifadan chiqishning o'zidayoq to'xtatiladi.
+  if (pageName !== 'hockey') {
+    if (physicsInterval) { clearInterval(physicsInterval); physicsInterval = null; }
+    if (hockeyArrowTimer) { clearInterval(hockeyArrowTimer); hockeyArrowTimer = null; }
+    puckAnimationRunning = false;
+  }
+  // BUG FIX: Baraban sahifasidan chiqilganda ham spin-tugash taymeri
+  // (drumSpinTimeout) to'xtatiladi — aks holda foydalanuvchi boshqa
+  // sahifada bo'lsa ham, g'olib banner/modal keyinroq to'satdan chiqib
+  // qolardi.
+  if (pageName !== 'drum' && typeof drumSpinTimeout !== 'undefined' && drumSpinTimeout) {
+    clearTimeout(drumSpinTimeout);
+    drumSpinTimeout = null;
+  }
   if (pageName !== 'case' && caseCountdownInterval) {
     clearInterval(caseCountdownInterval);
     caseCountdownInterval = null;
@@ -4939,6 +4959,7 @@ let hockeyRoundNftItemsSnapshot = [];
 let hockeyZoneRects = null;
 let currentUnsubscribe = null;
 let physicsInterval = null;
+let hockeyArrowTimer = null;
 let bettingCountdownInterval = null;
 // MUHIM (bug fix): faqat hockeyState.status'ni oldingi holat bilan solishtirish
 // yetarli emas edi — agar foydalanuvchi hokkey sahifasidan chiqib, o'yin hali
@@ -5037,6 +5058,7 @@ function resetPuckVisual() {
   const arena = document.getElementById('hockeyArena');
   
   if (physicsInterval) { clearInterval(physicsInterval); physicsInterval = null; }
+  if (hockeyArrowTimer) { clearInterval(hockeyArrowTimer); hockeyArrowTimer = null; }
   puckAnimationRunning = false;
   puck.style.display = 'none';
   arrow.style.display = 'none';
@@ -5237,12 +5259,13 @@ function startPuckPhysicsAnimation(seed) {
   let startTime = Date.now();
   cd.textContent = 'Yo\'nalish aniqlanmoqda...';
   
-  let arrowTimer = setInterval(() => {
+  hockeyArrowTimer = setInterval(() => {
     arrowAngle += 36;
     arrow.style.transform = `translate(0, -50%) rotate(${arrowAngle}deg)`;
     
     if (Date.now() - startTime >= 2000) {
-      clearInterval(arrowTimer);
+      clearInterval(hockeyArrowTimer);
+      hockeyArrowTimer = null;
       arrow.style.transform = `translate(0, -50%) rotate(${angle}deg)`;
       
       setTimeout(() => {

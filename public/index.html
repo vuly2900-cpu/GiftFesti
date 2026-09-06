@@ -244,6 +244,7 @@
     background:var(--gold); color:#1A1400; cursor:pointer;
   }
   .btn.secondary{background:var(--surface-2); color:var(--text); border:1px solid var(--border);}
+  .btn.secondary.active{background:var(--gold); color:#1A1400; border-color:var(--gold);}
   .btn.danger{background:var(--danger); color:#FFF;}
   .btn.done{background:var(--success); color:#06231A;}
   .btn:disabled{opacity:.6; cursor:not-allowed;}
@@ -277,6 +278,38 @@
   .friend-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:14px;}
   .friend-row .avatar{width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--surface-2); flex-shrink:0;}
   .friend-row .plus-stars{margin-left:auto; color:var(--success); font-size:12px; font-weight:600;}
+
+  /* PROFIL: Promokod (kvadrat) + Referal (kvadrat tugma) qatori */
+  .profile-quick-row{display:flex; gap:10px; margin-bottom:12px; align-items:stretch;}
+  .profile-quick-row .card{flex:1; margin-bottom:0; display:flex; flex-direction:column; justify-content:center;}
+  .ref-square-btn{
+    width:84px; flex-shrink:0; background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; cursor:pointer; color:var(--text); padding:0;
+  }
+  .ref-square-btn .ic{font-size:24px;}
+  .ref-square-btn .lbl{font-size:11px; font-weight:700; color:var(--text-dim);}
+  .ref-square-btn:active{opacity:.75;}
+
+  /* KONKURS sahifasi */
+  .konkurs-card{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px; margin-bottom:14px;}
+  .konkurs-card .k-head{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  .konkurs-card .k-prize-ic{width:46px; height:46px; border-radius:12px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; overflow:hidden;}
+  .konkurs-card .k-prize-ic img, .konkurs-card .k-prize-ic .lottie-box{width:100%; height:100%; object-fit:contain;}
+  .konkurs-card .k-title{font-size:15px; font-weight:700;}
+  .konkurs-card .k-sub{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .konkurs-card .k-desc{font-size:12.5px; color:var(--text-dim); margin:8px 0;}
+  .konkurs-badge{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:6px;}
+  .konkurs-badge.free{background:rgba(46,204,113,.15); color:var(--success);}
+  .konkurs-badge.paid{background:rgba(232,185,35,.15); color:var(--gold);}
+  .konkurs-badge.finished{background:rgba(255,255,255,.08); color:var(--text-dim);}
+  .konkurs-stats-row{display:flex; justify-content:space-between; font-size:12px; color:var(--text-dim); margin:10px 0; padding-top:8px; border-top:1px solid var(--border);}
+  .konkurs-ticket-row{display:flex; gap:8px; margin-top:10px;}
+  .konkurs-ticket-row input{flex:1; min-width:0;}
+  .konkurs-stars-row{display:flex; gap:8px; margin-top:8px;}
+  .konkurs-winners{margin-top:10px; padding-top:8px; border-top:1px solid var(--border); font-size:12.5px; color:var(--text-dim);}
+  .konkurs-winners b{color:var(--gold);}
+  .konkurs-req{font-size:11.5px; color:var(--text-dim); margin-top:6px;}
 
   .profile-head{text-align:center; margin-bottom:18px;}
   .profile-head img.avatar{width:84px; height:84px; border-radius:50%; object-fit:cover; background:var(--surface-2); border:2px solid var(--gold-dim);}
@@ -1625,20 +1658,10 @@
     <p class="case-odds-note">G'olib gift avtomatik sotiladi va <span class="coin-ico"></span> balansingizga tushadi</p>
   </section>
 
-  <section class="page" id="page-referral">
-    <h1 class="title">Referal</h1>
-    <p class="subtitle">Do'st taklif qiling va 10 <span class="coin-ico"></span> oling</p>
-    <div class="link-box">
-      <span id="refLink">yuklanmoqda...</span>
-      <button class="btn secondary" onclick="copyRefLink()">Nusxalash</button>
-    </div>
-    <div class="card">
-      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <span style="color:var(--text-dim); font-size:13px;">Jami taklif qilingan</span>
-        <span class="mono" style="font-weight:600;" id="refTotal">0</span>
-      </div>
-      <div id="friendsList"></div>
-    </div>
+  <section class="page" id="page-konkurs">
+    <h1 class="title">Konkurs</h1>
+    <p class="subtitle">NFT sovg'alar uchun konkurslarda qatnashing</p>
+    <div id="konkursList"><p class="empty">Yuklanmoqda...</p></div>
   </section>
 
   <section class="page" id="page-profile">
@@ -1664,18 +1687,44 @@
       </div>
     </div>
 
-    <div class="card">
-      <p style="font-size:13px; font-weight:600; margin-bottom:8px;">Promokod</p>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="promoInput" placeholder="Kodni kiriting">
-        <button class="btn" onclick="activatePromo()">Faollashtirish</button>
+    <div class="profile-quick-row">
+      <div class="card promo-square">
+        <p style="font-size:13px; font-weight:600; margin-bottom:8px;">Promokod</p>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="promoInput" placeholder="Kodni kiriting">
+          <button class="btn" onclick="activatePromo()">Faollashtirish</button>
+        </div>
+        <p id="promoMsg" style="font-size:12px; margin-top:8px; color:var(--text-dim);"></p>
       </div>
-      <p id="promoMsg" style="font-size:12px; margin-top:8px; color:var(--text-dim);"></p>
+      <button class="ref-square-btn" onclick="openReferralModal()">
+        <span class="ic">👥</span>
+        <span class="lbl">Referal</span>
+      </button>
     </div>
 
     <button class="btn" id="adminOpenerBtn" style="width:100%; display:none; background:var(--surface-2); border:1px solid var(--border); color:var(--gold); padding:12px; font-size:14px;" onclick="toggleAdminModal(true)">⚙️ Admin Panelni ochish</button>
   </section>
 </main>
+
+<!-- REFERAL MODAL -->
+<div class="modal-overlay" id="referralModal" onclick="if(event.target===this) closeReferralModal()">
+  <div class="modal-window">
+    <button class="modal-close" onclick="closeReferralModal()">×</button>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:6px;">👥 Referal</h2>
+    <p class="subtitle" style="margin-bottom:14px;">Do'st taklif qiling va 10 <span class="coin-ico"></span> oling</p>
+    <div class="link-box">
+      <span id="refLink">yuklanmoqda...</span>
+      <button class="btn secondary" onclick="copyRefLink()">Nusxalash</button>
+    </div>
+    <div class="card" style="margin-bottom:0;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="color:var(--text-dim); font-size:13px;">Jami taklif qilingan</span>
+        <span class="mono" style="font-weight:600;" id="refTotal">0</span>
+      </div>
+      <div id="friendsList"></div>
+    </div>
+  </div>
+</div>
 
 <!-- O'YIN TARIXI MODAL -->
 <div class="modal-overlay" id="historyModal">
@@ -1863,6 +1912,33 @@
     </div>
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎉 Yangi Konkurs yaratish</p>
+      <input type="text" id="a_konkursTitle" placeholder="Konkurs nomi">
+      <input type="text" id="a_konkursDesc" placeholder="Tavsif (ixtiyoriy)" style="margin-top:8px;">
+      <select id="a_konkursNftSelect" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+        <option value="">Yuklanmoqda...</option>
+      </select>
+      <input type="number" id="a_konkursPrizeCount" placeholder="Nechta g'olibga beriladi" value="1" min="1" style="margin-top:8px;">
+
+      <div class="admin-subbtn-grid" style="margin-top:10px;">
+        <button class="btn secondary active" id="a_konkursTypeFreeBtn" onclick="adminKonkursSetType('free')">🎁 Bepul</button>
+        <button class="btn secondary" id="a_konkursTypePaidBtn" onclick="adminKonkursSetType('paid')">💰 Pullik</button>
+      </div>
+      <input type="number" id="a_konkursTicketPrice" placeholder="Bitta bilet narxi (coin)" style="display:none; margin-top:8px;" min="0.1" step="0.1">
+
+      <select id="a_konkursRequireSub" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;" onchange="adminKonkursToggleRequireChannel()">
+        <option value="">Majburiy obuna talab qilinmasin</option>
+        <option value="yes">📢 Majburiy kanalga obuna talab qilinsin</option>
+      </select>
+      <input type="text" id="a_konkursRequireChannel" placeholder="Kanal (masalan: @GiftFesti)" style="display:none; margin-top:8px;">
+
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateContest()">Konkurs yaratish</button>
+
+      <p style="font-size:12px; font-weight:600; margin:12px 0 6px; color:var(--text-dim);">Faol / yakunlangan konkurslar</p>
+      <div id="adminContestsList"><p class="empty" style="font-size:12px;">Yuklash uchun panelni oching...</p></div>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
       <p style="font-size:13px; font-weight:600; margin-bottom:4px;">📋 Yangi vazifa qo'shish</p>
       <select id="a_taskType" style="width:100%; margin-bottom:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
         <option value="channel">📢 Kanal (obuna tekshiriladi)</option>
@@ -1911,7 +1987,7 @@
   <button class="navbtn" data-page="rating" onclick="goTo('rating')"><span class="ic">🏆</span>Reyting</button>
   <button class="navbtn" data-page="tasks" onclick="goTo('tasks')"><span class="ic">📋</span>Vazifalar</button>
   <button class="navbtn" data-page="play" onclick="goTo('play')"><span class="ic">🎮</span>O'ynash</button>
-  <button class="navbtn" data-page="referral" onclick="goTo('referral')"><span class="ic">👥</span>Referal</button>
+  <button class="navbtn" data-page="konkurs" onclick="goTo('konkurs')"><span class="ic">🎉</span>Konkurs</button>
   <button class="navbtn" data-page="profile" onclick="goTo('profile')"><span class="ic">👤</span>Profil</button>
 </nav>
 
@@ -2021,6 +2097,10 @@ const GAME_HISTORY_API_URL = '/api/game_history';
 const INVENTORY_API_URL = '/api/inventory';
 const SELL_NFT_API_URL = '/api/sell_nft';
 const NFT_CATALOG_API_URL = '/api/nft_catalog';
+const CONTESTS_API_URL = '/api/contests';
+const CONTEST_JOIN_API_URL = '/api/contest/join';
+const CONTEST_BUY_TICKETS_API_URL = '/api/contest/buy_tickets';
+const CONTEST_TICKET_INVOICE_API_URL = '/api/contest/create_ticket_invoice';
 const CHANNEL_URL = 'https://t.me/GiftFesti';
 let caseSubscriptionVerified = false; // shu sessiyada bir marta tekshirilgach true bo'ladi
 
@@ -2671,7 +2751,7 @@ function goTo(pageName) {
 
   if (pageName === 'rating') loadLeaderboard();
   if (pageName === 'tasks') { loadTasks(); loadDailyTasks(); }
-  if (pageName === 'referral') loadReferral();
+  if (pageName === 'konkurs') loadContests();
   if (pageName === 'profile') loadProfile();
   if (pageName === 'hockey') initHockeyPage();
   if (pageName === 'drum') initDrumPage();
@@ -3025,6 +3105,188 @@ async function claimTask(taskId, reward, btn) {
   }
 }
 
+/* ==================== KONKURS (Contest) ==================== */
+let contestsData = [];
+const contestPrizeIconCache = new Map(); // itemId -> catalog item (name, custom_emoji_id, is_video)
+
+async function loadContests() {
+  const list = document.getElementById('konkursList');
+  list.innerHTML = '<p class="empty">Yuklanmoqda...</p>';
+  try {
+    const [catalog] = await Promise.all([ensureNftCatalogLoaded()]);
+    Object.values(catalog).forEach(it => contestPrizeIconCache.set(it.id, it));
+    const res = await fetch(`${CONTESTS_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`);
+    const data = await res.json();
+    contestsData = data.contests || [];
+    renderContests();
+  } catch (e) {
+    console.error(e);
+    list.innerHTML = '<p class="empty">Yuklab bo\'lmadi</p>';
+  }
+}
+
+function renderContests() {
+  const list = document.getElementById('konkursList');
+  if (!contestsData.length) { list.innerHTML = '<p class="empty">Hozircha faol konkurslar yo\'q</p>'; return; }
+
+  list.innerHTML = contestsData.map(c => {
+    const item = contestPrizeIconCache.get(c.itemId);
+    const iconAnimId = `konkursIcon_${c.id}`;
+    const badge = c.status === 'finished'
+      ? `<span class="konkurs-badge finished">Yakunlangan</span>`
+      : (c.type === 'paid' ? `<span class="konkurs-badge paid">💰 Pullik</span>` : `<span class="konkurs-badge free">🎁 Bepul</span>`);
+
+    let body = '';
+    if (c.status === 'finished') {
+      const winnersHtml = (c.winners && c.winners.length)
+        ? c.winners.map(w => `<div>🏆 <b>${w.username}</b> — ${w.itemName}</div>`).join('')
+        : `<div>G'olib aniqlanmadi (ishtirokchi bo'lmagan)</div>`;
+      body = `<div class="konkurs-winners">${winnersHtml}</div>`;
+    } else if (c.type === 'free') {
+      body = c.joined
+        ? `<button class="btn done" style="width:100%; margin-top:10px;" disabled>✅ Qatnashyapsiz</button>`
+        : `<button class="btn" style="width:100%; margin-top:10px;" onclick="joinContest('${c.id}', this)">🎉 Bepul qatnashish</button>`;
+    } else {
+      body = `
+        <div class="konkurs-ticket-row">
+          <input type="number" min="1" value="1" id="konkursTicketInput_${c.id}" placeholder="Bilet soni">
+          <button class="btn" onclick="buyContestTickets('${c.id}', this)">💰 Coin bilan olish</button>
+        </div>
+        <div class="konkurs-stars-row">
+          <input type="number" min="1" value="1" id="konkursStarsInput_${c.id}" placeholder="⭐ Stars soni">
+          <button class="btn secondary" onclick="buyContestTicketsStars('${c.id}', this)">⭐ Stars bilan olish</button>
+        </div>
+        <p class="konkurs-req" style="color:var(--gold);">1 ⭐ = ${CONTEST_TICKET_STARS_RATE_DISPLAY} ta bilet</p>
+        ${c.myTickets ? `<p class="konkurs-req">🎟 Sizning biletlaringiz: <b style="color:var(--gold);">${c.myTickets}</b></p>` : ''}
+      `;
+    }
+
+    return `
+      <div class="konkurs-card">
+        <div class="k-head">
+          <div class="k-prize-ic"><div class="anim-slot" id="${iconAnimId}"></div></div>
+          <div style="flex:1;">
+            <div class="k-title">${c.title}</div>
+            <div class="k-sub">${badge} &nbsp; Sovg'a: ${c.itemName || c.itemId} × ${c.prizeCount}</div>
+          </div>
+        </div>
+        ${c.description ? `<div class="k-desc">${c.description}</div>` : ''}
+        ${c.requireLabel ? `<p class="konkurs-req">${c.requireLabel}</p>` : ''}
+        <div class="konkurs-stats-row">
+          <span>👥 Ishtirokchilar: ${c.participantsCount}</span>
+          <span>🎟 Jami biletlar: ${c.totalTickets}</span>
+        </div>
+        ${body}
+      </div>
+    `;
+  }).join('');
+
+  contestsData.forEach(c => {
+    const item = contestPrizeIconCache.get(c.itemId);
+    const el = document.getElementById(`konkursIcon_${c.id}`);
+    if (item && el) mountAnimatedEmoji(el, item.custom_emoji_id, item.is_video, `k_${c.id}`);
+  });
+}
+
+async function joinContest(contestId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const res = await fetch(CONTEST_JOIN_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', contestId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      const msgs = {
+        NOT_SUBSCRIBED: "Avval majburiy kanalga a'zo bo'ling!",
+        ALREADY_JOINED: 'Siz allaqachon qatnashyapsiz!',
+        FINISHED: 'Bu konkurs allaqachon yakunlangan!',
+      };
+      alert(msgs[data.error] || 'Xatolik yuz berdi!');
+      loadContests();
+      return;
+    }
+    alert("🎉 Konkursda muvaffaqiyatli qatnashdingiz!");
+    loadContests();
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
+    loadContests();
+  }
+}
+
+async function buyContestTickets(contestId, btn) {
+  const input = document.getElementById(`konkursTicketInput_${contestId}`);
+  const tickets = Math.max(1, parseInt(input?.value) || 0);
+  if (!tickets) return;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const res = await fetch(CONTEST_BUY_TICKETS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', contestId, tickets }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      const msgs = {
+        NOT_SUBSCRIBED: "Avval majburiy kanalga a'zo bo'ling!",
+        INSUFFICIENT_BALANCE: 'Balansingiz yetarli emas!',
+        FINISHED: 'Bu konkurs allaqachon yakunlangan!',
+        INVALID_AMOUNT: "Bilet sonini to'g'ri kiriting!",
+      };
+      alert(msgs[data.error] || 'Xatolik yuz berdi!');
+      return;
+    }
+    currentUserData.balance = data.balance;
+    syncBalanceDisplays(currentUserData.balance);
+    alert(`🎟 ${tickets} ta bilet sotib olindi!`);
+    loadContests();
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💰 Coin bilan olish'; }
+  }
+}
+
+const CONTEST_TICKET_STARS_RATE_DISPLAY = 100; // faqat ko'rsatish uchun; haqiqiy hisob-kitob serverda
+
+async function buyContestTicketsStars(contestId, btn) {
+  const input = document.getElementById(`konkursStarsInput_${contestId}`);
+  const stars = Math.max(1, parseInt(input?.value) || 0);
+  if (!stars) return;
+  if (!tg || typeof tg.openInvoice !== 'function') {
+    alert("To'lov faqat Telegram ilovasi ichida ishlaydi. Iltimos, botni Telegram orqali oching.");
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  let data;
+  try {
+    const res = await fetch(CONTEST_TICKET_INVOICE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', contestId, stars }),
+    });
+    data = await res.json();
+  } catch (e) {
+    console.error(e);
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '⭐ Stars bilan olish'; }
+  if (!data || !data.ok) {
+    alert("To'lov havolasini yaratishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
+    return;
+  }
+  tg.openInvoice(data.link, (status) => {
+    if (status === 'paid') {
+      setTimeout(() => { loadContests(); }, 1200);
+      alert(`🎉 To'lov muvaffaqiyatli! ${data.tickets} ta bilet oldingiz.`);
+    } else if (status === 'failed') {
+      alert("To'lov amalga oshmadi. Qayta urinib ko'ring.");
+    }
+  });
+}
+
 async function loadReferral(force = false) {
   const link = document.getElementById('refLink');
   const friendsList = document.getElementById('friendsList');
@@ -3059,6 +3321,14 @@ async function loadReferral(force = false) {
         </div>`;
     }).join('');
   } catch (e) { friendsList.innerHTML = '<p class="empty">Yuklab bo\'lmadi</p>'; }
+}
+
+function openReferralModal() {
+  document.getElementById('referralModal').classList.add('active');
+  loadReferral();
+}
+function closeReferralModal() {
+  document.getElementById('referralModal').classList.remove('active');
 }
 
 function copyRefLink() {
@@ -3411,7 +3681,7 @@ async function sellNft(itemId, sellPrice) {
 
 function toggleAdminModal(show) {
   const modal = document.getElementById('adminModal');
-  if(show) { modal.classList.add('active'); loadAdminTasksList(); loadAdminNftSelect(); loadAdminLeaderboardEndDisplay(); }
+  if(show) { modal.classList.add('active'); loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
   else modal.classList.remove('active');
 }
 
@@ -3695,6 +3965,106 @@ async function adminCreateVoucher() {
     document.getElementById('a_voucherRequireTarget').value = '';
     adminVoucherToggleRequireTarget();
   } catch (e) { console.error(e); alert("Xatolik yuz berdi! Voucher yaratilmadi."); }
+}
+
+/* ==================== ADMIN: KONKURS boshqaruvi ==================== */
+let adminKonkursType = 'free';
+
+function adminKonkursSetType(type) {
+  adminKonkursType = type;
+  document.getElementById('a_konkursTypeFreeBtn').classList.toggle('active', type === 'free');
+  document.getElementById('a_konkursTypePaidBtn').classList.toggle('active', type === 'paid');
+  document.getElementById('a_konkursTicketPrice').style.display = type === 'paid' ? 'block' : 'none';
+}
+
+function adminKonkursToggleRequireChannel() {
+  const on = document.getElementById('a_konkursRequireSub').value === 'yes';
+  const input = document.getElementById('a_konkursRequireChannel');
+  input.style.display = on ? 'block' : 'none';
+  if (!on) input.value = '';
+}
+
+async function loadAdminKonkursNftSelect() {
+  const select = document.getElementById('a_konkursNftSelect');
+  try {
+    const res = await fetch(NFT_CATALOG_API_URL);
+    const data = await res.json();
+    if (!data.ok) throw new Error('server_error');
+    select.innerHTML = data.items.map(it =>
+      `<option value="${it.id}">${it.name} (${it.sell_price} ⭐)</option>`
+    ).join('');
+  } catch (e) {
+    console.error(e);
+    select.innerHTML = '<option value="">Yuklab bo\'lmadi</option>';
+  }
+}
+
+async function adminCreateContest() {
+  const title = document.getElementById('a_konkursTitle').value.trim();
+  const description = document.getElementById('a_konkursDesc').value.trim();
+  const itemId = document.getElementById('a_konkursNftSelect').value;
+  const prizeCount = parseInt(document.getElementById('a_konkursPrizeCount').value) || 1;
+  const type = adminKonkursType;
+  const ticketPrice = type === 'paid' ? parseFloat(document.getElementById('a_konkursTicketPrice').value) : null;
+  const requireOn = document.getElementById('a_konkursRequireSub').value === 'yes';
+  const requireChannel = requireOn ? document.getElementById('a_konkursRequireChannel').value.trim() : null;
+
+  if (!title || !itemId) { alert("Konkurs nomi va NFT sovg'ani tanlang!"); return; }
+  if (type === 'paid' && (!ticketPrice || ticketPrice <= 0)) { alert("Bilet narxini to'g'ri kiriting!"); return; }
+  if (requireOn && !requireChannel) { alert("Majburiy kanal manzilini kiriting!"); return; }
+
+  try {
+    await callAdminAction('create_contest', { title, description, itemId, prizeCount, type, ticketPrice, requireChannel });
+    alert(`"${title}" konkursi yaratildi!`);
+    document.getElementById('a_konkursTitle').value = '';
+    document.getElementById('a_konkursDesc').value = '';
+    document.getElementById('a_konkursPrizeCount').value = '1';
+    document.getElementById('a_konkursTicketPrice').value = '';
+    document.getElementById('a_konkursRequireSub').value = '';
+    adminKonkursToggleRequireChannel();
+    loadAdminContestsList();
+  } catch (e) { console.error(e); alert('Xatolik yuz berdi!'); }
+}
+
+async function loadAdminContestsList() {
+  const box = document.getElementById('adminContestsList');
+  box.innerHTML = '<p class="empty" style="font-size:12px;">Yuklanmoqda...</p>';
+  try {
+    const res = await fetch(CONTESTS_API_URL);
+    const data = await res.json();
+    const list = data.contests || [];
+    if (!list.length) { box.innerHTML = '<p class="empty" style="font-size:12px;">Konkurslar mavjud emas</p>'; return; }
+    box.innerHTML = list.map(c => `
+      <div class="admin-task-row">
+        <div class="info">
+          <div class="ttl">${c.title} ${c.status === 'finished' ? '(yakunlangan)' : ''}</div>
+          <div class="rwd">${c.type === 'paid' ? '💰 Pullik' : '🎁 Bepul'} · ${c.itemName} ×${c.prizeCount} · 👥 ${c.participantsCount} · 🎟 ${c.totalTickets}</div>
+        </div>
+        ${c.status === 'active' ? `<button class="btn secondary" style="padding:6px 10px; font-size:11px;" onclick="adminFinishContest('${c.id}')">Yakunlash</button>` : ''}
+        <button class="del-btn" onclick="adminDeleteContest('${c.id}')">×</button>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = '<p class="empty" style="font-size:12px;">Yuklab bo\'lmadi</p>';
+  }
+}
+
+async function adminFinishContest(contestId) {
+  if (!confirm("Konkursni yakunlab, g'olib(lar)ni aniqlaymizmi? Bu amalni ortga qaytarib bo'lmaydi.")) return;
+  try {
+    await callAdminAction('finish_contest', { contestId });
+    alert("Konkurs yakunlandi, g'olib(lar)ga NFT berildi!");
+    loadAdminContestsList();
+  } catch (e) { console.error(e); alert('Xatolik yuz berdi!'); }
+}
+
+async function adminDeleteContest(contestId) {
+  if (!confirm("Bu konkursni o'chirmoqchimisiz?")) return;
+  try {
+    await callAdminAction('delete_contest', { contestId });
+    loadAdminContestsList();
+  } catch (e) { console.error(e); alert('Xatolik yuz berdi!'); }
 }
 
 async function adminAddTask() {

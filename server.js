@@ -25,6 +25,7 @@ const DAILY_GAME_TASK_REWARD = 0.5;
 const DAILY_INVITE_TASK_REWARD = 0.5;
 const DAILY_INVITE_TARGET = 3;
 const COINS_PER_STAR = 100; // Balansni to'ldirish narxi: 1 Telegram Stars = 100 coin
+const CONTEST_TICKET_STARS_RATE = 100; // Konkurs: 1 Telegram Stars = 100 ta bilet
 
 /* ============================================================
    MA'LUMOTLAR BAZASI (in-memory, db.json ga davriy saqlanadi)
@@ -35,6 +36,11 @@ let tasks = [];              // [{id, channel_link, channel_title, stars_reward}
 let promos = [];             // [{code, reward, maxUses, used, usedBy:Set}]
 let vouchers = [];           // [{id, reward, maxUses, used, usedBy:Set, requireType, requireTarget, requireLabel, createdAt}]
 let leaderboardEndAt = null; // Reyting tugash vaqti (ms, epoch) — admin panel orqali belgilanadi
+// Konkurslar: admin tomonidan yaratiladi, NFT sovg'a sifatida beriladi.
+// { id, title, description, itemId, prizeCount, type:'free'|'paid', ticketPrice,
+//   requireChannel, status:'active'|'finished', participants:[{userId,tickets}],
+//   winners: [{userId,username,itemId,itemName}]|null, createdAt, endedAt }
+let contests = [];
 const gameHistory = { hockey: [], drum: [], crash: [] };
 // Telegram Stars orqali balans to'ldirishda bir xil to'lovni ikki marta
 // kreditlab qo'ymaslik uchun qayta ishlangan telegram_payment_charge_id'lar:
@@ -127,6 +133,7 @@ function serializeState() {
     tasks,
     promos: promos.map(p => ({ ...p, usedBy: Array.from(p.usedBy) })),
     vouchers: vouchers.map(v => ({ ...v, usedBy: Array.from(v.usedBy) })),
+    contests,
     gameHistory,
     gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number },
     leaderboardEndAt,
@@ -160,6 +167,7 @@ function loadDb() {
     tasks = data.tasks || [];
     promos = (data.promos || []).map(p => ({ ...p, usedBy: new Set(p.usedBy || []) }));
     vouchers = (data.vouchers || []).map(v => ({ ...v, usedBy: new Set(v.usedBy || []) }));
+    contests = (data.contests || []).map(c => ({ ...c, participants: c.participants || [], winners: c.winners || null }));
     if (data.gameHistory) Object.assign(gameHistory, data.gameHistory);
     if (data.gameNumbers) {
       hockeyState.game_number = data.gameNumbers.hockey || 1;
@@ -273,6 +281,50 @@ async function getBotUsername() {
     }
   } catch (e) { console.error('getBotUsername xatolik:', e.message); }
   return null;
+}
+
+/* ---- KONKURS: yordamchi funksiyalar ---- */
+function contestRequireLabel(c) {
+  return c.requireChannel ? `📢 Majburiy obuna: ${c.requireChannel}` : null;
+}
+function serializeContest(c, user) {
+  const uid = user ? String(user.id) : null;
+  const myEntry = uid ? c.participants.find(p => p.userId === uid) : null;
+  const totalTickets = c.participants.reduce((s, p) => s + p.tickets, 0);
+  const item = NFT_BY_ID.get(c.itemId);
+  return {
+    id: c.id,
+    title: c.title,
+    description: c.description || '',
+    type: c.type,
+    ticketPrice: c.ticketPrice || 0,
+    itemId: c.itemId,
+    itemName: item ? item.name : '',
+    prizeCount: c.prizeCount,
+    requireChannel: c.requireChannel || null,
+    requireLabel: contestRequireLabel(c),
+    status: c.status,
+    participantsCount: c.participants.length,
+    totalTickets,
+    myTickets: myEntry ? myEntry.tickets : 0,
+    joined: !!myEntry,
+    winners: c.winners || null,
+    createdAt: c.createdAt,
+    endedAt: c.endedAt || null,
+  };
+}
+/* ---- Vazn (bilet soni)ga qarab, qaytarilmasdan tasodifiy g'oliblarni tanlash
+   (Efraimidis–Spirakis A-Res algoritmi) — ko'p bilet olgan ishtirokchining
+   yutish ehtimoli yuqoriroq, lekin massivni ko'paytirmasdan (xotira/tezlik
+   jihatidan xavfsiz, minglab bilet bo'lsa ham) ishlaydi. ---- */
+function pickWeightedWinners(participants, count) {
+  if (!participants.length || count <= 0) return [];
+  const withKeys = participants.map(p => ({
+    p,
+    key: Math.pow(Math.random(), 1 / Math.max(1, p.tickets)),
+  }));
+  withKeys.sort((a, b) => b.key - a.key);
+  return withKeys.slice(0, count).map(w => w.p);
 }
 
 function voucherRequireLabel(v) {
@@ -906,6 +958,130 @@ app.post('/api/redeem_promo', (req, res) => {
 });
 
 /* ============================================================
+   KONKURS (Contest) — admin NFT sovg'a qo'yib konkurs yaratadi.
+   Bepul konkurs: bitta bilet bilan bepul qatnashish.
+   Pullik konkurs: coin (yoki Telegram Stars) evaziga hohlagancha
+   bilet sotib olish mumkin — g'olib(lar) bilet sonlariga qarab
+   tasodifiy tanlanadi.
+   ============================================================ */
+app.get('/api/contests', (req, res) => {
+  let user = null;
+  const initData = req.query.initData;
+  if (initData) {
+    const tgUser = getTgUserFromInitData(String(initData));
+    if (tgUser) user = users.get(String(tgUser.id));
+  }
+  const list = contests.slice().sort((a, b) => b.createdAt - a.createdAt).map(c => serializeContest(c, user));
+  res.json({ contests: list });
+});
+
+app.post('/api/contest/join', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { contestId } = req.body || {};
+  const c = contests.find(x => x.id === contestId);
+  if (!c) return res.status(404).json({ error: 'NOT_FOUND' });
+  if (c.status !== 'active') return res.status(400).json({ error: 'FINISHED' });
+  if (c.type !== 'free') return res.status(400).json({ error: 'NOT_FREE' });
+  const uid = String(user.id);
+  if (c.participants.some(p => p.userId === uid)) return res.status(400).json({ error: 'ALREADY_JOINED' });
+
+  if (c.requireChannel) {
+    const subscribed = await isSubscribed(uid, c.requireChannel);
+    if (!subscribed) return res.status(403).json({ error: 'NOT_SUBSCRIBED', requireChannel: c.requireChannel });
+  }
+  c.participants.push({ userId: uid, tickets: 1 });
+  res.json({ ok: true, contest: serializeContest(c, user) });
+});
+
+app.post('/api/contest/buy_tickets', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { contestId, tickets } = req.body || {};
+  const c = contests.find(x => x.id === contestId);
+  if (!c) return res.status(404).json({ error: 'NOT_FOUND' });
+  if (c.status !== 'active') return res.status(400).json({ error: 'FINISHED' });
+  if (c.type !== 'paid') return res.status(400).json({ error: 'NOT_PAID' });
+  const count = Math.max(1, parseInt(tickets) || 0);
+  if (!count) return res.status(400).json({ error: 'INVALID_AMOUNT' });
+  const cost = round2(c.ticketPrice * count);
+  if ((user.balance || 0) < cost) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
+
+  const uid = String(user.id);
+  if (c.requireChannel) {
+    const subscribed = await isSubscribed(uid, c.requireChannel);
+    if (!subscribed) return res.status(403).json({ error: 'NOT_SUBSCRIBED', requireChannel: c.requireChannel });
+  }
+  user.balance = round2(user.balance - cost);
+  let entry = c.participants.find(p => p.userId === uid);
+  if (!entry) { entry = { userId: uid, tickets: 0 }; c.participants.push(entry); }
+  entry.tickets += count;
+  res.json({ ok: true, balance: user.balance, contest: serializeContest(c, user) });
+});
+
+/* ---- Pullik konkursda haqiqiy Telegram Stars evaziga bilet sotib olish
+   (1 Stars = CONTEST_TICKET_STARS_RATE ta bilet) — balans to'ldirish bilan bir xil oqim ---- */
+app.post('/api/contest/create_ticket_invoice', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  const { contestId, stars } = req.body || {};
+  const c = contests.find(x => x.id === contestId);
+  if (!c) return res.status(404).json({ error: 'NOT_FOUND' });
+  if (c.status !== 'active') return res.status(400).json({ error: 'FINISHED' });
+  if (c.type !== 'paid') return res.status(400).json({ error: 'NOT_PAID' });
+  const starsAmount = Math.max(1, Math.floor(Number(stars)) || 0);
+  if (!starsAmount) return res.status(400).json({ error: 'INVALID_AMOUNT' });
+  const ticketsCount = starsAmount * CONTEST_TICKET_STARS_RATE;
+  const payload = `cticket:${c.id}:${user.id}:${ticketsCount}:${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Konkurs: ${c.title}`.slice(0, 32),
+        description: `${ticketsCount} ta bilet olasiz — "${c.title}" konkursi`,
+        payload,
+        currency: 'XTR',
+        prices: [{ label: `${ticketsCount} ta bilet`, amount: starsAmount }],
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, link: data.result, tickets: ticketsCount, stars: starsAmount });
+  } catch (e) {
+    console.error("Konkurs bilet invoysi yaratishda xatolik:", e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+/* ---- bot.js uchun ichki API: Stars orqali bilet to'lovi muvaffaqiyatli bo'lgach ---- */
+app.post('/api/internal_contest_ticket_credit', (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const { payload, telegramPaymentChargeId, totalAmount } = req.body || {};
+
+  if (telegramPaymentChargeId && processedTopupCharges.has(telegramPaymentChargeId)) {
+    return res.json({ ok: true, alreadyProcessed: true });
+  }
+  const m = /^cticket:([a-f0-9]+):(\d+):(\d+):/.exec(String(payload || ''));
+  if (!m) return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+  const contestId = m[1], userId = m[2], ticketsCount = Number(m[3]);
+  const c = contests.find(x => x.id === contestId);
+  if (!c) return res.status(404).json({ error: 'CONTEST_NOT_FOUND' });
+
+  const expectedStars = ticketsCount / CONTEST_TICKET_STARS_RATE;
+  if (Number(totalAmount) !== expectedStars) {
+    console.error(`Konkurs bilet: to'lov summasi mos kelmadi (kutilgan ${expectedStars}, kelgan ${totalAmount})`);
+  }
+  let user = users.get(userId);
+  if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+  let entry = c.participants.find(p => p.userId === userId);
+  if (!entry) { entry = { userId, tickets: 0 }; c.participants.push(entry); }
+  entry.tickets += ticketsCount;
+  if (telegramPaymentChargeId) processedTopupCharges.add(telegramPaymentChargeId);
+  res.json({ ok: true, tickets: ticketsCount, myTickets: entry.tickets, contestTitle: c.title });
+});
+
+/* ============================================================
    ADMIN AMALLARI
    ============================================================ */
 function requireAdmin(req, res) {
@@ -1011,6 +1187,51 @@ app.post('/api/admin_action', (req, res) => {
         if (!item) throw new Error('ITEM_NOT_FOUND');
         const amount = Math.max(1, parseInt(payload.amount) || 1);
         for (let i = 0; i < amount; i++) grantNftToUser(target, item.id);
+        break;
+      }
+      case 'create_contest': {
+        const title = String(payload.title || '').trim();
+        const item = NFT_BY_ID.get(String(payload.itemId || ''));
+        if (!title) throw new Error('MISSING_TITLE');
+        if (!item) throw new Error('ITEM_NOT_FOUND');
+        const prizeCount = Math.max(1, parseInt(payload.prizeCount) || 1);
+        const type = payload.type === 'paid' ? 'paid' : 'free';
+        const ticketPrice = type === 'paid' ? Math.max(0.1, Number(payload.ticketPrice) || 1) : 0;
+        const requireChannel = payload.requireChannel ? String(payload.requireChannel).trim() : null;
+        contests.push({
+          id: crypto.randomBytes(6).toString('hex'),
+          title,
+          description: String(payload.description || '').trim(),
+          itemId: item.id,
+          prizeCount,
+          type,
+          ticketPrice,
+          requireChannel,
+          status: 'active',
+          participants: [],
+          winners: null,
+          createdAt: Date.now(),
+          endedAt: null,
+        });
+        break;
+      }
+      case 'finish_contest': {
+        const c = contests.find(x => x.id === payload.contestId);
+        if (!c) throw new Error('NOT_FOUND');
+        if (c.status !== 'active') throw new Error('ALREADY_FINISHED');
+        const chosen = pickWeightedWinners(c.participants, Math.min(c.prizeCount, c.participants.length));
+        const item = NFT_BY_ID.get(c.itemId);
+        c.winners = chosen.map(p => {
+          const u = users.get(p.userId);
+          if (u) grantNftToUser(u, c.itemId);
+          return { userId: p.userId, username: u ? u.username : `user${p.userId}`, itemId: c.itemId, itemName: item ? item.name : '' };
+        });
+        c.status = 'finished';
+        c.endedAt = Date.now();
+        break;
+      }
+      case 'delete_contest': {
+        contests = contests.filter(x => x.id !== payload.contestId);
         break;
       }
       case 'reset_everything': {

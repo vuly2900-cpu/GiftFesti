@@ -314,6 +314,30 @@ async function handlePreCheckoutQuery(pcq) {
 async function handleSuccessfulPayment(msg) {
   const chatId = msg.chat.id;
   const sp = msg.successful_payment;
+  const payload = sp.invoice_payload || '';
+
+  // Konkurs bileti Stars orqali sotib olingan bo'lsa — alohida ichki API
+  if (payload.startsWith('cticket:')) {
+    let result;
+    try {
+      result = await internalApiPost('/api/internal_contest_ticket_credit', {
+        payload,
+        telegramPaymentChargeId: sp.telegram_payment_charge_id,
+        totalAmount: sp.total_amount,
+      });
+    } catch (e) {
+      console.error("Konkurs biletini kreditlashda xatolik:", e.message);
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin biletlarni berishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (!result || !result.ok) {
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin biletlarni berishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (result.alreadyProcessed) return;
+    return sendMessage(chatId,
+      `🎉 To'lov muvaffaqiyatli! "${result.contestTitle}" konkursi uchun *${result.tickets} ta bilet* oldingiz.\n\n🎟 Jami biletlaringiz: *${result.myTickets}*`,
+      { parse_mode: 'Markdown' });
+  }
+
   let result;
   try {
     result = await internalApiPost('/api/internal_topup_credit', {

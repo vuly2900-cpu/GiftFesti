@@ -2191,6 +2191,7 @@ const CONTEST_BUY_TICKETS_API_URL = '/api/contest/buy_tickets';
 const CONTEST_TICKET_INVOICE_API_URL = '/api/contest/create_ticket_invoice';
 const CONTEST_CHECK_REQ_API_URL = '/api/contest/check_requirements';
 const CONTEST_SINGLE_API_URL = '/api/contest'; // + /:id
+const CONTEST_PREPARE_SHARE_API_URL = '/api/contest/prepare_share';
 const CHANNEL_URL = 'https://t.me/GiftFesti';
 let caseSubscriptionVerified = false; // shu sessiyada bir marta tekshirilgach true bo'ladi
 
@@ -2323,6 +2324,8 @@ function checkVoucherStartParam() {
     || (new URLSearchParams(window.location.search).get('tgWebAppStartParam') || '').trim();
   if (sp.startsWith('voucher_')) {
     showVoucherOverlay(sp.slice('voucher_'.length));
+  } else if (sp.startsWith('konkurs_')) {
+    openContestDetail(sp.slice('konkurs_'.length));
   }
 }
 
@@ -3459,7 +3462,10 @@ function renderContestDetail(c) {
     actionHtml = `<div class="kd-winners-banner"><b>Konkurs yakunlandi</b><br>${winnersHtml}</div>`;
   } else if (c.type === 'free') {
     if (c.joined) {
-      actionHtml = `<div class="kd-success-banner">✅ Siz muvaffaqiyatli konkursda qatnashyapsiz!</div>`;
+      actionHtml = `
+        <div class="kd-success-banner">✅ Siz muvaffaqiyatli konkursda qatnashyapsiz!</div>
+        <button class="btn secondary" id="kdShareBtn" style="width:100%; margin-top:10px;" onclick="shareContest('${c.id}')">📤 Do'stlarga ulashish</button>
+      `;
     } else {
       actionHtml = `<button class="btn" id="kdActionBtn" style="width:100%; margin-top:14px;" onclick="joinContestFromDetail('${c.id}')">🎉 Qatnashish</button>`;
     }
@@ -3472,6 +3478,7 @@ function renderContestDetail(c) {
     } else {
       actionHtml = `
         <div class="kd-success-banner">✅ Siz konkursda qatnashyapsiz! Endi bilet sotib olishingiz mumkin.</div>
+        <button class="btn secondary" id="kdShareBtn" style="width:100%; margin-top:10px;" onclick="shareContest('${c.id}')">📤 Do'stlarga ulashish</button>
         <div class="konkurs-ticket-row" style="margin-top:12px;">
           <input type="number" min="1" value="1" id="konkursTicketInput_${c.id}" placeholder="Bilet soni">
           <button class="btn" onclick="buyContestTickets('${c.id}', this)">💰 Coin bilan olish</button>
@@ -3590,6 +3597,39 @@ async function joinContestFromDetail(contestId) {
     console.error(e);
     alert('Xatolik yuz berdi!');
     if (btn) { btn.disabled = false; btn.textContent = '🎉 Qatnashish'; }
+  }
+}
+
+/* ---- "Do'stlarga ulashish": server rasmni va xabar matnini tayyorlab,
+   savePreparedInlineMessage orqali id qaytaradi, keyin Telegram'ning
+   o'zi tg.shareMessage(id) bilan "chatni tanlang" oynasini ochadi va
+   tanlangan chatga xabarni yuboradi (biz o'zimiz hech qayerga
+   yubormaymiz — buni Telegram amalga oshiradi). ---- */
+async function shareContest(contestId) {
+  const btn = document.getElementById('kdShareBtn');
+  const originalText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const res = await fetch(CONTEST_PREPARE_SHARE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', contestId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert("Ulashishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
+      return;
+    }
+    if (tg && typeof tg.shareMessage === 'function') {
+      tg.shareMessage(data.id, () => {});
+    } else {
+      alert("Ulashish uchun Telegram ilovangizni yangilang.");
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Ulashishda xatolik yuz berdi!');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalText || "📤 Do'stlarga ulashish"; }
   }
 }
 

@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const sharp = require('sharp');
 
 const PORT = process.env.PORT || 3000;
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
@@ -741,6 +742,183 @@ async function downloadAndCacheNftMedia(customEmojiId) {
   return outPath;
 }
 
+/* ============================================================
+   KONKURSNI DO'STGA ULASHISH ("Ulashish" tugmasi)
+   — Telegram Mini App'ning shareMessage() imkoniyati uchun rasm va
+   xabar tayyorlash. Bot tokeni orqali savePreparedInlineMessage
+   chaqiriladi, natijada olingan id frontendga qaytariladi va
+   tg.shareMessage(id) chaqirilib, foydalanuvchi chat tanlaydi.
+   ============================================================ */
+
+/* ---- Har bir NFT (custom emoji)ning STATIK (harakatsiz) rasmini
+   keshlash — animatsiyali/video sticker bo'lsa ham Telegram har doim
+   .webp/.jpg statik thumbnail beradi, shu narsa ulashish rasmiga
+   joylanadi (video/tgs fayl ulashish rasmiga yaramaydi). ---- */
+const STICKER_THUMB_CACHE_DIR = path.join(__dirname, 'nft_thumb_cache');
+if (!fs.existsSync(STICKER_THUMB_CACHE_DIR)) fs.mkdirSync(STICKER_THUMB_CACHE_DIR, { recursive: true });
+
+function cachedStickerThumbPath(customEmojiId) {
+  const found = fs.readdirSync(STICKER_THUMB_CACHE_DIR).find(f => f.startsWith(customEmojiId + '.'));
+  return found ? path.join(STICKER_THUMB_CACHE_DIR, found) : null;
+}
+
+async function ensureStickerThumb(customEmojiId) {
+  if (!customEmojiId) return null;
+  const cached = cachedStickerThumbPath(customEmojiId);
+  if (cached) return cached;
+  try {
+    const sticker = await fetchCustomEmojiSticker(customEmojiId);
+    const thumb = sticker && sticker.thumbnail;
+    if (!thumb || !thumb.file_id) return null;
+    const fRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${thumb.file_id}`);
+    const fData = await fRes.json();
+    if (!fData.ok) return null;
+    const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fData.result.file_path}`;
+    const mediaRes = await fetch(fileUrl);
+    const buffer = Buffer.from(await mediaRes.arrayBuffer());
+    const ext = path.extname(fData.result.file_path) || '.jpg';
+    const outPath = path.join(STICKER_THUMB_CACHE_DIR, customEmojiId + ext);
+    fs.writeFileSync(outPath, buffer);
+    return outPath;
+  } catch (e) {
+    console.error('ensureStickerThumb xatolik:', e.message);
+    return null;
+  }
+}
+
+/* ---- Yumaloq burchakli, berilgan o'lchamdagi ikonka (sticker thumb rasmini
+   kvadrat shaklga moslab, radius bilan kesib) tayyorlaydi. ---- */
+async function roundedIconBuffer(srcPath, size, radius) {
+  const mask = Buffer.from(`<svg width="${size}" height="${size}"><rect x="0" y="0" width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`);
+  const resized = await sharp(srcPath).resize(size, size, { fit: 'cover' }).ensureAlpha().toBuffer();
+  return sharp(resized).composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer();
+}
+
+/* ---- Ulashish rasmi keshi: konkurs sovg'alari o'zgarmaydi deb faraz
+   qilinadi, shuning uchun bir marta yasalgach diskka saqlanadi. ---- */
+const CONTEST_SHARE_IMG_DIR = path.join(__dirname, 'contest_share_cache');
+if (!fs.existsSync(CONTEST_SHARE_IMG_DIR)) fs.mkdirSync(CONTEST_SHARE_IMG_DIR, { recursive: true });
+
+async function buildContestShareImage(contest) {
+  const outPath = path.join(CONTEST_SHARE_IMG_DIR, `${contest.id}.png`);
+  if (fs.existsSync(outPath)) return outPath;
+
+  const W = 900, H = 500;
+  // Fon: to'q binafsha/qorong'i gradient + yulduzchalar (ilova uslubiga mos).
+  const stars = Array.from({ length: 46 }).map(() => {
+    const x = Math.round(Math.random() * W);
+    const y = Math.round(Math.random() * H * 0.75);
+    const r = (Math.random() * 1.3 + 0.3).toFixed(1);
+    const o = (Math.random() * 0.55 + 0.2).toFixed(2);
+    return `<circle cx="${x}" cy="${y}" r="${r}" fill="#ffffff" opacity="${o}"/>`;
+  }).join('');
+  const bgSvg = `
+    <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="bg" cx="50%" cy="34%" r="75%">
+          <stop offset="0%" stop-color="#2d2456"/>
+          <stop offset="55%" stop-color="#14101f"/>
+          <stop offset="100%" stop-color="#07050c"/>
+        </radialGradient>
+        <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ffd77a" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="#ffd77a" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect width="${W}" height="${H}" fill="url(#bg)"/>
+      ${stars}
+      <ellipse cx="${W / 2}" cy="${Math.round(H * 0.44)}" rx="260" ry="190" fill="url(#glow)"/>
+    </svg>`;
+
+  let composites = [];
+  const prizeIds = contestPrizeList(contest);
+  const seen = new Set();
+  const distinctIds = [];
+  prizeIds.forEach(id => { if (id && !seen.has(id)) { seen.add(id); distinctIds.push(id); } });
+  const shown = distinctIds.slice(0, 3);
+  const extra = Math.max(0, distinctIds.length - shown.length);
+
+  const centerSize = 260, sideSize = 168, radius = 32;
+  const cy = Math.round(H * 0.46);
+
+  const thumbPaths = {};
+  for (const id of shown) {
+    const it = NFT_BY_ID.get(id);
+    if (it && it.custom_emoji_id) thumbPaths[id] = await ensureStickerThumb(it.custom_emoji_id);
+  }
+
+  if (shown.length === 1 && thumbPaths[shown[0]]) {
+    const icon = await roundedIconBuffer(thumbPaths[shown[0]], centerSize, radius);
+    composites.push({ input: icon, left: Math.round(W / 2 - centerSize / 2), top: Math.round(cy - centerSize / 2) });
+  } else if (shown.length >= 2) {
+    // O'rtada asosiy (kattaroq), chapda/o'ngda qolganlari (biroz burilgan,
+    // qisman ustidan yopilib turadigan "stack" ko'rinishida).
+    const order = shown.length === 2 ? [shown[1], shown[0]] : [shown[1], shown[0], shown[2]];
+    if (thumbPaths[order[0]]) {
+      const leftIcon = await sharp(await roundedIconBuffer(thumbPaths[order[0]], sideSize, radius))
+        .rotate(-13, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+      const m = await sharp(leftIcon).metadata();
+      composites.push({ input: leftIcon, left: Math.round(W / 2 - centerSize / 2 - m.width * 0.55), top: Math.round(cy - m.height / 2 + 18) });
+    }
+    if (order[2] && thumbPaths[order[2]]) {
+      const rightIcon = await sharp(await roundedIconBuffer(thumbPaths[order[2]], sideSize, radius))
+        .rotate(13, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+      const m = await sharp(rightIcon).metadata();
+      composites.push({ input: rightIcon, left: Math.round(W / 2 + centerSize / 2 - m.width * 0.45), top: Math.round(cy - m.height / 2 + 18) });
+    }
+    if (thumbPaths[order[1]]) {
+      const centerIcon = await roundedIconBuffer(thumbPaths[order[1]], centerSize, radius);
+      composites.push({ input: centerIcon, left: Math.round(W / 2 - centerSize / 2), top: Math.round(cy - centerSize / 2) });
+    }
+  }
+
+  if (extra > 0) {
+    const badgeSvg = `
+      <svg width="120" height="120" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="60" cy="60" r="46" fill="#f5b93f" stroke="#3a2a06" stroke-width="4"/>
+        <text x="60" y="72" font-size="40" font-family="Verdana, sans-serif" font-weight="bold" text-anchor="middle" fill="#241a02">+${extra}</text>
+      </svg>`;
+    composites.push({ input: Buffer.from(badgeSvg), left: W - 150, top: H - 150 });
+  }
+
+  const out = await sharp(Buffer.from(bgSvg)).composite(composites).png().toBuffer();
+  fs.writeFileSync(outPath, out);
+  return outPath;
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ---- Ulashish xabari matnidagi "qolgan vaqt" formati (frontenddagi
+   formatRemainingTime bilan bir xil mantiq, faqat serverda). ---- */
+function formatRemainingTimeServer(ms) {
+  if (ms <= 0) return "0 daqiqa";
+  const totalMin = Math.ceil(ms / 60000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins = totalMin % 60;
+  const parts = [];
+  if (days) parts.push(`${days}kun`);
+  if (hours) parts.push(`${hours}soat`);
+  if (!days && mins) parts.push(`${mins}daq`);
+  return parts.join(' ') || "0 daqiqa";
+}
+
+/* ---- "Sovg'a: ..." yorlig'ini frontenddagi (kd-sub) bilan bir xil
+   mantiqda tuzadi — bir xil NFT bo'lsa "Nomi × son", har xil bo'lsa
+   nomlarni vergul bilan sanaydi. ---- */
+function buildPrizeLabel(serialized) {
+  const prizes = serialized.prizes && serialized.prizes.length
+    ? serialized.prizes
+    : (serialized.itemId ? [{ itemName: serialized.itemName }] : []);
+  if (!prizes.length) return serialized.itemName || '';
+  const allSame = prizes.every(p => p.itemName === prizes[0].itemName);
+  return allSame
+    ? `${prizes[0].itemName} × ${serialized.prizeCount}`
+    : prizes.map(p => p.itemName).join(', ');
+}
+
 /* ---- Kunlik case sovrinlari (server-authoritative) — faqat gift'lar, coin tushmaydi ---- */
 const CASE_TIER_WEIGHTS = { 100: 0.1, 50: 1, 25: 5, 15: 10 };
 function pickCaseReward() {
@@ -1250,6 +1428,88 @@ app.post('/api/contest/create_ticket_invoice', async (req, res) => {
     res.json({ ok: true, link: data.result, tickets: ticketsCount, stars: starsAmount });
   } catch (e) {
     console.error("Konkurs bilet invoysi yaratishda xatolik:", e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+/* ---- Ulashish uchun tayyorlangan rasm: Telegram serverlari shu URL'ni
+   o'zi fetch qiladi (savePreparedInlineMessage ishlashi uchun public
+   bo'lishi shart — initData tekshiruvi YO'Q). ---- */
+app.get('/api/contest_share_image/:id', async (req, res) => {
+  const contestId = String(req.params.id || '').replace(/\.png$/i, '');
+  const c = contests.find(x => x.id === contestId);
+  if (!c) return res.status(404).end();
+  try {
+    const imgPath = await buildContestShareImage(c);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    fs.createReadStream(imgPath).pipe(res);
+  } catch (e) {
+    console.error('Ulashish rasmini yasashda xatolik:', e.message);
+    res.status(500).end();
+  }
+});
+
+/* ---- Konkursni do'stlarga ulashish: Telegram'ning savePreparedInlineMessage
+   metodi orqali xabar tayyorlanadi, frontend esa qaytgan id bilan
+   tg.shareMessage(id) chaqirib, foydalanuvchiga chat tanlash oynasini ochadi. ---- */
+app.post('/api/contest/prepare_share', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  if (!WEBAPP_URL) return res.status(500).json({ error: 'WEBAPP_URL_MISSING' });
+  const { contestId } = req.body || {};
+  const c = contests.find(x => x.id === contestId);
+  if (!c) return res.status(404).json({ error: 'NOT_FOUND' });
+
+  try {
+    const username = await getBotUsername();
+    if (!username) return res.status(500).json({ error: 'BOT_USERNAME_MISSING' });
+
+    // Rasm oldindan tayyor bo'lishini kutamiz (Telegram photo_url'ni darhol tekshiradi).
+    await buildContestShareImage(c);
+
+    const serialized = serializeContest(c, user);
+    const prizeLabel = buildPrizeLabel(serialized);
+    const deepLink = `https://t.me/${username}?start=konkurs_${c.id}`;
+    const photoUrl = `${WEBAPP_URL}/api/contest_share_image/${c.id}.png`;
+    const timeLine = (serialized.status === 'active' && serialized.endsAt)
+      ? `\n⏱ Qolgan vaqt: <b>${escapeHtml(formatRemainingTimeServer(serialized.endsAt - Date.now()))}</b>`
+      : '';
+
+    const caption =
+      `🎉 <b>${escapeHtml(c.title)}</b>\n\n` +
+      `Konkursda qatnashing va yutib oling!\n\n` +
+      `🎁 Yutuqlar: <b>${escapeHtml(prizeLabel)}</b>\n` +
+      `👥 ${serialized.participantsCount} ishtirokchi   🎟 ${serialized.totalTickets} bilet` +
+      timeLine;
+
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/savePreparedInlineMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: Number(user.id),
+        result: {
+          type: 'photo',
+          id: `ctshare_${c.id}_${Date.now()}`,
+          photo_url: photoUrl,
+          thumbnail_url: photoUrl,
+          photo_width: 900,
+          photo_height: 500,
+          caption,
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: [[{ text: '🎉 Qatnashish', url: deepLink }]] },
+        },
+        allow_user_chats: true,
+        allow_bot_chats: false,
+        allow_group_chats: true,
+        allow_channel_chats: true,
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, id: data.result.id });
+  } catch (e) {
+    console.error('Konkursni ulashishga tayyorlashda xatolik:', e.message);
     res.status(500).json({ error: 'server_error' });
   }
 });

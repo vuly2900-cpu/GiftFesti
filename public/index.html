@@ -1945,16 +1945,29 @@
       <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎉 Yangi Konkurs yaratish</p>
       <input type="text" id="a_konkursTitle" placeholder="Konkurs nomi">
       <input type="text" id="a_konkursDesc" placeholder="Tavsif (ixtiyoriy)" style="margin-top:8px;">
-      <select id="a_konkursNftSelect" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-        <option value="">Yuklanmoqda...</option>
-      </select>
-      <input type="number" id="a_konkursPrizeCount" placeholder="Nechta g'olibga beriladi" value="1" min="1" style="margin-top:8px;">
+      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">🏆 Sovg'alar (har biri bitta g'olibga beriladi — har xil NFT qo'yish mumkin)</p>
+      <div id="a_konkursPrizesBox">
+        <select class="a-konkurs-prize-select" style="width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+          <option value="">Yuklanmoqda...</option>
+        </select>
+      </div>
+      <button type="button" class="btn secondary" style="width:100%; margin-top:6px; padding:9px; font-size:12px;" onclick="adminKonkursAddPrizeRow()">+ Yana sovg'a qo'shish</button>
 
       <div class="admin-subbtn-grid" style="margin-top:10px;">
         <button class="btn secondary active" id="a_konkursTypeFreeBtn" onclick="adminKonkursSetType('free')">🎁 Bepul</button>
         <button class="btn secondary" id="a_konkursTypePaidBtn" onclick="adminKonkursSetType('paid')">💰 Pullik</button>
       </div>
       <input type="number" id="a_konkursTicketPrice" placeholder="Bitta bilet narxi (coin)" style="display:none; margin-top:8px;" min="0.1" step="0.1">
+
+      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">⏱ Konkurs davomiyligi (vaqti tugasa, g'oliblarga NFT avtomatik beriladi)</p>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <input type="number" id="a_konkursDuration" placeholder="Miqdor (masalan 24)" min="0" step="1" style="flex:1;">
+        <select id="a_konkursDurationUnit" style="flex:1; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+          <option value="hours">Soat</option>
+          <option value="days">Kun</option>
+        </select>
+      </div>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">Bo'sh qoldirilsa — muddatsiz, faqat qo'lda "Yakunlash" tugmasi orqali tugatiladi.</p>
 
       <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">📢 Majburiy kanal/guruhlar (ixtiyoriy, bir nechtasini qo'shsa bo'ladi)</p>
       <div id="a_konkursChannelsBox">
@@ -3203,19 +3216,29 @@ function renderContests() {
       body = `<button class="btn" style="width:100%; margin-top:10px;" onclick="openContestDetail('${c.id}')">💰 Qatnashish</button>`;
     }
 
+    const prizeList = (c.prizes && c.prizes.length) ? c.prizes : (c.itemId ? [{ itemName: c.itemName, itemId: c.itemId }] : []);
+    const allSamePrize = prizeList.every(p => p.itemName === prizeList[0].itemName);
+    const prizeLabel = allSamePrize
+      ? `${prizeList[0] ? prizeList[0].itemName : (c.itemName || c.itemId)} × ${c.prizeCount}`
+      : prizeList.map(p => p.itemName).join(', ');
+    const timeRow = (c.status === 'active' && c.endsAt)
+      ? `<span>⏱ ${formatRemainingTime(c.endsAt - Date.now())} qoldi</span>`
+      : '';
+
     return `
       <div class="konkurs-card" onclick="openContestDetail('${c.id}')" style="cursor:pointer;">
         <div class="k-head">
           <div class="k-prize-ic"><div class="anim-slot" id="${iconAnimId}"></div></div>
           <div style="flex:1;">
             <div class="k-title">${c.title}</div>
-            <div class="k-sub">${badge} &nbsp; Sovg'a: ${c.itemName || c.itemId} × ${c.prizeCount}</div>
+            <div class="k-sub">${badge} &nbsp; Sovg'a: ${prizeLabel}</div>
           </div>
         </div>
         ${c.description ? `<div class="k-desc">${c.description}</div>` : ''}
         <div class="konkurs-stats-row">
           <span>👥 Ishtirokchilar: ${c.participantsCount}</span>
           <span>🎟 Jami biletlar: ${c.totalTickets}</span>
+          ${timeRow}
         </div>
         <div onclick="event.stopPropagation();">${body}</div>
       </div>
@@ -3330,16 +3353,26 @@ function renderContestDetail(c) {
     }
   }
 
+  const prizeList = (c.prizes && c.prizes.length) ? c.prizes : (c.itemId ? [{ itemName: c.itemName, itemId: c.itemId }] : []);
+  const allSamePrize = prizeList.every(p => p.itemName === prizeList[0].itemName);
+  const prizeLabel = allSamePrize
+    ? `${prizeList[0] ? prizeList[0].itemName : (c.itemName || c.itemId)} × ${c.prizeCount}`
+    : prizeList.map(p => p.itemName).join(', ');
+  const timeStat = (c.status === 'active' && c.endsAt)
+    ? `<div class="kd-stat"><div class="n">${formatRemainingTime(c.endsAt - Date.now())}</div><div class="l">⏱ Qolgan vaqt</div></div>`
+    : '';
+
   body.innerHTML = `
     <div class="kd-hero">
       <div class="kd-prize-ic"><div class="anim-slot" id="kdPrizeIcon"></div></div>
       <div class="kd-title">${c.title}</div>
-      <div class="kd-sub">Sovg'a: ${c.itemName || c.itemId} × ${c.prizeCount}</div>
+      <div class="kd-sub">Sovg'a: ${prizeLabel}</div>
       ${c.description ? `<div class="kd-desc">${c.description}</div>` : ''}
     </div>
     <div class="kd-stats">
       <div class="kd-stat"><div class="n">${c.participantsCount}</div><div class="l">👥 Ishtirokchilar</div></div>
       <div class="kd-stat"><div class="n">${c.totalTickets}</div><div class="l">🎟 Jami biletlar</div></div>
+      ${timeStat}
     </div>
     ${channelsHtml}
     ${actionHtml}
@@ -3349,6 +3382,19 @@ function renderContestDetail(c) {
   if (item && iconEl) mountAnimatedEmoji(iconEl, item.custom_emoji_id, item.is_video, `kd_${c.id}`);
 
   startContestDetailPolling();
+}
+
+function formatRemainingTime(ms) {
+  if (ms <= 0) return "0 daqiqa";
+  const totalMin = Math.ceil(ms / 60000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins = totalMin % 60;
+  const parts = [];
+  if (days) parts.push(`${days}kun`);
+  if (hours) parts.push(`${hours}soat`);
+  if (!days && mins) parts.push(`${mins}daq`);
+  return parts.join(' ') || "0 daqiqa";
 }
 
 function contestReqMessage(missing) {
@@ -4197,42 +4243,62 @@ function adminKonkursResetChannelRows() {
   box.innerHTML = '<input type="text" class="a-konkurs-channel-input" placeholder="@KanalNomi yoki t.me/..." style="margin-top:6px;">';
 }
 
+let adminKonkursNftOptionsHtml = '<option value="">Yuklab bo\'lmadi</option>';
+
 async function loadAdminKonkursNftSelect() {
-  const select = document.getElementById('a_konkursNftSelect');
   try {
     const res = await fetch(NFT_CATALOG_API_URL);
     const data = await res.json();
     if (!data.ok) throw new Error('server_error');
-    select.innerHTML = data.items.map(it =>
+    adminKonkursNftOptionsHtml = data.items.map(it =>
       `<option value="${it.id}">${it.name} (${it.sell_price} ⭐)</option>`
     ).join('');
   } catch (e) {
     console.error(e);
-    select.innerHTML = '<option value="">Yuklab bo\'lmadi</option>';
+    adminKonkursNftOptionsHtml = '<option value="">Yuklab bo\'lmadi</option>';
   }
+  document.querySelectorAll('.a-konkurs-prize-select').forEach(sel => { sel.innerHTML = adminKonkursNftOptionsHtml; });
+}
+
+function adminKonkursAddPrizeRow() {
+  const box = document.getElementById('a_konkursPrizesBox');
+  const sel = document.createElement('select');
+  sel.className = 'a-konkurs-prize-select';
+  sel.style.cssText = 'width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;';
+  sel.innerHTML = adminKonkursNftOptionsHtml;
+  box.appendChild(sel);
+}
+function adminKonkursResetPrizeRows() {
+  const box = document.getElementById('a_konkursPrizesBox');
+  box.innerHTML = `<select class="a-konkurs-prize-select" style="width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">${adminKonkursNftOptionsHtml}</select>`;
 }
 
 async function adminCreateContest() {
   const title = document.getElementById('a_konkursTitle').value.trim();
   const description = document.getElementById('a_konkursDesc').value.trim();
-  const itemId = document.getElementById('a_konkursNftSelect').value;
-  const prizeCount = parseInt(document.getElementById('a_konkursPrizeCount').value) || 1;
+  const prizes = Array.from(document.querySelectorAll('.a-konkurs-prize-select'))
+    .map(el => el.value)
+    .filter(Boolean);
   const type = adminKonkursType;
   const ticketPrice = type === 'paid' ? parseFloat(document.getElementById('a_konkursTicketPrice').value) : null;
   const requireChannels = Array.from(document.querySelectorAll('.a-konkurs-channel-input'))
     .map(el => el.value.trim())
     .filter(Boolean);
+  const durationRaw = parseFloat(document.getElementById('a_konkursDuration').value) || 0;
+  const durationUnit = document.getElementById('a_konkursDurationUnit').value;
+  const durationHours = durationRaw > 0 ? (durationUnit === 'days' ? durationRaw * 24 : durationRaw) : 0;
 
-  if (!title || !itemId) { alert("Konkurs nomi va NFT sovg'ani tanlang!"); return; }
+  if (!title || !prizes.length) { alert("Konkurs nomi va kamida bitta NFT sovg'ani tanlang!"); return; }
   if (type === 'paid' && (!ticketPrice || ticketPrice <= 0)) { alert("Bilet narxini to'g'ri kiriting!"); return; }
 
   try {
-    await callAdminAction('create_contest', { title, description, itemId, prizeCount, type, ticketPrice, requireChannels });
+    await callAdminAction('create_contest', { title, description, prizes, type, ticketPrice, requireChannels, durationHours });
     alert(`"${title}" konkursi yaratildi!`);
     document.getElementById('a_konkursTitle').value = '';
     document.getElementById('a_konkursDesc').value = '';
-    document.getElementById('a_konkursPrizeCount').value = '1';
     document.getElementById('a_konkursTicketPrice').value = '';
+    document.getElementById('a_konkursDuration').value = '';
+    adminKonkursResetPrizeRows();
     adminKonkursResetChannelRows();
     loadAdminContestsList();
   } catch (e) { console.error(e); alert('Xatolik yuz berdi!'); }
@@ -4246,17 +4312,25 @@ async function loadAdminContestsList() {
     const data = await res.json();
     const list = data.contests || [];
     if (!list.length) { box.innerHTML = '<p class="empty" style="font-size:12px;">Konkurslar mavjud emas</p>'; return; }
-    box.innerHTML = list.map(c => `
+    box.innerHTML = list.map(c => {
+      const prizeNames = (c.prizes && c.prizes.length ? c.prizes.map(p => p.itemName) : [c.itemName]).join(', ');
+      let timeInfo = '';
+      if (c.status === 'active' && c.endsAt) {
+        const remainMs = c.endsAt - Date.now();
+        timeInfo = remainMs > 0 ? ` · ⏱ ${formatRemainingTime(remainMs)} qoldi` : ' · ⏱ tugamoqda...';
+      }
+      return `
       <div class="admin-task-row">
         <div class="info">
           <div class="ttl">${c.title} ${c.status === 'finished' ? '(yakunlangan)' : ''}</div>
-          <div class="rwd">${c.type === 'paid' ? '💰 Pullik' : '🎁 Bepul'} · ${c.itemName} ×${c.prizeCount} · 👥 ${c.participantsCount} · 🎟 ${c.totalTickets}</div>
+          <div class="rwd">${c.type === 'paid' ? '💰 Pullik' : '🎁 Bepul'} · ${prizeNames} · 👥 ${c.participantsCount} · 🎟 ${c.totalTickets}${timeInfo}</div>
           ${c.requireChannels && c.requireChannels.length ? `<div class="rwd">📢 ${c.requireChannels.map(ch => ch.channel).join(', ')}</div>` : ''}
         </div>
         ${c.status === 'active' ? `<button class="btn secondary" style="padding:6px 10px; font-size:11px;" onclick="adminFinishContest('${c.id}')">Yakunlash</button>` : ''}
         <button class="del-btn" onclick="adminDeleteContest('${c.id}')">×</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
   } catch (e) {
     console.error(e);
     box.innerHTML = '<p class="empty" style="font-size:12px;">Yuklab bo\'lmadi</p>';

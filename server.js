@@ -174,6 +174,11 @@ function loadDb() {
       // Eski bazalarda bitta `requireChannel` (string) saqlangan bo'lishi mumkin —
       // uni yangi `requireChannels` massiviga ko'chiramiz.
       requireChannels: Array.isArray(c.requireChannels) ? c.requireChannels : (c.requireChannel ? [c.requireChannel] : []),
+      // Eski bazalarda bitta `itemId` + `prizeCount` saqlangan bo'lishi mumkin —
+      // uni yangi `prizes` massiviga ko'chiramiz.
+      prizes: Array.isArray(c.prizes) && c.prizes.length ? c.prizes : (c.itemId ? Array(Math.max(1, c.prizeCount || 1)).fill(c.itemId) : []),
+      durationHours: c.durationHours || null,
+      endsAt: c.endsAt || null,
     }));
     if (data.gameHistory) Object.assign(gameHistory, data.gameHistory);
     if (data.gameNumbers) {
@@ -314,11 +319,26 @@ function contestChannelList(c) {
   if (c.requireChannel) return [c.requireChannel];
   return [];
 }
+/* ---- Konkursning sovg'alar ro'yxatini normallashtiradi.
+   Yangi formatda `prizes` — itemId'lar massivi (har xil NFT'lar bo'lishi
+   mumkin, har biri bitta g'olibga beriladi). Eski konkurslarda faqat
+   `itemId` + `prizeCount` (bir xil NFT bir nechta nusxada) saqlangan —
+   orqaga moslik uchun shu yerda `prizes` massiviga aylantiriladi. ---- */
+function contestPrizeList(c) {
+  if (Array.isArray(c.prizes) && c.prizes.length) return c.prizes.filter(Boolean);
+  if (c.itemId) return Array(Math.max(1, c.prizeCount || 1)).fill(c.itemId);
+  return [];
+}
 function serializeContest(c, user) {
   const uid = user ? String(user.id) : null;
   const myEntry = uid ? c.participants.find(p => p.userId === uid) : null;
   const totalTickets = c.participants.reduce((s, p) => s + p.tickets, 0);
-  const item = NFT_BY_ID.get(c.itemId);
+  const prizeIds = contestPrizeList(c);
+  const prizes = prizeIds.map(id => {
+    const it = NFT_BY_ID.get(id);
+    return { itemId: id, itemName: it ? it.name : '', itemCustomEmojiId: it ? it.custom_emoji_id : null, itemIsVideo: it ? !!it.is_video : false };
+  });
+  const firstItem = NFT_BY_ID.get(prizeIds[0]);
   const channels = contestChannelList(c);
   return {
     id: c.id,
@@ -326,11 +346,13 @@ function serializeContest(c, user) {
     description: c.description || '',
     type: c.type,
     ticketPrice: c.ticketPrice || 0,
-    itemId: c.itemId,
-    itemName: item ? item.name : '',
-    itemCustomEmojiId: item ? item.custom_emoji_id : null,
-    itemIsVideo: item ? !!item.is_video : false,
-    prizeCount: c.prizeCount,
+    // Orqaga moslik uchun birinchi sovg'a haligacha itemId/itemName sifatida ham qaytariladi.
+    itemId: prizeIds[0] || c.itemId,
+    itemName: firstItem ? firstItem.name : '',
+    itemCustomEmojiId: firstItem ? firstItem.custom_emoji_id : null,
+    itemIsVideo: firstItem ? !!firstItem.is_video : false,
+    prizes,
+    prizeCount: prizeIds.length,
     requireChannels: channels.map(ch => ({ channel: ch, link: channelToLink(ch) })),
     status: c.status,
     participantsCount: c.participants.length,
@@ -339,6 +361,8 @@ function serializeContest(c, user) {
     joined: !!myEntry,
     winners: c.winners || null,
     createdAt: c.createdAt,
+    durationHours: c.durationHours || null,
+    endsAt: c.endsAt || null,
     endedAt: c.endedAt || null,
   };
 }
@@ -354,6 +378,48 @@ function pickWeightedWinners(participants, count) {
   }));
   withKeys.sort((a, b) => b.key - a.key);
   return withKeys.slice(0, count).map(w => w.p);
+}
+
+/* ---- Konkursni yakunlash: har xil (yoki bir xil) NFT sovg'alarni
+   tasodifiy tanlangan g'oliblarga bittadan taqsimlaydi. `prizes` massivi
+   turli itemId'lardan iborat bo'lishi mumkin — har bir g'olib bittadan
+   sovg'a oladi. Ushbu funksiya ham admin "yakunlash" tugmasidan, ham
+   vaqt tugagach avtomatik chaqiriladi. ---- */
+function finishContest(c) {
+  if (!c || c.status !== 'active') return;
+  const prizeIds = contestPrizeList(c);
+  const winnersCount = Math.min(prizeIds.length, c.participants.length);
+  const chosen = pickWeightedWinners(c.participants, winnersCount);
+  // Har bir sovg'a boshqacha bo'lishi mumkin bo'lgani uchun, taqsimotni
+  // adolatli qilish maqsadida sovg'alar tartibi aralashtiriladi.
+  const shuffledPrizes = prizeIds.slice(0, winnersCount);
+  for (let i = shuffledPrizes.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledPrizes[i], shuffledPrizes[j]] = [shuffledPrizes[j], shuffledPrizes[i]];
+  }
+  c.winners = chosen.map((p, i) => {
+    const itemId = shuffledPrizes[i];
+    const u = users.get(p.userId);
+    if (u) grantNftToUser(u, itemId);
+    const item = NFT_BY_ID.get(itemId);
+    return { userId: p.userId, username: u ? u.username : `user${p.userId}`, itemId, itemName: item ? item.name : '' };
+  });
+  c.status = 'finished';
+  c.endedAt = Date.now();
+}
+
+/* ---- Vaqti tugagan (endsAt o'tib ketgan) faol konkurslarni avtomatik
+   yakunlaydigan fon jarayoni. ---- */
+function autoFinishExpiredContests() {
+  const now = Date.now();
+  let changed = false;
+  contests.forEach(c => {
+    if (c.status === 'active' && c.endsAt && c.endsAt <= now) {
+      finishContest(c);
+      changed = true;
+    }
+  });
+  if (changed) saveDb();
 }
 
 function voucherRequireLabel(v) {
@@ -1326,10 +1392,17 @@ app.post('/api/admin_action', (req, res) => {
       }
       case 'create_contest': {
         const title = String(payload.title || '').trim();
-        const item = NFT_BY_ID.get(String(payload.itemId || ''));
         if (!title) throw new Error('MISSING_TITLE');
-        if (!item) throw new Error('ITEM_NOT_FOUND');
-        const prizeCount = Math.max(1, parseInt(payload.prizeCount) || 1);
+        // `prizes`: bir nechta (har xil bo'lishi mumkin) NFT itemId massivi —
+        // har biri bitta g'olibga beriladi. Orqaga moslik uchun eski
+        // `itemId` + `prizeCount` (bitta NFT bir necha nusxada) formati ham
+        // qo'llab-quvvatlanadi.
+        const rawPrizes = Array.isArray(payload.prizes) && payload.prizes.length
+          ? payload.prizes
+          : (payload.itemId ? Array(Math.max(1, parseInt(payload.prizeCount) || 1)).fill(payload.itemId) : []);
+        const prizes = rawPrizes.map(id => String(id || '').trim()).filter(Boolean);
+        if (!prizes.length) throw new Error('ITEM_NOT_FOUND');
+        for (const id of prizes) { if (!NFT_BY_ID.get(id)) throw new Error('ITEM_NOT_FOUND'); }
         const type = payload.type === 'paid' ? 'paid' : 'free';
         const ticketPrice = type === 'paid' ? Math.max(0.1, Number(payload.ticketPrice) || 1) : 0;
         // requireChannels: bir nechta majburiy kanal/guruh (massiv) qabul qilinadi.
@@ -1338,19 +1411,25 @@ app.post('/api/admin_action', (req, res) => {
           ? payload.requireChannels
           : (payload.requireChannel ? [payload.requireChannel] : []);
         const requireChannels = rawChannels.map(x => String(x || '').trim()).filter(Boolean);
+        // Davomiylik: admin soat sonini tanlaydi (masalan 6, 24, 72 soat).
+        // 0 yoki bo'sh bo'lsa — muddatsiz, faqat admin qo'lda yakunlaydi.
+        const durationHours = Math.max(0, Number(payload.durationHours) || 0);
+        const createdAt = Date.now();
+        const endsAt = durationHours > 0 ? createdAt + Math.round(durationHours * 3600 * 1000) : null;
         contests.push({
           id: crypto.randomBytes(6).toString('hex'),
           title,
           description: String(payload.description || '').trim(),
-          itemId: item.id,
-          prizeCount,
+          prizes,
           type,
           ticketPrice,
           requireChannels,
           status: 'active',
           participants: [],
           winners: null,
-          createdAt: Date.now(),
+          createdAt,
+          durationHours: durationHours > 0 ? durationHours : null,
+          endsAt,
           endedAt: null,
         });
         break;
@@ -1359,15 +1438,7 @@ app.post('/api/admin_action', (req, res) => {
         const c = contests.find(x => x.id === payload.contestId);
         if (!c) throw new Error('NOT_FOUND');
         if (c.status !== 'active') throw new Error('ALREADY_FINISHED');
-        const chosen = pickWeightedWinners(c.participants, Math.min(c.prizeCount, c.participants.length));
-        const item = NFT_BY_ID.get(c.itemId);
-        c.winners = chosen.map(p => {
-          const u = users.get(p.userId);
-          if (u) grantNftToUser(u, c.itemId);
-          return { userId: p.userId, username: u ? u.username : `user${p.userId}`, itemId: c.itemId, itemName: item ? item.name : '' };
-        });
-        c.status = 'finished';
-        c.endedAt = Date.now();
+        finishContest(c);
         break;
       }
       case 'delete_contest': {
@@ -2590,6 +2661,9 @@ io.on('connection', (socket) => {
 loadDb();
 resetRetiredStarterNfts();
 setInterval(saveDb, 10000);
+// Vaqti tugagan konkurslarni har 15 soniyada tekshirib, avtomatik yakunlaydi.
+setInterval(autoFinishExpiredContests, 15000);
+autoFinishExpiredContests(); // server qayta ishga tushganda, muddati o'tib ketganlarini darhol yakunlash
 process.on('SIGINT', () => { saveDb(); process.exit(0); });
 process.on('SIGTERM', () => { saveDb(); process.exit(0); });
 

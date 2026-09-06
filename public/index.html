@@ -297,6 +297,13 @@
   .konkurs-card .k-head{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
   .konkurs-card .k-prize-ic{width:46px; height:46px; border-radius:12px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; overflow:hidden;}
   .konkurs-card .k-prize-ic img, .konkurs-card .k-prize-ic .lottie-box{width:100%; height:100%; object-fit:contain;}
+  .konkurs-card .k-prize-stack{position:relative; width:66px; height:52px; flex-shrink:0;}
+  .konkurs-card .k-prize-stack .stack-item{position:absolute; border-radius:9px; background:var(--surface-2); overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,.4);}
+  .konkurs-card .k-prize-stack .stack-item .anim-slot{width:100%; height:100%;}
+  .konkurs-card .k-prize-stack .stack-item.stack-side{width:30px; height:30px; top:11px; z-index:1; border-radius:7px;}
+  .konkurs-card .k-prize-stack .stack-item.stack-side.stack-left{left:0;}
+  .konkurs-card .k-prize-stack .stack-item.stack-side.stack-right{right:0;}
+  .konkurs-card .k-prize-stack .stack-item.stack-center{width:42px; height:42px; left:50%; top:2px; transform:translateX(-50%); z-index:2;}
   .konkurs-card .k-title{font-size:15px; font-weight:700;}
   .konkurs-card .k-sub{font-size:12px; color:var(--text-dim); margin-top:2px;}
   .konkurs-card .k-desc{font-size:12.5px; color:var(--text-dim); margin:8px 0;}
@@ -316,6 +323,14 @@
   .kd-hero{display:flex; flex-direction:column; align-items:center; text-align:center; padding:18px 10px 6px;}
   .kd-hero .kd-prize-ic{width:120px; height:120px; border-radius:24px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:14px;}
   .kd-hero .kd-prize-ic .anim-slot{width:100%; height:100%;}
+  .kd-hero .kd-prize-stack{position:relative; width:230px; height:130px; margin-bottom:14px; flex-shrink:0;}
+  .kd-hero .kd-prize-stack .stack-item{position:absolute; border-radius:22px; background:var(--surface-2); overflow:hidden; box-shadow:0 6px 16px rgba(0,0,0,.45);}
+  .kd-hero .kd-prize-stack .stack-item .anim-slot{width:100%; height:100%;}
+  .kd-hero .kd-prize-stack .stack-item.stack-side{width:84px; height:84px; top:23px; z-index:1; border-radius:18px;}
+  .kd-hero .kd-prize-stack .stack-item.stack-side.stack-left{left:2px;}
+  .kd-hero .kd-prize-stack .stack-item.stack-side.stack-right{right:2px;}
+  .kd-hero .kd-prize-stack .stack-item.stack-center{width:118px; height:118px; left:50%; top:6px; transform:translateX(-50%); z-index:2;}
+  .kd-hero .kd-prize-stack .stack-more-badge{position:absolute; right:0; bottom:20px; background:var(--gold); color:#000; font-size:11px; font-weight:800; padding:2px 7px; border-radius:10px; z-index:3;}
   .kd-hero .kd-title{font-size:19px; font-weight:800; margin-bottom:4px;}
   .kd-hero .kd-sub{font-size:13px; color:var(--text-dim);}
   .kd-hero .kd-desc{font-size:13px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
@@ -3225,10 +3240,20 @@ function renderContests() {
       ? `<span>⏱ ${formatRemainingTime(c.endsAt - Date.now())} qoldi</span>`
       : '';
 
+    const useStackCard = new Set(prizeList.map(p => p.itemName)).size > 1;
+    const cardCenterP = prizeList[0], cardLeftP = prizeList[1], cardRightP = prizeList[2];
+    const cardIconHtml = useStackCard ? `
+      <div class="k-prize-stack">
+        ${cardLeftP ? `<div class="stack-item stack-side stack-left"><div class="anim-slot" id="${iconAnimId}_l"></div></div>` : ''}
+        ${cardRightP ? `<div class="stack-item stack-side stack-right"><div class="anim-slot" id="${iconAnimId}_r"></div></div>` : ''}
+        <div class="stack-item stack-center"><div class="anim-slot" id="${iconAnimId}"></div></div>
+      </div>
+    ` : `<div class="k-prize-ic"><div class="anim-slot" id="${iconAnimId}"></div></div>`;
+
     return `
       <div class="konkurs-card" onclick="openContestDetail('${c.id}')" style="cursor:pointer;">
         <div class="k-head">
-          <div class="k-prize-ic"><div class="anim-slot" id="${iconAnimId}"></div></div>
+          ${cardIconHtml}
           <div style="flex:1;">
             <div class="k-title">${c.title}</div>
             <div class="k-sub">${badge} &nbsp; Sovg'a: ${prizeLabel}</div>
@@ -3246,9 +3271,18 @@ function renderContests() {
   }).join('');
 
   contestsData.forEach(c => {
-    const item = contestPrizeIconCache.get(c.itemId);
-    const el = document.getElementById(`konkursIcon_${c.id}`);
-    if (item && el) mountAnimatedEmoji(el, item.custom_emoji_id, item.is_video, `k_${c.id}`);
+    const prizeList = (c.prizes && c.prizes.length) ? c.prizes : (c.itemId ? [{ itemName: c.itemName, itemId: c.itemId, itemCustomEmojiId: c.itemCustomEmojiId, itemIsVideo: c.itemIsVideo }] : []);
+    const mountPrize = (p, elId) => {
+      if (!p) return;
+      const el = document.getElementById(elId);
+      const cached = contestPrizeIconCache.get(p.itemId);
+      const emojiId = p.itemCustomEmojiId || (cached && cached.custom_emoji_id);
+      const isVideo = p.itemIsVideo ?? (cached && cached.is_video);
+      if (el && emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `k_${c.id}_${p.itemId}`);
+    };
+    mountPrize(prizeList[0], `konkursIcon_${c.id}`);
+    mountPrize(prizeList[1], `konkursIcon_${c.id}_l`);
+    mountPrize(prizeList[2], `konkursIcon_${c.id}_r`);
   });
 }
 
@@ -3307,6 +3341,15 @@ function renderContestDetail(c) {
   const item = contestPrizeIconCache.get(c.itemId) || (c.itemCustomEmojiId ? { custom_emoji_id: c.itemCustomEmojiId, is_video: c.itemIsVideo } : null);
   const channels = c.requireChannels || [];
 
+  // Sovg'alar ro'yxati (har xil bo'lishi mumkin). Agar 2+ turli xil NFT
+  // bo'lsa — markazda birinchisi, chapda ikkinchisi, o'ngda uchinchisi
+  // (bir-birining ustiga qisman yopilib turadigan "stack" ko'rinishida).
+  const prizeList = (c.prizes && c.prizes.length) ? c.prizes : (c.itemId ? [{ itemName: c.itemName, itemId: c.itemId, itemCustomEmojiId: c.itemCustomEmojiId, itemIsVideo: c.itemIsVideo }] : []);
+  const distinctNames = new Set(prizeList.map(p => p.itemName));
+  const useStack = distinctNames.size > 1;
+  const extraCount = prizeList.length > 3 ? prizeList.length - 3 : 0;
+  const centerP = prizeList[0], leftP = prizeList[1], rightP = prizeList[2];
+
   const channelsHtml = channels.length ? `
     <div class="kd-section-label">📢 Majburiy obuna</div>
     ${channels.map((ch, i) => `
@@ -3353,7 +3396,6 @@ function renderContestDetail(c) {
     }
   }
 
-  const prizeList = (c.prizes && c.prizes.length) ? c.prizes : (c.itemId ? [{ itemName: c.itemName, itemId: c.itemId }] : []);
   const allSamePrize = prizeList.every(p => p.itemName === prizeList[0].itemName);
   const prizeLabel = allSamePrize
     ? `${prizeList[0] ? prizeList[0].itemName : (c.itemName || c.itemId)} × ${c.prizeCount}`
@@ -3362,9 +3404,18 @@ function renderContestDetail(c) {
     ? `<div class="kd-stat"><div class="n">${formatRemainingTime(c.endsAt - Date.now())}</div><div class="l">⏱ Qolgan vaqt</div></div>`
     : '';
 
+  const prizeVisualHtml = useStack ? `
+    <div class="kd-prize-stack">
+      ${leftP ? `<div class="stack-item stack-side stack-left"><div class="anim-slot" id="kdPrizeIconLeft"></div></div>` : ''}
+      ${rightP ? `<div class="stack-item stack-side stack-right"><div class="anim-slot" id="kdPrizeIconRight"></div></div>` : ''}
+      <div class="stack-item stack-center"><div class="anim-slot" id="kdPrizeIconCenter"></div></div>
+      ${extraCount > 0 ? `<div class="stack-more-badge">+${extraCount}</div>` : ''}
+    </div>
+  ` : `<div class="kd-prize-ic"><div class="anim-slot" id="kdPrizeIcon"></div></div>`;
+
   body.innerHTML = `
     <div class="kd-hero">
-      <div class="kd-prize-ic"><div class="anim-slot" id="kdPrizeIcon"></div></div>
+      ${prizeVisualHtml}
       <div class="kd-title">${c.title}</div>
       <div class="kd-sub">Sovg'a: ${prizeLabel}</div>
       ${c.description ? `<div class="kd-desc">${c.description}</div>` : ''}
@@ -3377,6 +3428,22 @@ function renderContestDetail(c) {
     ${channelsHtml}
     ${actionHtml}
   `;
+
+  if (useStack) {
+    const mountPrize = (p, elId) => {
+      if (!p) return;
+      const el = document.getElementById(elId);
+      const cached = contestPrizeIconCache.get(p.itemId);
+      const emojiId = p.itemCustomEmojiId || (cached && cached.custom_emoji_id);
+      const isVideo = p.itemIsVideo ?? (cached && cached.is_video);
+      if (el && emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `kd_${c.id}_${p.itemId}`);
+    };
+    mountPrize(centerP, 'kdPrizeIconCenter');
+    mountPrize(leftP, 'kdPrizeIconLeft');
+    mountPrize(rightP, 'kdPrizeIconRight');
+    startContestDetailPolling();
+    return;
+  }
 
   const iconEl = document.getElementById('kdPrizeIcon');
   if (item && iconEl) mountAnimatedEmoji(iconEl, item.custom_emoji_id, item.is_video, `kd_${c.id}`);

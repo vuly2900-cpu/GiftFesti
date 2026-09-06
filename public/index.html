@@ -701,6 +701,13 @@
     width:32px; height:32px; border-radius:50%; font-size:18px; line-height:1;
     display:flex; align-items:center; justify-content:center; border:none;
   }
+  .hockey-topbar-left{display:flex; align-items:center; gap:8px;}
+  .our-chat-btn{
+    background:linear-gradient(135deg,#2AABEE,#229ED9); border:none; color:#fff;
+    height:32px; padding:0 12px; border-radius:16px; font-size:12px; font-weight:800;
+    display:flex; align-items:center; gap:5px; white-space:nowrap; letter-spacing:.2px;
+  }
+  .our-chat-btn:active{filter:brightness(.92);}
   .game-number-badge{
     background:var(--surface-2); border:1px solid var(--border);
     padding:6px 12px; border-radius:20px; font-size:13px; font-weight:700; color:var(--gold);
@@ -1490,7 +1497,10 @@
 
   <section class="page" id="page-hockey">
     <div class="hockey-topbar">
-      <button class="hockey-back" onclick="goTo('pvp')">‹</button>
+      <div class="hockey-topbar-left">
+        <button class="our-chat-btn" onclick="openOurChat()">💬 BIZNING CHAT</button>
+        <button class="hockey-back" onclick="goTo('pvp')">‹</button>
+      </div>
       <div class="game-number-badge mono" id="gameNumberLabel">O'yin #1</div>
       <button class="history-btn" onclick="openGameHistory('hockey')" title="O'yin tarixi">🕒</button>
     </div>
@@ -1520,7 +1530,10 @@
 
   <section class="page" id="page-drum">
     <div class="hockey-topbar">
-      <button class="hockey-back" onclick="goTo('pvp')">‹</button>
+      <div class="hockey-topbar-left">
+        <button class="our-chat-btn" onclick="openOurChat()">💬 BIZNING CHAT</button>
+        <button class="hockey-back" onclick="goTo('pvp')">‹</button>
+      </div>
       <div class="game-number-badge mono" id="drumGameNumberLabel">O'yin #1</div>
       <button class="history-btn" onclick="openGameHistory('drum')" title="O'yin tarixi">🕒</button>
     </div>
@@ -2066,6 +2079,14 @@
 const socket = io();
 
 const tg = window.Telegram?.WebApp;
+
+function openOurChat(){
+  const chatUrl = 'https://t.me/GiftFesti_chat';
+  try {
+    if (tg?.openTelegramLink) { tg.openTelegramLink(chatUrl); return; }
+  } catch(e) {}
+  window.open(chatUrl, '_blank');
+}
 tg?.ready(); tg?.expand();
 
 const tgUser = tg?.initDataUnsafe?.user;

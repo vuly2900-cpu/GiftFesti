@@ -1832,6 +1832,62 @@ let drumState = defaultDrumState();
 function getState(game) { return game === 'hockey' ? hockeyState : drumState; }
 function emitState(game) { io.emit(`${game}:state`, getState(game)); }
 
+/* ============================================================
+   "GIFT FESTI" BOT — hockey va drum o'yinlarida har raundda
+   avtomatik ravishda coin yoki NFT tikadigan virtual o'yinchi.
+   G'olib aniqlash mantig'i o'zgarmaydi — bot ham xuddi oddiy
+   o'yinchidek pickWeighted/hkResolveZoneWinner orqali TASODIFIY
+   tanlanadi (ko'proq tikkani ko'proq ehtimolga ega, xolos).
+   ============================================================ */
+const GIFT_FESTI_BOT_ID = -9990001;
+const GIFT_FESTI_BOT_NAME = 'GIFT FESTI';
+const GIFT_FESTI_BOT_PHOTO = '/gifts/giftfesti_bot.png';
+const GIFT_FESTI_MIN_COIN = 0.5;
+const GIFT_FESTI_MAX_COIN = 2.5;
+const GIFT_FESTI_NFT_MAX_PRICE = 5;
+const GIFT_FESTI_NFT_CHANCE = 0.35; // ~35% ehtimol bilan coin o'rniga NFT tikadi
+const GIFT_FESTI_DELAY_MIN_MS = 1500;
+const GIFT_FESTI_DELAY_MAX_MS = 6000;
+
+function giftFestiPickNft() {
+  const eligible = NFT_CATALOG.filter(n => n.sell_price <= GIFT_FESTI_NFT_MAX_PRICE);
+  if (!eligible.length) return null;
+  const item = eligible[Math.floor(Math.random() * eligible.length)];
+  return { itemId: item.id, name: item.name, custom_emoji_id: item.custom_emoji_id, price: round2(item.sell_price) };
+}
+
+function placeGiftFestiBotBet(game) {
+  const state = getState(game);
+  if (state.status === 'spinning_visual' || state.status === 'cooldown') return;
+  if (state.players.some(p => p.id === GIFT_FESTI_BOT_ID)) return; // faqat 1 marta har raundda
+
+  const useNft = Math.random() < GIFT_FESTI_NFT_CHANCE;
+  const staked = useNft ? giftFestiPickNft() : null;
+
+  const player = {
+    id: GIFT_FESTI_BOT_ID, username: GIFT_FESTI_BOT_NAME, photo: GIFT_FESTI_BOT_PHOTO,
+    stars: 0, nfts: [], color: colorFor(state.players.length),
+  };
+
+  let addedValue;
+  if (staked) { player.nfts = [staked]; addedValue = staked.price; }
+  else { addedValue = round2(GIFT_FESTI_MIN_COIN + Math.random() * (GIFT_FESTI_MAX_COIN - GIFT_FESTI_MIN_COIN)); player.stars = addedValue; }
+
+  state.players.push(player);
+  state.pot = round2(state.pot + addedValue);
+  if (state.status === 'idle') state.status = 'betting';
+  if (state.players.length >= 2 && !state.bettingStartedAt) {
+    state.bettingStartedAt = Date.now();
+    startBettingTimer(game);
+  }
+  emitState(game);
+}
+
+function scheduleGiftFestiBot(game) {
+  const delay = GIFT_FESTI_DELAY_MIN_MS + Math.random() * (GIFT_FESTI_DELAY_MAX_MS - GIFT_FESTI_DELAY_MIN_MS);
+  setTimeout(() => placeGiftFestiBotBet(game), delay);
+}
+
 function startBettingTimer(game) {
   clearTimeout(gameTimers[game]);
   gameTimers[game] = setTimeout(() => onBettingTimeout(game), WAIT_SECONDS[game] * 1000);
@@ -1926,6 +1982,7 @@ function finalizeRound(game) {
     if (game === 'hockey') hockeyState = { ...defaultHockeyState(), game_number: gnum };
     else if (game === 'drum') drumState = { ...defaultDrumState(), game_number: gnum };
     emitState(game);
+    scheduleGiftFestiBot(game); // har yangi raundda "GIFT FESTI" avtomatik tikadi
   }, COOLDOWN_MS);
 }
 
@@ -2675,4 +2732,8 @@ server.listen(PORT, () => {
   // server ishga tushgan zahoti avtomatik boshlanadi (haqiqiy kazino
   // o'yinlariga o'xshab, o'yinchi kutib o'tirmasdan ham raundlar davom etadi).
   startCrashWaiting();
+  // Server birinchi marta ishga tushganda hockey/drum uchun ham
+  // "GIFT FESTI" botining birinchi tikishini rejalashtiramiz.
+  scheduleGiftFestiBot('hockey');
+  scheduleGiftFestiBot('drum');
 });

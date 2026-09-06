@@ -311,6 +311,26 @@
   .konkurs-winners b{color:var(--gold);}
   .konkurs-req{font-size:11.5px; color:var(--text-dim); margin-top:6px;}
 
+  /* ---- Konkurs detail (to'liq sahifa) ---- */
+  .kd-hero{display:flex; flex-direction:column; align-items:center; text-align:center; padding:18px 10px 6px;}
+  .kd-hero .kd-prize-ic{width:120px; height:120px; border-radius:24px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:14px;}
+  .kd-hero .kd-prize-ic .anim-slot{width:100%; height:100%;}
+  .kd-hero .kd-title{font-size:19px; font-weight:800; margin-bottom:4px;}
+  .kd-hero .kd-sub{font-size:13px; color:var(--text-dim);}
+  .kd-hero .kd-desc{font-size:13px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
+  .kd-stats{display:flex; justify-content:center; gap:22px; margin:16px 0; padding:12px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border);}
+  .kd-stats .kd-stat{text-align:center;}
+  .kd-stats .kd-stat .n{font-size:18px; font-weight:800; color:var(--gold);}
+  .kd-stats .kd-stat .l{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .kd-section-label{font-size:12px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.03em; margin:16px 0 8px;}
+  .kd-channel-row{display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:8px;}
+  .kd-channel-row .kd-ch-ic{width:34px; height:34px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;}
+  .kd-channel-row .kd-ch-name{flex:1; font-size:13.5px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .kd-channel-row .kd-ch-btn{flex-shrink:0; padding:7px 14px; border-radius:9px; font-size:12.5px; font-weight:700; background:var(--surface-2); border:1px solid var(--border); color:var(--text);}
+  .kd-success-banner{display:flex; align-items:center; gap:10px; background:rgba(46,204,113,.12); border:1px solid rgba(46,204,113,.35); color:var(--success); border-radius:14px; padding:14px; font-size:13.5px; font-weight:600; margin-top:14px;}
+  .kd-winners-banner{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; font-size:13px; color:var(--text-dim); margin-top:14px;}
+  .kd-winners-banner b{color:var(--gold);}
+
   .profile-head{text-align:center; margin-bottom:18px;}
   .profile-head img.avatar{width:84px; height:84px; border-radius:50%; object-fit:cover; background:var(--surface-2); border:2px solid var(--gold-dim);}
   .profile-head .tid{color:var(--text-dim); font-size:12px; margin-top:8px;}
@@ -1664,6 +1684,15 @@
     <div id="konkursList"><p class="empty">Yuklanmoqda...</p></div>
   </section>
 
+  <section class="page" id="page-konkurs-detail">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('konkurs')">‹</button>
+      <div class="game-number-badge mono">Konkurs</div>
+      <span style="width:34px;"></span>
+    </div>
+    <div id="konkursDetailBody"><p class="empty">Yuklanmoqda...</p></div>
+  </section>
+
   <section class="page" id="page-profile">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
       <h1 class="title" style="margin-bottom:0;">Profil</h1>
@@ -1926,11 +1955,11 @@
       </div>
       <input type="number" id="a_konkursTicketPrice" placeholder="Bitta bilet narxi (coin)" style="display:none; margin-top:8px;" min="0.1" step="0.1">
 
-      <select id="a_konkursRequireSub" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;" onchange="adminKonkursToggleRequireChannel()">
-        <option value="">Majburiy obuna talab qilinmasin</option>
-        <option value="yes">📢 Majburiy kanalga obuna talab qilinsin</option>
-      </select>
-      <input type="text" id="a_konkursRequireChannel" placeholder="Kanal (masalan: @GiftFesti)" style="display:none; margin-top:8px;">
+      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">📢 Majburiy kanal/guruhlar (ixtiyoriy, bir nechtasini qo'shsa bo'ladi)</p>
+      <div id="a_konkursChannelsBox">
+        <input type="text" class="a-konkurs-channel-input" placeholder="@KanalNomi yoki t.me/..." style="margin-top:6px;">
+      </div>
+      <button type="button" class="btn secondary" style="width:100%; margin-top:6px; padding:9px; font-size:12px;" onclick="adminKonkursAddChannelRow()">+ Yana kanal/guruh qo'shish</button>
 
       <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateContest()">Konkurs yaratish</button>
 
@@ -2101,6 +2130,8 @@ const CONTESTS_API_URL = '/api/contests';
 const CONTEST_JOIN_API_URL = '/api/contest/join';
 const CONTEST_BUY_TICKETS_API_URL = '/api/contest/buy_tickets';
 const CONTEST_TICKET_INVOICE_API_URL = '/api/contest/create_ticket_invoice';
+const CONTEST_CHECK_REQ_API_URL = '/api/contest/check_requirements';
+const CONTEST_SINGLE_API_URL = '/api/contest'; // + /:id
 const CHANNEL_URL = 'https://t.me/GiftFesti';
 let caseSubscriptionVerified = false; // shu sessiyada bir marta tekshirilgach true bo'ladi
 
@@ -2752,6 +2783,7 @@ function goTo(pageName) {
   if (pageName === 'rating') loadLeaderboard();
   if (pageName === 'tasks') { loadTasks(); loadDailyTasks(); }
   if (pageName === 'konkurs') loadContests();
+  if (pageName !== 'konkurs-detail') { stopContestDetailPolling(); currentContestDetailId = null; }
   if (pageName === 'profile') loadProfile();
   if (pageName === 'hockey') initHockeyPage();
   if (pageName === 'drum') initDrumPage();
@@ -3145,24 +3177,13 @@ function renderContests() {
     } else if (c.type === 'free') {
       body = c.joined
         ? `<button class="btn done" style="width:100%; margin-top:10px;" disabled>✅ Qatnashyapsiz</button>`
-        : `<button class="btn" style="width:100%; margin-top:10px;" onclick="joinContest('${c.id}', this)">🎉 Bepul qatnashish</button>`;
+        : `<button class="btn" style="width:100%; margin-top:10px;" onclick="openContestDetail('${c.id}')">🎉 Bepul qatnashish</button>`;
     } else {
-      body = `
-        <div class="konkurs-ticket-row">
-          <input type="number" min="1" value="1" id="konkursTicketInput_${c.id}" placeholder="Bilet soni">
-          <button class="btn" onclick="buyContestTickets('${c.id}', this)">💰 Coin bilan olish</button>
-        </div>
-        <div class="konkurs-stars-row">
-          <input type="number" min="1" value="1" id="konkursStarsInput_${c.id}" placeholder="⭐ Stars soni">
-          <button class="btn secondary" onclick="buyContestTicketsStars('${c.id}', this)">⭐ Stars bilan olish</button>
-        </div>
-        <p class="konkurs-req" style="color:var(--gold);">1 ⭐ = ${CONTEST_TICKET_STARS_RATE_DISPLAY} ta bilet</p>
-        ${c.myTickets ? `<p class="konkurs-req">🎟 Sizning biletlaringiz: <b style="color:var(--gold);">${c.myTickets}</b></p>` : ''}
-      `;
+      body = `<button class="btn" style="width:100%; margin-top:10px;" onclick="openContestDetail('${c.id}')">💰 Qatnashish</button>`;
     }
 
     return `
-      <div class="konkurs-card">
+      <div class="konkurs-card" onclick="openContestDetail('${c.id}')" style="cursor:pointer;">
         <div class="k-head">
           <div class="k-prize-ic"><div class="anim-slot" id="${iconAnimId}"></div></div>
           <div style="flex:1;">
@@ -3171,12 +3192,11 @@ function renderContests() {
           </div>
         </div>
         ${c.description ? `<div class="k-desc">${c.description}</div>` : ''}
-        ${c.requireLabel ? `<p class="konkurs-req">${c.requireLabel}</p>` : ''}
         <div class="konkurs-stats-row">
           <span>👥 Ishtirokchilar: ${c.participantsCount}</span>
           <span>🎟 Jami biletlar: ${c.totalTickets}</span>
         </div>
-        ${body}
+        <div onclick="event.stopPropagation();">${body}</div>
       </div>
     `;
   }).join('');
@@ -3188,7 +3208,136 @@ function renderContests() {
   });
 }
 
-async function joinContest(contestId, btn) {
+/* ---- Konkurs — to'liq sahifa (detail) ---- */
+let currentContestDetailId = null;
+let contestDetailPollTimer = null;
+// Pullik konkursda "Qatnashish" bosilib, majburiy obuna tekshiruvidan
+// muvaffaqiyatli o'tgan konkurslar — shu sessiya davomida bilet olish
+// bo'limi ochiq turadi (sahifa yangilansa qayta ochiladi, muammo emas).
+const contestPaidRevealed = new Set();
+
+function openContestDetail(contestId) {
+  currentContestDetailId = contestId;
+  goTo('konkurs-detail');
+  loadContestDetail();
+}
+
+async function loadContestDetail() {
+  const body = document.getElementById('konkursDetailBody');
+  const contestId = currentContestDetailId;
+  if (!contestId) return;
+  // Avval keshdagi ma'lumot bilan tez chizamiz, keyin serverdan yangisini olamiz.
+  const cached = contestsData.find(c => c.id === contestId);
+  if (cached) renderContestDetail(cached);
+  else if (body) body.innerHTML = '<p class="empty">Yuklanmoqda...</p>';
+
+  try {
+    const res = await fetch(`${CONTEST_SINGLE_API_URL}/${contestId}?initData=${encodeURIComponent(tg?.initData || '')}`);
+    const data = await res.json();
+    if (data.contest) {
+      const idx = contestsData.findIndex(c => c.id === contestId);
+      if (idx >= 0) contestsData[idx] = data.contest; else contestsData.push(data.contest);
+      renderContestDetail(data.contest);
+    }
+  } catch (e) {
+    console.error(e);
+    if (!cached && body) body.innerHTML = '<p class="empty">Yuklab bo\'lmadi</p>';
+  }
+}
+
+// Konkurs sahifasi ochiq turganda ishtirokchilar sonini "jonli" tarzda
+// yangilab turish uchun oddiy polling (og'ir emas — bitta konkurs olinadi).
+function startContestDetailPolling() {
+  stopContestDetailPolling();
+  contestDetailPollTimer = setInterval(() => {
+    if (document.getElementById('page-konkurs-detail')?.classList.contains('active')) loadContestDetail();
+  }, 5000);
+}
+function stopContestDetailPolling() {
+  if (contestDetailPollTimer) { clearInterval(contestDetailPollTimer); contestDetailPollTimer = null; }
+}
+
+function renderContestDetail(c) {
+  const body = document.getElementById('konkursDetailBody');
+  if (!body) return;
+  const item = contestPrizeIconCache.get(c.itemId) || (c.itemCustomEmojiId ? { custom_emoji_id: c.itemCustomEmojiId, is_video: c.itemIsVideo } : null);
+  const channels = c.requireChannels || [];
+
+  const channelsHtml = channels.length ? `
+    <div class="kd-section-label">📢 Majburiy obuna</div>
+    ${channels.map((ch, i) => `
+      <div class="kd-channel-row">
+        <div class="kd-ch-ic">📢</div>
+        <div class="kd-ch-name">${ch.channel}</div>
+        <button class="kd-ch-btn" onclick="window.open('${ch.link}', '_blank')">O'tish →</button>
+      </div>
+    `).join('')}
+  ` : '';
+
+  let actionHtml = '';
+  if (c.status === 'finished') {
+    const winnersHtml = (c.winners && c.winners.length)
+      ? c.winners.map(w => `<div>🏆 <b>${w.username}</b> — ${w.itemName}</div>`).join('')
+      : `<div>G'olib aniqlanmadi (ishtirokchi bo'lmagan)</div>`;
+    actionHtml = `<div class="kd-winners-banner"><b>Konkurs yakunlandi</b><br>${winnersHtml}</div>`;
+  } else if (c.type === 'free') {
+    if (c.joined) {
+      actionHtml = `<div class="kd-success-banner">✅ Siz muvaffaqiyatli konkursda qatnashyapsiz!</div>`;
+    } else {
+      actionHtml = `<button class="btn" id="kdActionBtn" style="width:100%; margin-top:14px;" onclick="joinContestFromDetail('${c.id}')">🎉 Qatnashish</button>`;
+    }
+  } else {
+    // Pullik konkurs: avval "Qatnashish" bosiladi (majburiy obuna tekshiriladi),
+    // shundan keyingina bilet olish (coin / stars) bo'limi ochiladi.
+    const alreadyIn = c.myTickets > 0 || contestPaidRevealed.has(c.id);
+    if (!alreadyIn) {
+      actionHtml = `<button class="btn" id="kdActionBtn" style="width:100%; margin-top:14px;" onclick="revealPaidTickets('${c.id}')">🎉 Qatnashish</button>`;
+    } else {
+      actionHtml = `
+        <div class="kd-success-banner">✅ Siz konkursda qatnashyapsiz! Endi bilet sotib olishingiz mumkin.</div>
+        <div class="konkurs-ticket-row" style="margin-top:12px;">
+          <input type="number" min="1" value="1" id="konkursTicketInput_${c.id}" placeholder="Bilet soni">
+          <button class="btn" onclick="buyContestTickets('${c.id}', this)">💰 Coin bilan olish</button>
+        </div>
+        <div class="konkurs-stars-row">
+          <input type="number" min="1" value="1" id="konkursStarsInput_${c.id}" placeholder="⭐ Stars soni">
+          <button class="btn secondary" onclick="buyContestTicketsStars('${c.id}', this)">⭐ Stars bilan olish</button>
+        </div>
+        <p class="konkurs-req" style="color:var(--gold);">1 ⭐ = ${CONTEST_TICKET_STARS_RATE_DISPLAY} ta bilet</p>
+        ${c.myTickets ? `<p class="konkurs-req">🎟 Sizning biletlaringiz: <b style="color:var(--gold);">${c.myTickets}</b></p>` : ''}
+      `;
+    }
+  }
+
+  body.innerHTML = `
+    <div class="kd-hero">
+      <div class="kd-prize-ic"><div class="anim-slot" id="kdPrizeIcon"></div></div>
+      <div class="kd-title">${c.title}</div>
+      <div class="kd-sub">Sovg'a: ${c.itemName || c.itemId} × ${c.prizeCount}</div>
+      ${c.description ? `<div class="kd-desc">${c.description}</div>` : ''}
+    </div>
+    <div class="kd-stats">
+      <div class="kd-stat"><div class="n">${c.participantsCount}</div><div class="l">👥 Ishtirokchilar</div></div>
+      <div class="kd-stat"><div class="n">${c.totalTickets}</div><div class="l">🎟 Jami biletlar</div></div>
+    </div>
+    ${channelsHtml}
+    ${actionHtml}
+  `;
+
+  const iconEl = document.getElementById('kdPrizeIcon');
+  if (item && iconEl) mountAnimatedEmoji(iconEl, item.custom_emoji_id, item.is_video, `kd_${c.id}`);
+
+  startContestDetailPolling();
+}
+
+function contestReqMessage(missing) {
+  if (!missing || !missing.length) return "Avval majburiy kanal(lar)ga a'zo bo'ling!";
+  const names = missing.map(m => m.channel).join(', ');
+  return `Avval quyidagi kanal(lar)ga a'zo bo'ling: ${names}`;
+}
+
+async function joinContestFromDetail(contestId) {
+  const btn = document.getElementById('kdActionBtn');
   if (btn) { btn.disabled = true; btn.textContent = '...'; }
   try {
     const res = await fetch(CONTEST_JOIN_API_URL, {
@@ -3198,21 +3347,48 @@ async function joinContest(contestId, btn) {
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
-      const msgs = {
-        NOT_SUBSCRIBED: "Avval majburiy kanalga a'zo bo'ling!",
-        ALREADY_JOINED: 'Siz allaqachon qatnashyapsiz!',
-        FINISHED: 'Bu konkurs allaqachon yakunlangan!',
-      };
-      alert(msgs[data.error] || 'Xatolik yuz berdi!');
-      loadContests();
+      if (data.error === 'NOT_SUBSCRIBED') alert(contestReqMessage(data.missing));
+      else {
+        const msgs = {
+          ALREADY_JOINED: 'Siz allaqachon qatnashyapsiz!',
+          FINISHED: 'Bu konkurs allaqachon yakunlangan!',
+        };
+        alert(msgs[data.error] || 'Xatolik yuz berdi!');
+      }
+      if (btn) { btn.disabled = false; btn.textContent = '🎉 Qatnashish'; }
+      loadContestDetail();
       return;
     }
-    alert("🎉 Konkursda muvaffaqiyatli qatnashdingiz!");
     loadContests();
+    loadContestDetail();
   } catch (e) {
     console.error(e);
     alert('Xatolik yuz berdi!');
-    loadContests();
+    if (btn) { btn.disabled = false; btn.textContent = '🎉 Qatnashish'; }
+  }
+}
+
+async function revealPaidTickets(contestId) {
+  const btn = document.getElementById('kdActionBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const res = await fetch(CONTEST_CHECK_REQ_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', contestId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert(contestReqMessage(data.missing));
+      if (btn) { btn.disabled = false; btn.textContent = '🎉 Qatnashish'; }
+      return;
+    }
+    contestPaidRevealed.add(contestId);
+    loadContestDetail();
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
+    if (btn) { btn.disabled = false; btn.textContent = '🎉 Qatnashish'; }
   }
 }
 
@@ -3220,6 +3396,7 @@ async function buyContestTickets(contestId, btn) {
   const input = document.getElementById(`konkursTicketInput_${contestId}`);
   const tickets = Math.max(1, parseInt(input?.value) || 0);
   if (!tickets) return;
+  const originalLabel = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = '...'; }
   try {
     const res = await fetch(CONTEST_BUY_TICKETS_API_URL, {
@@ -3229,24 +3406,28 @@ async function buyContestTickets(contestId, btn) {
     });
     const data = await res.json();
     if (!res.ok || !data.ok) {
-      const msgs = {
-        NOT_SUBSCRIBED: "Avval majburiy kanalga a'zo bo'ling!",
-        INSUFFICIENT_BALANCE: 'Balansingiz yetarli emas!',
-        FINISHED: 'Bu konkurs allaqachon yakunlangan!',
-        INVALID_AMOUNT: "Bilet sonini to'g'ri kiriting!",
-      };
-      alert(msgs[data.error] || 'Xatolik yuz berdi!');
+      if (data.error === 'NOT_SUBSCRIBED') alert(contestReqMessage(data.missing));
+      else {
+        const msgs = {
+          INSUFFICIENT_BALANCE: 'Balansingiz yetarli emas!',
+          FINISHED: 'Bu konkurs allaqachon yakunlangan!',
+          INVALID_AMOUNT: "Bilet sonini to'g'ri kiriting!",
+        };
+        alert(msgs[data.error] || 'Xatolik yuz berdi!');
+      }
       return;
     }
     currentUserData.balance = data.balance;
     syncBalanceDisplays(currentUserData.balance);
     alert(`🎟 ${tickets} ta bilet sotib olindi!`);
+    contestPaidRevealed.add(contestId);
     loadContests();
+    loadContestDetail();
   } catch (e) {
     console.error(e);
     alert('Xatolik yuz berdi!');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '💰 Coin bilan olish'; }
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel || '💰 Coin bilan olish'; }
   }
 }
 
@@ -3274,18 +3455,21 @@ async function buyContestTicketsStars(contestId, btn) {
   }
   if (btn) { btn.disabled = false; btn.textContent = '⭐ Stars bilan olish'; }
   if (!data || !data.ok) {
-    alert("To'lov havolasini yaratishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
+    if (data && data.error === 'NOT_SUBSCRIBED') alert(contestReqMessage(data.missing));
+    else alert("To'lov havolasini yaratishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
     return;
   }
   tg.openInvoice(data.link, (status) => {
     if (status === 'paid') {
-      setTimeout(() => { loadContests(); }, 1200);
+      contestPaidRevealed.add(contestId);
+      setTimeout(() => { loadContests(); loadContestDetail(); }, 1200);
       alert(`🎉 To'lov muvaffaqiyatli! ${data.tickets} ta bilet oldingiz.`);
     } else if (status === 'failed') {
       alert("To'lov amalga oshmadi. Qayta urinib ko'ring.");
     }
   });
 }
+
 
 async function loadReferral(force = false) {
   const link = document.getElementById('refLink');
@@ -3977,11 +4161,19 @@ function adminKonkursSetType(type) {
   document.getElementById('a_konkursTicketPrice').style.display = type === 'paid' ? 'block' : 'none';
 }
 
-function adminKonkursToggleRequireChannel() {
-  const on = document.getElementById('a_konkursRequireSub').value === 'yes';
-  const input = document.getElementById('a_konkursRequireChannel');
-  input.style.display = on ? 'block' : 'none';
-  if (!on) input.value = '';
+function adminKonkursAddChannelRow() {
+  const box = document.getElementById('a_konkursChannelsBox');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'a-konkurs-channel-input';
+  input.placeholder = '@KanalNomi yoki t.me/...';
+  input.style.marginTop = '6px';
+  box.appendChild(input);
+}
+
+function adminKonkursResetChannelRows() {
+  const box = document.getElementById('a_konkursChannelsBox');
+  box.innerHTML = '<input type="text" class="a-konkurs-channel-input" placeholder="@KanalNomi yoki t.me/..." style="margin-top:6px;">';
 }
 
 async function loadAdminKonkursNftSelect() {
@@ -4006,22 +4198,21 @@ async function adminCreateContest() {
   const prizeCount = parseInt(document.getElementById('a_konkursPrizeCount').value) || 1;
   const type = adminKonkursType;
   const ticketPrice = type === 'paid' ? parseFloat(document.getElementById('a_konkursTicketPrice').value) : null;
-  const requireOn = document.getElementById('a_konkursRequireSub').value === 'yes';
-  const requireChannel = requireOn ? document.getElementById('a_konkursRequireChannel').value.trim() : null;
+  const requireChannels = Array.from(document.querySelectorAll('.a-konkurs-channel-input'))
+    .map(el => el.value.trim())
+    .filter(Boolean);
 
   if (!title || !itemId) { alert("Konkurs nomi va NFT sovg'ani tanlang!"); return; }
   if (type === 'paid' && (!ticketPrice || ticketPrice <= 0)) { alert("Bilet narxini to'g'ri kiriting!"); return; }
-  if (requireOn && !requireChannel) { alert("Majburiy kanal manzilini kiriting!"); return; }
 
   try {
-    await callAdminAction('create_contest', { title, description, itemId, prizeCount, type, ticketPrice, requireChannel });
+    await callAdminAction('create_contest', { title, description, itemId, prizeCount, type, ticketPrice, requireChannels });
     alert(`"${title}" konkursi yaratildi!`);
     document.getElementById('a_konkursTitle').value = '';
     document.getElementById('a_konkursDesc').value = '';
     document.getElementById('a_konkursPrizeCount').value = '1';
     document.getElementById('a_konkursTicketPrice').value = '';
-    document.getElementById('a_konkursRequireSub').value = '';
-    adminKonkursToggleRequireChannel();
+    adminKonkursResetChannelRows();
     loadAdminContestsList();
   } catch (e) { console.error(e); alert('Xatolik yuz berdi!'); }
 }
@@ -4039,6 +4230,7 @@ async function loadAdminContestsList() {
         <div class="info">
           <div class="ttl">${c.title} ${c.status === 'finished' ? '(yakunlangan)' : ''}</div>
           <div class="rwd">${c.type === 'paid' ? '💰 Pullik' : '🎁 Bepul'} · ${c.itemName} ×${c.prizeCount} · 👥 ${c.participantsCount} · 🎟 ${c.totalTickets}</div>
+          ${c.requireChannels && c.requireChannels.length ? `<div class="rwd">📢 ${c.requireChannels.map(ch => ch.channel).join(', ')}</div>` : ''}
         </div>
         ${c.status === 'active' ? `<button class="btn secondary" style="padding:6px 10px; font-size:11px;" onclick="adminFinishContest('${c.id}')">Yakunlash</button>` : ''}
         <button class="del-btn" onclick="adminDeleteContest('${c.id}')">×</button>

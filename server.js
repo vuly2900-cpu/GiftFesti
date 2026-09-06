@@ -167,7 +167,14 @@ function loadDb() {
     tasks = data.tasks || [];
     promos = (data.promos || []).map(p => ({ ...p, usedBy: new Set(p.usedBy || []) }));
     vouchers = (data.vouchers || []).map(v => ({ ...v, usedBy: new Set(v.usedBy || []) }));
-    contests = (data.contests || []).map(c => ({ ...c, participants: c.participants || [], winners: c.winners || null }));
+    contests = (data.contests || []).map(c => ({
+      ...c,
+      participants: c.participants || [],
+      winners: c.winners || null,
+      // Eski bazalarda bitta `requireChannel` (string) saqlangan bo'lishi mumkin —
+      // uni yangi `requireChannels` massiviga ko'chiramiz.
+      requireChannels: Array.isArray(c.requireChannels) ? c.requireChannels : (c.requireChannel ? [c.requireChannel] : []),
+    }));
     if (data.gameHistory) Object.assign(gameHistory, data.gameHistory);
     if (data.gameNumbers) {
       hockeyState.game_number = data.gameNumbers.hockey || 1;
@@ -266,6 +273,22 @@ async function isSubscribed(telegramUserId, channel) {
     return ['creator', 'administrator', 'member'].includes(data.result.status);
   } catch (e) { return false; }
 }
+/* ---- @username yoki t.me link'dan foydalanuvchiga ochiladigan havola yasash ---- */
+function channelToLink(channel) {
+  if (!channel) return null;
+  const s = String(channel).trim();
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('@')) return `https://t.me/${s.slice(1)}`;
+  return `https://t.me/${s}`;
+}
+/* ---- Konkurs: bir nechta majburiy kanal/guruhga bir vaqtda obuna tekshiruvi ---- */
+async function isSubscribedAll(telegramUserId, channels) {
+  const list = Array.isArray(channels) ? channels.filter(Boolean) : [];
+  if (!list.length) return { ok: true, missing: [] };
+  const results = await Promise.all(list.map(async ch => ({ channel: ch, subscribed: await isSubscribed(telegramUserId, ch) })));
+  const missing = results.filter(r => !r.subscribed).map(r => ({ channel: r.channel, link: channelToLink(r.channel) }));
+  return { ok: missing.length === 0, missing };
+}
 
 /* ---- VOUCHER: kanalga post qilish uchun yordamchi funksiyalar ---- */
 let cachedBotUsername = process.env.BOT_USERNAME || null;
@@ -284,14 +307,19 @@ async function getBotUsername() {
 }
 
 /* ---- KONKURS: yordamchi funksiyalar ---- */
-function contestRequireLabel(c) {
-  return c.requireChannel ? `📢 Majburiy obuna: ${c.requireChannel}` : null;
+// Eski (bitta requireChannel) va yangi (requireChannels massivi) formatlarni
+// bir xil massivga keltiradi — orqaga moslik uchun.
+function contestChannelList(c) {
+  if (Array.isArray(c.requireChannels) && c.requireChannels.length) return c.requireChannels.filter(Boolean);
+  if (c.requireChannel) return [c.requireChannel];
+  return [];
 }
 function serializeContest(c, user) {
   const uid = user ? String(user.id) : null;
   const myEntry = uid ? c.participants.find(p => p.userId === uid) : null;
   const totalTickets = c.participants.reduce((s, p) => s + p.tickets, 0);
   const item = NFT_BY_ID.get(c.itemId);
+  const channels = contestChannelList(c);
   return {
     id: c.id,
     title: c.title,
@@ -300,9 +328,10 @@ function serializeContest(c, user) {
     ticketPrice: c.ticketPrice || 0,
     itemId: c.itemId,
     itemName: item ? item.name : '',
+    itemCustomEmojiId: item ? item.custom_emoji_id : null,
+    itemIsVideo: item ? !!item.is_video : false,
     prizeCount: c.prizeCount,
-    requireChannel: c.requireChannel || null,
-    requireLabel: contestRequireLabel(c),
+    requireChannels: channels.map(ch => ({ channel: ch, link: channelToLink(ch) })),
     status: c.status,
     participantsCount: c.participants.length,
     totalTickets,
@@ -975,6 +1004,34 @@ app.get('/api/contests', (req, res) => {
   res.json({ contests: list });
 });
 
+// Bitta konkursning eng so'nggi holatini olish (ishtirokchilar soni, mening
+// biletlarim va h.k. — konkurs sahifasi ochiq turganda vaqti-vaqti bilan
+// jonli yangilanish uchun ishlatiladi).
+app.get('/api/contest/:id', (req, res) => {
+  let user = null;
+  const initData = req.query.initData;
+  if (initData) {
+    const tgUser = getTgUserFromInitData(String(initData));
+    if (tgUser) user = users.get(String(tgUser.id));
+  }
+  const c = contests.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: 'NOT_FOUND' });
+  res.json({ contest: serializeContest(c, user) });
+});
+
+// Konkursga qatnashishdan oldin (yoki pullik konkursda bilet olish blokini
+// ochishdan oldin) barcha majburiy kanal/guruhlarga obunani tekshirish —
+// hech qanday holatni o'zgartirmaydi, faqat natijani qaytaradi.
+app.post('/api/contest/check_requirements', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { contestId } = req.body || {};
+  const c = contests.find(x => x.id === contestId);
+  if (!c) return res.status(404).json({ error: 'NOT_FOUND' });
+  const { ok, missing } = await isSubscribedAll(String(user.id), contestChannelList(c));
+  if (!ok) return res.status(403).json({ error: 'NOT_SUBSCRIBED', missing });
+  res.json({ ok: true });
+});
+
 app.post('/api/contest/join', async (req, res) => {
   const user = requireUser(req, res); if (!user) return;
   const { contestId } = req.body || {};
@@ -985,10 +1042,8 @@ app.post('/api/contest/join', async (req, res) => {
   const uid = String(user.id);
   if (c.participants.some(p => p.userId === uid)) return res.status(400).json({ error: 'ALREADY_JOINED' });
 
-  if (c.requireChannel) {
-    const subscribed = await isSubscribed(uid, c.requireChannel);
-    if (!subscribed) return res.status(403).json({ error: 'NOT_SUBSCRIBED', requireChannel: c.requireChannel });
-  }
+  const { ok, missing } = await isSubscribedAll(uid, contestChannelList(c));
+  if (!ok) return res.status(403).json({ error: 'NOT_SUBSCRIBED', missing });
   c.participants.push({ userId: uid, tickets: 1 });
   res.json({ ok: true, contest: serializeContest(c, user) });
 });
@@ -1006,10 +1061,8 @@ app.post('/api/contest/buy_tickets', async (req, res) => {
   if ((user.balance || 0) < cost) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
 
   const uid = String(user.id);
-  if (c.requireChannel) {
-    const subscribed = await isSubscribed(uid, c.requireChannel);
-    if (!subscribed) return res.status(403).json({ error: 'NOT_SUBSCRIBED', requireChannel: c.requireChannel });
-  }
+  const { ok, missing } = await isSubscribedAll(uid, contestChannelList(c));
+  if (!ok) return res.status(403).json({ error: 'NOT_SUBSCRIBED', missing });
   user.balance = round2(user.balance - cost);
   let entry = c.participants.find(p => p.userId === uid);
   if (!entry) { entry = { userId: uid, tickets: 0 }; c.participants.push(entry); }
@@ -1027,6 +1080,8 @@ app.post('/api/contest/create_ticket_invoice', async (req, res) => {
   if (!c) return res.status(404).json({ error: 'NOT_FOUND' });
   if (c.status !== 'active') return res.status(400).json({ error: 'FINISHED' });
   if (c.type !== 'paid') return res.status(400).json({ error: 'NOT_PAID' });
+  const { ok, missing } = await isSubscribedAll(String(user.id), contestChannelList(c));
+  if (!ok) return res.status(403).json({ error: 'NOT_SUBSCRIBED', missing });
   const starsAmount = Math.max(1, Math.floor(Number(stars)) || 0);
   if (!starsAmount) return res.status(400).json({ error: 'INVALID_AMOUNT' });
   const ticketsCount = starsAmount * CONTEST_TICKET_STARS_RATE;
@@ -1197,7 +1252,12 @@ app.post('/api/admin_action', (req, res) => {
         const prizeCount = Math.max(1, parseInt(payload.prizeCount) || 1);
         const type = payload.type === 'paid' ? 'paid' : 'free';
         const ticketPrice = type === 'paid' ? Math.max(0.1, Number(payload.ticketPrice) || 1) : 0;
-        const requireChannel = payload.requireChannel ? String(payload.requireChannel).trim() : null;
+        // requireChannels: bir nechta majburiy kanal/guruh (massiv) qabul qilinadi.
+        // Orqaga moslik uchun eski bitta `requireChannel` maydoni ham qo'llab-quvvatlanadi.
+        const rawChannels = Array.isArray(payload.requireChannels)
+          ? payload.requireChannels
+          : (payload.requireChannel ? [payload.requireChannel] : []);
+        const requireChannels = rawChannels.map(x => String(x || '').trim()).filter(Boolean);
         contests.push({
           id: crypto.randomBytes(6).toString('hex'),
           title,
@@ -1206,7 +1266,7 @@ app.post('/api/admin_action', (req, res) => {
           prizeCount,
           type,
           ticketPrice,
-          requireChannel,
+          requireChannels,
           status: 'active',
           participants: [],
           winners: null,

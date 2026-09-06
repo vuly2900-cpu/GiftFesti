@@ -297,13 +297,15 @@
   .konkurs-card .k-head{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
   .konkurs-card .k-prize-ic{width:46px; height:46px; border-radius:12px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; overflow:hidden;}
   .konkurs-card .k-prize-ic img, .konkurs-card .k-prize-ic .lottie-box{width:100%; height:100%; object-fit:contain;}
-  .konkurs-card .k-prize-stack{position:relative; width:66px; height:52px; flex-shrink:0;}
-  .konkurs-card .k-prize-stack .stack-item{position:absolute; border-radius:9px; background:var(--surface-2); overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,.4);}
+  .konkurs-card .k-prize-stack{display:flex; align-items:center; justify-content:center; width:70px; height:52px; flex-shrink:0; position:relative;}
+  .konkurs-card .k-prize-stack .stack-item{position:relative; border-radius:9px; background:var(--surface-2); overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,.5);}
   .konkurs-card .k-prize-stack .stack-item .anim-slot{width:100%; height:100%;}
-  .konkurs-card .k-prize-stack .stack-item.stack-side{width:30px; height:30px; top:11px; z-index:1; border-radius:7px;}
-  .konkurs-card .k-prize-stack .stack-item.stack-side.stack-left{left:0;}
-  .konkurs-card .k-prize-stack .stack-item.stack-side.stack-right{right:0;}
-  .konkurs-card .k-prize-stack .stack-item.stack-center{width:42px; height:42px; left:50%; top:2px; transform:translateX(-50%); z-index:2;}
+  .konkurs-card .k-prize-stack .stack-center{width:42px; height:42px; z-index:5;}
+  .konkurs-card .k-prize-stack .stack-inner-left{width:32px; height:32px; z-index:4; margin-right:-13px; border-radius:7px;}
+  .konkurs-card .k-prize-stack .stack-inner-right{width:32px; height:32px; z-index:4; margin-left:-13px; border-radius:7px;}
+  .konkurs-card .k-prize-stack .stack-outer-left{width:24px; height:24px; z-index:3; margin-right:-9px; border-radius:6px;}
+  .konkurs-card .k-prize-stack .stack-outer-right{width:24px; height:24px; z-index:3; margin-left:-9px; border-radius:6px;}
+  .konkurs-card .k-prize-stack .stack-more-badge{position:absolute; right:-2px; bottom:-2px; background:var(--gold); color:#000; font-size:9px; font-weight:800; padding:1px 4px; border-radius:8px; z-index:6;}
   .konkurs-card .k-title{font-size:15px; font-weight:700;}
   .konkurs-card .k-sub{font-size:12px; color:var(--text-dim); margin-top:2px;}
   .konkurs-card .k-desc{font-size:12.5px; color:var(--text-dim); margin:8px 0;}
@@ -323,14 +325,21 @@
   .kd-hero{display:flex; flex-direction:column; align-items:center; text-align:center; padding:18px 10px 6px;}
   .kd-hero .kd-prize-ic{width:120px; height:120px; border-radius:24px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:14px;}
   .kd-hero .kd-prize-ic .anim-slot{width:100%; height:100%;}
-  .kd-hero .kd-prize-stack{position:relative; width:230px; height:130px; margin-bottom:14px; flex-shrink:0;}
-  .kd-hero .kd-prize-stack .stack-item{position:absolute; border-radius:22px; background:var(--surface-2); overflow:hidden; box-shadow:0 6px 16px rgba(0,0,0,.45);}
+  .kd-hero .kd-prize-stack{display:flex; align-items:center; justify-content:center; min-height:126px; margin-bottom:14px; flex-shrink:0; position:relative; padding:0 10px;}
+  .kd-hero .kd-prize-stack .stack-item{position:relative; border-radius:22px; background:var(--surface-2); overflow:hidden; box-shadow:0 8px 20px rgba(0,0,0,.5);}
   .kd-hero .kd-prize-stack .stack-item .anim-slot{width:100%; height:100%;}
-  .kd-hero .kd-prize-stack .stack-item.stack-side{width:84px; height:84px; top:23px; z-index:1; border-radius:18px;}
-  .kd-hero .kd-prize-stack .stack-item.stack-side.stack-left{left:2px;}
-  .kd-hero .kd-prize-stack .stack-item.stack-side.stack-right{right:2px;}
-  .kd-hero .kd-prize-stack .stack-item.stack-center{width:118px; height:118px; left:50%; top:6px; transform:translateX(-50%); z-index:2;}
-  .kd-hero .kd-prize-stack .stack-more-badge{position:absolute; right:0; bottom:20px; background:var(--gold); color:#000; font-size:11px; font-weight:800; padding:2px 7px; border-radius:10px; z-index:3;}
+  .kd-hero .kd-prize-stack .stack-center{width:112px; height:112px; z-index:5;}
+  .kd-hero .kd-prize-stack .stack-inner-left{width:82px; height:82px; z-index:4; margin-right:-32px; border-radius:18px;}
+  .kd-hero .kd-prize-stack .stack-inner-right{width:82px; height:82px; z-index:4; margin-left:-32px; border-radius:18px;}
+  .kd-hero .kd-prize-stack .stack-outer-left{width:60px; height:60px; z-index:3; margin-right:-24px; border-radius:14px;}
+  .kd-hero .kd-prize-stack .stack-outer-right{width:60px; height:60px; z-index:3; margin-left:-24px; border-radius:14px;}
+  .kd-hero .kd-prize-stack .stack-more-badge{position:absolute; right:2px; bottom:2px; background:var(--gold); color:#000; font-size:11px; font-weight:800; padding:2px 7px; border-radius:10px; z-index:6;}
+  .kd-all-prizes-toggle{margin-top:10px; background:none; border:1px solid var(--border); color:var(--gold); font-size:12px; font-weight:700; padding:8px 14px; border-radius:12px;}
+  .kd-all-prizes-grid{display:none; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:14px; width:100%;}
+  .kd-all-prizes-grid.open{display:grid;}
+  .kd-all-prizes-grid .api-item{display:flex; flex-direction:column; align-items:center; gap:5px;}
+  .kd-all-prizes-grid .api-item .anim-slot{width:56px; height:56px; border-radius:14px; background:var(--surface-2); overflow:hidden;}
+  .kd-all-prizes-grid .api-item .api-name{font-size:10px; color:var(--text-dim); text-align:center; line-height:1.3;}
   .kd-hero .kd-title{font-size:19px; font-weight:800; margin-bottom:4px;}
   .kd-hero .kd-sub{font-size:13px; color:var(--text-dim);}
   .kd-hero .kd-desc{font-size:13px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
@@ -3190,6 +3199,53 @@ async function claimTask(taskId, reward, btn) {
 let contestsData = [];
 const contestPrizeIconCache = new Map(); // itemId -> catalog item (name, custom_emoji_id, is_video)
 
+/* ---- Konkurs sovg'alarini "fan/stack" ko'rinishida chiqarish uchun
+   umumiy yordamchi funksiyalar. Markazda 1-sovg'a (eng katta), atrofida
+   navbat bilan chap/o'ng tomonga (avval ichki, keyin tashqi — kichikroq
+   va ko'proq yopiq holda) joylashadi. Ko'pi bilan 5 tasi ko'rsatiladi,
+   qolgani "+N" belgisi bilan bildiriladi. ---- */
+function buildPrizeStackSlots(prizeList) {
+  const shown = prizeList.slice(0, 5);
+  const extra = Math.max(0, prizeList.length - 5);
+  const roles = ['center', 'innerLeft', 'innerRight', 'outerLeft', 'outerRight'];
+  const bySlot = {};
+  shown.forEach((p, i) => { bySlot[roles[i]] = p; });
+  // DOM'dagi (chapdan o'ngga) tartib — CSS negative margin orqali bir-biriga yopishtiriladi.
+  const domOrder = ['outerLeft', 'innerLeft', 'center', 'innerRight', 'outerRight'];
+  return { bySlot, domOrder, extra };
+}
+const STACK_ROLE_CLASS = {
+  center: 'stack-center', innerLeft: 'stack-inner-left', innerRight: 'stack-inner-right',
+  outerLeft: 'stack-outer-left', outerRight: 'stack-outer-right',
+};
+function prizeStackHtml(prizeList, idPrefix) {
+  const { bySlot, domOrder, extra } = buildPrizeStackSlots(prizeList);
+  const itemsHtml = domOrder
+    .filter(role => bySlot[role])
+    .map(role => `<div class="stack-item ${STACK_ROLE_CLASS[role]}"><div class="anim-slot" id="${idPrefix}_${role}"></div></div>`)
+    .join('');
+  const badge = extra > 0 ? `<div class="stack-more-badge">+${extra}</div>` : '';
+  return `${itemsHtml}${badge}`;
+}
+function mountPrizeStack(prizeList, idPrefix, uniqKey) {
+  const { bySlot } = buildPrizeStackSlots(prizeList);
+  Object.keys(bySlot).forEach(role => {
+    const p = bySlot[role];
+    const el = document.getElementById(`${idPrefix}_${role}`);
+    if (!el || !p) return;
+    const cached = contestPrizeIconCache.get(p.itemId);
+    const emojiId = p.itemCustomEmojiId || (cached && cached.custom_emoji_id);
+    const isVideo = p.itemIsVideo ?? (cached && cached.is_video);
+    if (emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `${uniqKey}_${p.itemId}`);
+  });
+}
+function normalizeContestPrizeList(c) {
+  return (c.prizes && c.prizes.length)
+    ? c.prizes
+    : (c.itemId ? [{ itemName: c.itemName, itemId: c.itemId, itemCustomEmojiId: c.itemCustomEmojiId, itemIsVideo: c.itemIsVideo }] : []);
+}
+
+
 async function loadContests() {
   const list = document.getElementById('konkursList');
   list.innerHTML = '<p class="empty">Yuklanmoqda...</p>';
@@ -3231,7 +3287,7 @@ function renderContests() {
       body = `<button class="btn" style="width:100%; margin-top:10px;" onclick="openContestDetail('${c.id}')">💰 Qatnashish</button>`;
     }
 
-    const prizeList = (c.prizes && c.prizes.length) ? c.prizes : (c.itemId ? [{ itemName: c.itemName, itemId: c.itemId }] : []);
+    const prizeList = normalizeContestPrizeList(c);
     const allSamePrize = prizeList.every(p => p.itemName === prizeList[0].itemName);
     const prizeLabel = allSamePrize
       ? `${prizeList[0] ? prizeList[0].itemName : (c.itemName || c.itemId)} × ${c.prizeCount}`
@@ -3241,14 +3297,9 @@ function renderContests() {
       : '';
 
     const useStackCard = new Set(prizeList.map(p => p.itemName)).size > 1;
-    const cardCenterP = prizeList[0], cardLeftP = prizeList[1], cardRightP = prizeList[2];
-    const cardIconHtml = useStackCard ? `
-      <div class="k-prize-stack">
-        ${cardLeftP ? `<div class="stack-item stack-side stack-left"><div class="anim-slot" id="${iconAnimId}_l"></div></div>` : ''}
-        ${cardRightP ? `<div class="stack-item stack-side stack-right"><div class="anim-slot" id="${iconAnimId}_r"></div></div>` : ''}
-        <div class="stack-item stack-center"><div class="anim-slot" id="${iconAnimId}"></div></div>
-      </div>
-    ` : `<div class="k-prize-ic"><div class="anim-slot" id="${iconAnimId}"></div></div>`;
+    const cardIconHtml = useStackCard
+      ? `<div class="k-prize-stack">${prizeStackHtml(prizeList, iconAnimId)}</div>`
+      : `<div class="k-prize-ic"><div class="anim-slot" id="${iconAnimId}"></div></div>`;
 
     return `
       <div class="konkurs-card" onclick="openContestDetail('${c.id}')" style="cursor:pointer;">
@@ -3271,24 +3322,43 @@ function renderContests() {
   }).join('');
 
   contestsData.forEach(c => {
-    const prizeList = (c.prizes && c.prizes.length) ? c.prizes : (c.itemId ? [{ itemName: c.itemName, itemId: c.itemId, itemCustomEmojiId: c.itemCustomEmojiId, itemIsVideo: c.itemIsVideo }] : []);
-    const mountPrize = (p, elId) => {
-      if (!p) return;
-      const el = document.getElementById(elId);
-      const cached = contestPrizeIconCache.get(p.itemId);
-      const emojiId = p.itemCustomEmojiId || (cached && cached.custom_emoji_id);
-      const isVideo = p.itemIsVideo ?? (cached && cached.is_video);
-      if (el && emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `k_${c.id}_${p.itemId}`);
-    };
-    mountPrize(prizeList[0], `konkursIcon_${c.id}`);
-    mountPrize(prizeList[1], `konkursIcon_${c.id}_l`);
-    mountPrize(prizeList[2], `konkursIcon_${c.id}_r`);
+    const prizeList = normalizeContestPrizeList(c);
+    const useStackCard = new Set(prizeList.map(p => p.itemName)).size > 1;
+    const iconAnimId = `konkursIcon_${c.id}`;
+    if (useStackCard) {
+      mountPrizeStack(prizeList, iconAnimId, `k_${c.id}`);
+    } else {
+      const p = prizeList[0];
+      const el = document.getElementById(iconAnimId);
+      const cached = p && contestPrizeIconCache.get(p.itemId);
+      const emojiId = p && (p.itemCustomEmojiId || (cached && cached.custom_emoji_id));
+      const isVideo = p && (p.itemIsVideo ?? (cached && cached.is_video));
+      if (el && emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `k_${c.id}`);
+    }
   });
 }
 
 /* ---- Konkurs — to'liq sahifa (detail) ---- */
 let currentContestDetailId = null;
 let contestDetailPollTimer = null;
+let currentDetailPrizeList = [];
+function toggleAllPrizes() {
+  const grid = document.getElementById('kdAllPrizesGrid');
+  const btn = document.getElementById('kdAllPrizesBtn');
+  if (!grid) return;
+  const open = grid.classList.toggle('open');
+  if (btn) btn.textContent = open ? '▲ Yashirish' : `🎁 Barcha sovg'alarni ko'rish (${currentDetailPrizeList.length})`;
+  if (open && grid.dataset.mounted !== '1') {
+    currentDetailPrizeList.forEach((p, i) => {
+      const el = document.getElementById(`kdAllPrize_${i}`);
+      const cached = contestPrizeIconCache.get(p.itemId);
+      const emojiId = p.itemCustomEmojiId || (cached && cached.custom_emoji_id);
+      const isVideo = p.itemIsVideo ?? (cached && cached.is_video);
+      if (el && emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `kdAll_${p.itemId}_${i}`);
+    });
+    grid.dataset.mounted = '1';
+  }
+}
 // Pullik konkursda "Qatnashish" bosilib, majburiy obuna tekshiruvidan
 // muvaffaqiyatli o'tgan konkurslar — shu sessiya davomida bilet olish
 // bo'limi ochiq turadi (sahifa yangilansa qayta ochiladi, muammo emas).
@@ -3344,11 +3414,10 @@ function renderContestDetail(c) {
   // Sovg'alar ro'yxati (har xil bo'lishi mumkin). Agar 2+ turli xil NFT
   // bo'lsa — markazda birinchisi, chapda ikkinchisi, o'ngda uchinchisi
   // (bir-birining ustiga qisman yopilib turadigan "stack" ko'rinishida).
-  const prizeList = (c.prizes && c.prizes.length) ? c.prizes : (c.itemId ? [{ itemName: c.itemName, itemId: c.itemId, itemCustomEmojiId: c.itemCustomEmojiId, itemIsVideo: c.itemIsVideo }] : []);
+  const prizeList = normalizeContestPrizeList(c);
   const distinctNames = new Set(prizeList.map(p => p.itemName));
   const useStack = distinctNames.size > 1;
-  const extraCount = prizeList.length > 3 ? prizeList.length - 3 : 0;
-  const centerP = prizeList[0], leftP = prizeList[1], rightP = prizeList[2];
+  currentDetailPrizeList = prizeList;
 
   const channelsHtml = channels.length ? `
     <div class="kd-section-label">📢 Majburiy obuna</div>
@@ -3405,13 +3474,22 @@ function renderContestDetail(c) {
     : '';
 
   const prizeVisualHtml = useStack ? `
-    <div class="kd-prize-stack">
-      ${leftP ? `<div class="stack-item stack-side stack-left"><div class="anim-slot" id="kdPrizeIconLeft"></div></div>` : ''}
-      ${rightP ? `<div class="stack-item stack-side stack-right"><div class="anim-slot" id="kdPrizeIconRight"></div></div>` : ''}
-      <div class="stack-item stack-center"><div class="anim-slot" id="kdPrizeIconCenter"></div></div>
-      ${extraCount > 0 ? `<div class="stack-more-badge">+${extraCount}</div>` : ''}
-    </div>
+    <div class="kd-prize-stack">${prizeStackHtml(prizeList, 'kdPrize')}</div>
   ` : `<div class="kd-prize-ic"><div class="anim-slot" id="kdPrizeIcon"></div></div>`;
+
+  const allPrizesBtnHtml = prizeList.length > 1
+    ? `<button type="button" class="kd-all-prizes-toggle" id="kdAllPrizesBtn" onclick="toggleAllPrizes()">🎁 Barcha sovg'alarni ko'rish (${prizeList.length})</button>`
+    : '';
+  const allPrizesGridHtml = prizeList.length > 1 ? `
+    <div class="kd-all-prizes-grid" id="kdAllPrizesGrid">
+      ${prizeList.map((p, i) => `
+        <div class="api-item">
+          <div class="anim-slot" id="kdAllPrize_${i}"></div>
+          <div class="api-name">${p.itemName}</div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
 
   body.innerHTML = `
     <div class="kd-hero">
@@ -3419,6 +3497,8 @@ function renderContestDetail(c) {
       <div class="kd-title">${c.title}</div>
       <div class="kd-sub">Sovg'a: ${prizeLabel}</div>
       ${c.description ? `<div class="kd-desc">${c.description}</div>` : ''}
+      ${allPrizesBtnHtml}
+      ${allPrizesGridHtml}
     </div>
     <div class="kd-stats">
       <div class="kd-stat"><div class="n">${c.participantsCount}</div><div class="l">👥 Ishtirokchilar</div></div>
@@ -3430,17 +3510,7 @@ function renderContestDetail(c) {
   `;
 
   if (useStack) {
-    const mountPrize = (p, elId) => {
-      if (!p) return;
-      const el = document.getElementById(elId);
-      const cached = contestPrizeIconCache.get(p.itemId);
-      const emojiId = p.itemCustomEmojiId || (cached && cached.custom_emoji_id);
-      const isVideo = p.itemIsVideo ?? (cached && cached.is_video);
-      if (el && emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `kd_${c.id}_${p.itemId}`);
-    };
-    mountPrize(centerP, 'kdPrizeIconCenter');
-    mountPrize(leftP, 'kdPrizeIconLeft');
-    mountPrize(rightP, 'kdPrizeIconRight');
+    mountPrizeStack(prizeList, 'kdPrize', `kd_${c.id}`);
     startContestDetailPolling();
     return;
   }

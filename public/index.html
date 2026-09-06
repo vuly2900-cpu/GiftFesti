@@ -236,8 +236,9 @@
   .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px;}
   .task-row{display:flex; align-items:center; gap:12px;}
   .task-row .info{flex:1;}
-  .task-row .ch-title{font-size:14px; font-weight:600; margin-bottom:2px;}
+  .task-row .ch-title{font-size:14px; font-weight:600; margin-bottom:2px; display:flex; align-items:center; gap:8px;}
   .task-row .reward{font-size:12px; color:var(--gold);}
+  .task-icon{width:26px; height:26px; border-radius:7px; flex-shrink:0; object-fit:contain;}
   .btn{
     border:none; border-radius:10px; padding:9px 14px;
     font-size:13px; font-weight:600; font-family:'Inter',sans-serif;
@@ -2933,9 +2934,9 @@ async function loadLeaderboard(force = false) {
 }
 
 const TASK_TYPE_META = {
-  channel: { icon: '📢', openLabel: 'Obuna', fallbackTitle: "Kanalga a'zo bo'ling" },
-  chat: { icon: '💬', openLabel: "Qo'shilish", fallbackTitle: "Chatga a'zo bo'ling" },
-  bot: { icon: '🤖', openLabel: 'Ishga tushirish', fallbackTitle: "Botni ishga tushiring" },
+  channel: { icon: 'task-icons/channel.png', openLabel: 'Obuna', fallbackTitle: "Kanalga a'zo bo'ling" },
+  chat: { icon: 'task-icons/chat.png', openLabel: "Qo'shilish", fallbackTitle: "Chatga a'zo bo'ling" },
+  bot: { icon: 'task-icons/bot.png', openLabel: 'Ishga tushirish', fallbackTitle: "Botni ishga tushiring" },
 };
 
 function renderTasks(tasks) {
@@ -2951,7 +2952,7 @@ function renderTasks(tasks) {
     return `
       <div class="card task-row">
         <div class="info">
-          <div class="ch-title">${meta.icon} ${t.channel_title || meta.fallbackTitle}</div>
+          <div class="ch-title"><img class="task-icon" src="${meta.icon}" alt="">${t.channel_title || meta.fallbackTitle}</div>
           <div class="reward"><span class="coin-ico"></span> ${t.stars_reward}</div>
         </div>
         ${isDone ? `<button class="btn done" disabled>Bajarildi</button>` : `
@@ -2964,9 +2965,9 @@ function renderTasks(tasks) {
 
 /* ===== Kunlik doimiy vazifalar: raketa/hokkey/baraban o'ynash + do'stlarga yuborish ===== */
 const DAILY_TASK_DEFS = [
-  { key: 'crash', icon: '🚀', title: '1 marta Raketa o\'ynang', game: 'crash' },
-  { key: 'hockey', icon: '🏒', title: '1 marta Hokkey o\'ynang', game: 'hockey' },
-  { key: 'drum', icon: '🥁', title: '1 marta Baraban o\'ynang', game: 'drum' },
+  { key: 'crash', icon: 'task-icons/raketa.png', title: '1 marta Raketa o\'ynang', game: 'crash' },
+  { key: 'hockey', icon: 'task-icons/hokkey.png', title: '1 marta Hokkey o\'ynang', game: 'hockey' },
+  { key: 'drum', icon: 'task-icons/baraban.png', title: '1 marta Baraban o\'ynang', game: 'drum' },
 ];
 let dailyTasksCountdownInterval = null;
 
@@ -2990,7 +2991,7 @@ function renderDailyTasks(dt) {
       return `
         <div class="card task-row" data-daily="${def.key}">
           <div class="info">
-            <div class="ch-title">${def.icon} ${def.title}</div>
+            <div class="ch-title"><img class="task-icon" src="${def.icon}" alt="">${def.title}</div>
             ${rewardHtml}
           </div>
           <button class="btn done" disabled>Bajarildi <span class="daily-reset-timer" data-reset="${st.resetAt}">${st.resetAt ? fmtHms(st.resetAt - Date.now()) : ''}</span></button>
@@ -2999,7 +3000,7 @@ function renderDailyTasks(dt) {
     return `
       <div class="card task-row" data-daily="${def.key}">
         <div class="info">
-          <div class="ch-title">${def.icon} ${def.title}</div>
+          <div class="ch-title"><img class="task-icon" src="${def.icon}" alt="">${def.title}</div>
           ${rewardHtml}
         </div>
         <button class="btn" onclick="openGame('${def.game}')">O'ynash</button>
@@ -3010,7 +3011,7 @@ function renderDailyTasks(dt) {
   const inviteCard = `
     <div class="card task-row" data-daily="invite">
       <div class="info">
-        <div class="ch-title">👥 3 ta do'stga yuboring</div>
+        <div class="ch-title"><img class="task-icon" src="task-icons/invite.png" alt="">3 ta do'stga yuboring</div>
         <div class="reward"><span class="coin-ico"></span> ${DAILY_TASK_GAME_REWARD} &middot; ${inv.count}/${inv.target}</div>
       </div>
       ${inv.done

@@ -60,10 +60,31 @@ GET  /api/game_history/:game   (game = hockey | drum)
 POST /api/redeem_promo         {initData, code}
 POST /api/admin_action         {initData, action, payload}
 POST /api/place_bet            {initData, game, amount}   (game = hockey | drum)
+POST /api/create_topup_invoice {initData, coins}          (Telegram Stars invoys havolasini qaytaradi)
 ```
 
 Real vaqt o'yin holati: socket.io orqali `hockey:state`, `drum:state`
 eventlari barcha ulangan clientlarga yuboriladi.
+
+## Balansni to'ldirish (Telegram Stars)
+
+Foydalanuvchi "+" yoki "💳 To'ldirish" tugmasini bosganda alohida oyna
+ochiladi va nechta coin to'ldirmoqchi ekanligi so'raladi (**1 ⭐ Stars =
+100 coin**). "To'ldirish" bosilganda:
+
+1. Frontend `/api/create_topup_invoice` ga so'rov yuboradi — server
+   Telegram Bot API orqali (`createInvoiceLink`, valyuta `XTR`) invoys
+   havolasi yaratadi.
+2. Frontend shu havolani `Telegram.WebApp.openInvoice(...)` bilan ochadi —
+   Telegram'ning o'zining to'lov oynasi chiqadi.
+3. To'lov muvaffaqiyatli bo'lgach, Telegram `bot.js`ga `successful_payment`
+   yangilanishini yuboradi; `bot.js` esa server.js dagi ichki
+   `/api/internal_topup_credit` orqali foydalanuvchi balansiga coin
+   qo'shadi va tasdiq xabari yuboradi.
+
+**Muhim:** bu funksiya ishlashi uchun `bot.js` ham ishga tushirilgan
+bo'lishi shart (`npm run bot`), chunki `successful_payment` xabarlarini
+faqat u qabul qiladi.
 
 ## Muhim eslatma
 

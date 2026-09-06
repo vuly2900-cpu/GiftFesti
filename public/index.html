@@ -851,6 +851,43 @@
     font-size: 13px; cursor: pointer; text-decoration: underline;
   }
 
+  /* BALANSNI TO'LDIRISH (TOPUP) OVERLAY */
+  .topup-overlay {
+    position: fixed; inset: 0; background: rgba(10,11,14,.95); z-index: 1001;
+    display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+  }
+  .topup-box {
+    background: var(--surface); border: 1px solid var(--border); padding: 24px;
+    border-radius: 16px; width: 100%; max-width: 340px; text-align: center;
+  }
+  .topup-icon { font-size: 40px; margin-bottom: 6px; }
+  .topup-rate { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
+  .topup-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .topup-quick-btn {
+    padding: 10px 4px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .topup-quick-btn.active { background: var(--gold); color: #1a1400; border-color: var(--gold); }
+  .topup-input-row {
+    display: flex; align-items: center; gap: 8px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px;
+  }
+  .topup-input-row input {
+    flex: 1; background: none; border: none; outline: none; color: var(--text);
+    font-size: 16px; font-weight: 700; text-align: right; min-width: 0;
+  }
+  .topup-stars-line { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; min-height: 16px; }
+  .topup-stars-line b { color: var(--gold); }
+  .topup-btn {
+    width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 700;
+    font-size: 15px; cursor: pointer; background: var(--gold); color: #1a1400; margin-top: 6px;
+  }
+  .topup-btn:disabled { opacity: .5; cursor: default; }
+  .topup-close {
+    margin-top: 14px; background: none; border: none; color: var(--text-dim);
+    font-size: 13px; cursor: pointer; text-decoration: underline;
+  }
+
   /* ADMIN MODAL */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.85);
@@ -1107,7 +1144,7 @@
   /* --- Kartalarga chuqurlik (soya) --- */
   .card, .game-card, .nft-card, .case-item, .case-reel-item,
   .stat-grid .stat, .admin-task-row, .podium .slot, .link-box,
-  .hockey-bet-panel, .captcha-box, .sub-box, .voucher-box, .modal-window {
+  .hockey-bet-panel, .captcha-box, .sub-box, .voucher-box, .topup-box, .modal-window {
     box-shadow: 0 4px 16px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.35);
     backdrop-filter: blur(16px) saturate(150%);
     -webkit-backdrop-filter: blur(16px) saturate(150%);
@@ -1189,7 +1226,7 @@
   <div class="balance-pill">
     <span class="star"><span class="coin-ico"></span></span>
     <span class="amt mono" id="topBalance">0</span>
-    <button class="plus-btn" onclick="goTo('tasks')">+</button>
+    <button class="plus-btn" onclick="openTopupOverlay()">+</button>
   </div>
 </div>
 
@@ -1233,6 +1270,29 @@
   </div>
 </div>
 
+<div class="topup-overlay" id="topupOverlay">
+  <div class="topup-box">
+    <div class="topup-icon">💰</div>
+    <h2 style="font-size:18px; margin-bottom:2px;">Balansni to'ldirish</h2>
+    <div class="topup-rate">1 ⭐ Stars = 100 coin</div>
+    <div class="topup-quick" id="topupQuickRow">
+      <button class="topup-quick-btn" data-coins="100" onclick="setTopupAmount(100)">100</button>
+      <button class="topup-quick-btn" data-coins="500" onclick="setTopupAmount(500)">500</button>
+      <button class="topup-quick-btn" data-coins="1000" onclick="setTopupAmount(1000)">1000</button>
+      <button class="topup-quick-btn" data-coins="2500" onclick="setTopupAmount(2500)">2500</button>
+      <button class="topup-quick-btn" data-coins="5000" onclick="setTopupAmount(5000)">5000</button>
+      <button class="topup-quick-btn" data-coins="10000" onclick="setTopupAmount(10000)">10000</button>
+    </div>
+    <div class="topup-input-row">
+      <span class="coin-ico"></span>
+      <input type="number" id="topupCoinsInput" min="100" step="100" placeholder="Coin miqdori" oninput="onTopupInputChange()">
+    </div>
+    <div class="topup-stars-line" id="topupStarsLine">Necha ta coin to'ldirmoqchisiz?</div>
+    <button class="topup-btn" id="topupSubmitBtn" onclick="submitTopup()" disabled>⭐ To'ldirish</button>
+    <button class="topup-close" onclick="closeTopupOverlay()">Yopish</button>
+  </div>
+</div>
+
 <main>
   <!-- ... Qolgan barcha section sahifalar o'zgarishsiz qoladi ... -->
   <section class="page" id="page-rating">
@@ -1261,7 +1321,7 @@
           <span class="play-balance-amt mono"><span class="coin-ico"></span><span id="playHeaderBalance">0</span></span>
         </div>
       </div>
-      <button class="play-topup-btn" onclick="goTo('tasks')">💳 To'ldirish</button>
+      <button class="play-topup-btn" onclick="openTopupOverlay()">💳 To'ldirish</button>
     </div>
 
     <div class="game-card crash" onclick="openGame('crash')">
@@ -2203,6 +2263,110 @@ async function claimVoucherFromOverlay() {
 function closeVoucherOverlay() {
   document.getElementById('voucherOverlay').style.display = 'none';
   pendingVoucherId = null;
+}
+
+/* ==================== BALANSNI TO'LDIRISH (Telegram Stars) ==================== */
+const COINS_PER_STAR = 100; // faqat ko'rsatish uchun; haqiqiy hisob-kitob serverda
+const CREATE_TOPUP_INVOICE_API_URL = '/api/create_topup_invoice';
+let topupSubmitting = false;
+
+function openTopupOverlay() {
+  const overlay = document.getElementById('topupOverlay');
+  const input = document.getElementById('topupCoinsInput');
+  input.value = '';
+  updateTopupQuickActive(null);
+  updateTopupStarsLine();
+  document.getElementById('topupSubmitBtn').disabled = true;
+  overlay.style.display = 'flex';
+}
+
+function closeTopupOverlay() {
+  document.getElementById('topupOverlay').style.display = 'none';
+}
+
+function updateTopupQuickActive(coins) {
+  document.querySelectorAll('#topupQuickRow .topup-quick-btn').forEach(btn => {
+    btn.classList.toggle('active', Number(btn.dataset.coins) === coins);
+  });
+}
+
+function setTopupAmount(coins) {
+  document.getElementById('topupCoinsInput').value = coins;
+  updateTopupQuickActive(coins);
+  updateTopupStarsLine();
+}
+
+function onTopupInputChange() {
+  const coins = Math.floor(Number(document.getElementById('topupCoinsInput').value)) || 0;
+  updateTopupQuickActive(coins);
+  updateTopupStarsLine();
+}
+
+function updateTopupStarsLine() {
+  const raw = document.getElementById('topupCoinsInput').value;
+  const coins = Math.floor(Number(raw)) || 0;
+  const line = document.getElementById('topupStarsLine');
+  const btn = document.getElementById('topupSubmitBtn');
+  if (!coins || coins < COINS_PER_STAR) {
+    line.innerHTML = `Kamida ${COINS_PER_STAR} coin (1 ⭐) kiriting`;
+    btn.disabled = true;
+    return;
+  }
+  const stars = Math.ceil(coins / COINS_PER_STAR);
+  const finalCoins = stars * COINS_PER_STAR;
+  line.innerHTML = `To'lov: <b>${stars} ⭐</b> uchun <b>${finalCoins} coin</b> beriladi`;
+  btn.disabled = false;
+}
+
+async function submitTopup() {
+  if (topupSubmitting) return;
+  const raw = document.getElementById('topupCoinsInput').value;
+  let coins = Math.floor(Number(raw)) || 0;
+  if (!coins || coins < COINS_PER_STAR) return;
+  // Serverga har doim 100 ga karrali qiymat yuboramiz (stars butun son bo'lishi uchun)
+  coins = Math.ceil(coins / COINS_PER_STAR) * COINS_PER_STAR;
+
+  if (!tg || typeof tg.openInvoice !== 'function') {
+    alert("To'lov faqat Telegram ilovasi ichida ishlaydi. Iltimos, botni Telegram orqali oching.");
+    return;
+  }
+
+  const btn = document.getElementById('topupSubmitBtn');
+  topupSubmitting = true;
+  btn.disabled = true;
+  btn.textContent = 'Yuklanmoqda...';
+
+  let data;
+  try {
+    const res = await fetch(CREATE_TOPUP_INVOICE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', coins }),
+    });
+    data = await res.json();
+  } catch (e) {
+    console.error("To'ldirish invoysini olishda xatolik:", e);
+  }
+
+  topupSubmitting = false;
+  btn.disabled = false;
+  btn.textContent = '⭐ To\'ldirish';
+
+  if (!data || !data.ok) {
+    alert("To'lov havolasini yaratishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
+    return;
+  }
+
+  tg.openInvoice(data.link, async (status) => {
+    if (status === 'paid') {
+      closeTopupOverlay();
+      // Balansni serverdan qayta yuklaymiz (bot.js to'lovni kreditlab ulguradi)
+      setTimeout(() => { initUser(); }, 1200);
+      alert(`🎉 To'lov muvaffaqiyatli! ${data.coins} coin balansingizga qo'shildi.`);
+    } else if (status === 'failed') {
+      alert("To'lov amalga oshmadi. Qayta urinib ko'ring.");
+    }
+  });
 }
 
 const REFERRAL_REWARD = 10; // "Do'st taklif qiling va 10 ⭐ oling" (faqat ko'rsatish uchun; haqiqiy qiymat serverda)

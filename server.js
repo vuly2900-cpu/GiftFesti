@@ -20,6 +20,7 @@ const WEBAPP_URL = (process.env.WEBAPP_URL || '').replace(/\/$/, '');
 const DB_FILE = path.join(__dirname, 'db.json');
 const REFERRAL_REWARD = 10;
 const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const COINS_PER_STAR = 100; // Balansni to'ldirish narxi: 1 Telegram Stars = 100 coin
 
 /* ============================================================
    MA'LUMOTLAR BAZASI (in-memory, db.json ga davriy saqlanadi)
@@ -31,6 +32,9 @@ let promos = [];             // [{code, reward, maxUses, used, usedBy:Set}]
 let vouchers = [];           // [{id, reward, maxUses, used, usedBy:Set, requireType, requireTarget, requireLabel, createdAt}]
 let leaderboardEndAt = null; // Reyting tugash vaqti (ms, epoch) — admin panel orqali belgilanadi
 const gameHistory = { hockey: [], drum: [], crash: [] };
+// Telegram Stars orqali balans to'ldirishda bir xil to'lovni ikki marta
+// kreditlab qo'ymaslik uchun qayta ishlangan telegram_payment_charge_id'lar:
+const processedTopupCharges = new Set();
 
 function createUser(id, username) {
   return {
@@ -71,6 +75,7 @@ function serializeState() {
     gameHistory,
     gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number },
     leaderboardEndAt,
+    processedTopupCharges: Array.from(processedTopupCharges),
   };
 }
 function saveDb() {
@@ -100,6 +105,7 @@ function loadDb() {
       drumState.game_number = data.gameNumbers.drum || 1;
     }
     leaderboardEndAt = data.leaderboardEndAt || null;
+    (data.processedTopupCharges || []).forEach(id => processedTopupCharges.add(id));
     console.log(`DB yuklandi: ${users.size} foydalanuvchi, ${tasks.length} vazifa, ${promos.length} promo, ${vouchers.length} voucher`);
   } catch (e) { console.error('DB yuklashda xatolik:', e.message); }
 }
@@ -992,6 +998,77 @@ app.post('/api/internal_voucher_claim', async (req, res) => {
   voucher.usedBy.add(uid);
 
   res.json({ ok: true, reward: voucher.reward, balance: user.balance });
+});
+
+/* ============================================================
+   BALANSNI TO'LDIRISH — Telegram Stars orqali
+   1 ta Stars = 100 coin. Frontend avval shu yerdan invoys havolasini
+   so'raydi, so'ng Telegram.WebApp.openInvoice(...) orqali ochadi.
+   To'lov muvaffaqiyatli bo'lgach, Telegram bot.js'ga `successful_payment`
+   yangilanishini yuboradi — bot.js o'sha yerdan ichki API (pastdagi
+   /api/internal_topup_credit) orqali balansni oshiradi.
+   ============================================================ */
+app.post('/api/create_topup_invoice', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+
+  const coins = Math.floor(Number(req.body?.coins));
+  if (!coins || coins < COINS_PER_STAR || coins % COINS_PER_STAR !== 0) {
+    return res.status(400).json({ error: 'INVALID_AMOUNT' });
+  }
+  const stars = coins / COINS_PER_STAR;
+  // payload ichida userId va coins miqdorini saqlaymiz — to'lov muvaffaqiyatli
+  // bo'lganda aynan shu userga aynan shuncha coin qo'shish uchun kerak bo'ladi.
+  const payload = `topup:${user.id}:${coins}:${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: "GiftFesti — Coin to'ldirish",
+        description: `Balansingizga ${coins} coin qo'shiladi`,
+        payload,
+        currency: 'XTR', // Telegram Stars
+        prices: [{ label: `${coins} coin`, amount: stars }],
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, link: data.result, coins, stars });
+  } catch (e) {
+    console.error("To'ldirish invoysi yaratishda xatolik:", e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+/* ---- bot.js uchun ichki API: to'lov muvaffaqiyatli bo'lgach chaqiriladi ---- */
+app.post('/api/internal_topup_credit', (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const { payload, telegramPaymentChargeId, totalAmount } = req.body || {};
+
+  // Bir xil to'lovni ikki marta kreditlab qo'ymaslik uchun tekshiruv
+  if (telegramPaymentChargeId && processedTopupCharges.has(telegramPaymentChargeId)) {
+    const m0 = /^topup:(\d+):/.exec(String(payload || ''));
+    const existingUser = m0 ? users.get(m0[1]) : null;
+    return res.json({ ok: true, alreadyProcessed: true, balance: existingUser ? existingUser.balance : undefined });
+  }
+
+  const m = /^topup:(\d+):(\d+):/.exec(String(payload || ''));
+  if (!m) return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+  const userId = m[1];
+  const coins = Number(m[2]);
+  const expectedStars = coins / COINS_PER_STAR;
+  if (Number(totalAmount) !== expectedStars) {
+    console.error(`To'ldirish: to'lov summasi mos kelmadi (kutilgan ${expectedStars}, kelgan ${totalAmount})`);
+  }
+
+  let user = users.get(userId);
+  if (!user) { user = createUser(userId, `user${userId}`); users.set(userId, user); }
+  user.balance = round2(user.balance + coins);
+  if (telegramPaymentChargeId) processedTopupCharges.add(telegramPaymentChargeId);
+
+  res.json({ ok: true, coins, balance: user.balance });
 });
 
 /* ============================================================

@@ -297,12 +297,52 @@ async function broadcastToAll(fromChatId, text) {
 }
 
 /* ============================================================
+   BALANSNI TO'LDIRISH (Telegram Stars)
+   - pre_checkout_query: Telegram to'lovni yakunlashdan oldin so'raydi,
+     10 soniya ichida javob berish shart.
+   - successful_payment: to'lov muvaffaqiyatli o'tgach message ichida keladi;
+     shu yerda server.js dagi ichki API orqali coin hisoblanadi.
+   ============================================================ */
+async function handlePreCheckoutQuery(pcq) {
+  try {
+    await apiCall('answerPreCheckoutQuery', { pre_checkout_query_id: pcq.id, ok: true });
+  } catch (e) {
+    console.error('answerPreCheckoutQuery xatoligi:', e.message);
+  }
+}
+
+async function handleSuccessfulPayment(msg) {
+  const chatId = msg.chat.id;
+  const sp = msg.successful_payment;
+  let result;
+  try {
+    result = await internalApiPost('/api/internal_topup_credit', {
+      payload: sp.invoice_payload,
+      telegramPaymentChargeId: sp.telegram_payment_charge_id,
+      totalAmount: sp.total_amount,
+    });
+  } catch (e) {
+    console.error("To'lovni kreditlashda xatolik:", e.message);
+    return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin balansni yangilashda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+  }
+  if (!result || !result.ok) {
+    return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin balansni yangilashda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+  }
+  if (result.alreadyProcessed) return; // bu to'lov uchun xabar allaqachon yuborilgan
+  return sendMessage(chatId,
+    `🎉 To'lov muvaffaqiyatli! Balansingizga *${result.coins} coin* qo'shildi.\n\n💰 Joriy balansingiz: *${result.balance}*`,
+    { parse_mode: 'Markdown' });
+}
+
+/* ============================================================
    Yangilanishlarni qabul qilish
    ============================================================ */
 async function handleMessage(msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const text = (msg.text || '').trim();
+
+  if (msg.successful_payment) return handleSuccessfulPayment(msg);
 
   if (text.startsWith('/start')) return handleStart(msg);
 
@@ -345,6 +385,7 @@ async function handleCallback(cq) {
 async function handleUpdate(update) {
   if (update.message) return handleMessage(update.message);
   if (update.callback_query) return handleCallback(update.callback_query);
+  if (update.pre_checkout_query) return handlePreCheckoutQuery(update.pre_checkout_query);
 }
 
 let offset = 0;

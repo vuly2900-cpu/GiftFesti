@@ -1794,7 +1794,7 @@
   <div class="modal-window">
     <button class="modal-close" onclick="closeReferralModal()">×</button>
     <h2 style="font-size:16px; font-weight:700; margin-bottom:6px;">👥 Referal</h2>
-    <p class="subtitle" style="margin-bottom:14px;">Do'st taklif qiling va 10 <span class="coin-ico"></span> oling</p>
+    <p class="subtitle" style="margin-bottom:14px;">Do'st taklif qiling va 50 <span class="coin-ico"></span> oling</p>
     <div class="link-box">
       <span id="refLink">yuklanmoqda...</span>
       <button class="btn secondary" onclick="copyRefLink()">Nusxalash</button>
@@ -2194,7 +2194,7 @@ const SIMPLE_ADMIN_GIVE_COIN_API_URL = '/api/simple_admin_give_coin';
 const CLAIM_TASK_API_URL = '/api/claim_task';
 const DAILY_TASKS_API_URL = '/api/daily_tasks';
 const DAILY_TASK_INVITE_PROGRESS_URL = '/api/daily_task/invite_progress';
-const DAILY_TASK_GAME_REWARD = 0.5;
+const DAILY_TASK_GAME_REWARD = 15;
 const LEADERBOARD_API_URL = '/api/leaderboard';
 const TASKS_API_URL = '/api/tasks';
 const FRIENDS_API_URL = '/api/friends';
@@ -2567,7 +2567,7 @@ async function submitTopup() {
   });
 }
 
-const REFERRAL_REWARD = 10; // "Do'st taklif qiling va 10 ⭐ oling" (faqat ko'rsatish uchun; haqiqiy qiymat serverda)
+const REFERRAL_REWARD = 50; // "Do'st taklif qiling va 50 ⭐ oling" (faqat ko'rsatish uchun; haqiqiy qiymat serverda)
 
 // MUHIM: balans endi bu yerda o'zgartirilmaydi. Backend initData imzosini
 // tekshirib, referrer haqiqatan mavjudligini va bu foydalanuvchi ilgari

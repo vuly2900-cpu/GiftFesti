@@ -266,6 +266,20 @@ function getTgUserFromInitData(initData) {
   return parseInitDataUnsafe(initData); // faqat dev/test uchun (BOT_TOKEN yo'q bo'lsa)
 }
 
+/* ---- Foydalanuvchiga botdan shaxsiy xabar yuborish (masalan referal mukofoti haqida) ---- */
+async function sendTelegramMessage(chatId, text) {
+  if (!BOT_TOKEN) return;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text }),
+    });
+    const data = await res.json();
+    if (!data.ok) console.error('sendTelegramMessage xatoligi:', data.description);
+  } catch (e) { console.error('sendTelegramMessage xatolik:', e.message); }
+}
+
 /* ---- Telegram kanalga obuna tekshiruvi ---- */
 function toChannelId(link) {
   if (!link) return MAIN_CHANNEL;
@@ -1006,6 +1020,10 @@ app.post('/api/referral_reward', (req, res) => {
     id: Number(newUser.id), username: newUser.username, photo_url: newUser.photo_url,
     joined_at: Date.now(), stars: REFERRAL_REWARD,
   });
+  sendTelegramMessage(
+    referrer.id,
+    `🎉 Yangi foydalanuvchi (${newUser.username || 'Foydalanuvchi'}) sizning referalingizdan qo'shildi!\nSizga ${REFERRAL_REWARD} coin berildi.`
+  ).catch(() => {});
   res.json({ ok: true });
 });
 

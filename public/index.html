@@ -2289,7 +2289,12 @@ async function initUser() {
     alert("Iltimos, ushbu ilovani faqat Telegram ichida oching!");
     return;
   }
-  let refBy = tg?.initDataUnsafe?.start_param?.trim() || null;
+  // MUHIM: referal linki bot.js orqali "web_app" tugmasi bilan ?startapp=...
+  // query-parametri sifatida ochiladi — bu holda Telegram initDataUnsafe.start_param'ni
+  // AVTOMATIK to'ldirmaydi (faqat rasmiy t.me/bot?startapp= to'g'ridan-to'g'ri
+  // linkida to'ldiradi). Shuning uchun URL query'dan ham tekshirib olamiz —
+  // aks holda referal mukofoti hech qachon ishga tushmaydi.
+  let refBy = getStartParam();
   if (refBy === String(tgUser.id)) refBy = null;
 
   // MUHIM: profil endi backendda (Admin SDK orqali) yaratiladi/olinadi —
@@ -2335,10 +2340,17 @@ async function initUser() {
 let pendingVoucherId = null;
 let pendingVoucherRequire = null;
 
-function checkVoucherStartParam() {
+/* ---- Mini App qanday ochilishidan qat'i nazar (rasmiy startapp linki yoki
+   bot.js dagi web_app tugmasi orqali) start parametrni ishonchli o'qib olish ---- */
+function getStartParam() {
   const sp = (tg?.initDataUnsafe?.start_param?.trim())
     || (new URLSearchParams(window.location.search).get('startapp') || '').trim()
     || (new URLSearchParams(window.location.search).get('tgWebAppStartParam') || '').trim();
+  return sp || null;
+}
+
+function checkVoucherStartParam() {
+  const sp = getStartParam() || '';
   if (sp.startsWith('voucher_')) {
     showVoucherOverlay(sp.slice('voucher_'.length));
   } else if (sp.startsWith('konkurs_')) {

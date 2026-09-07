@@ -715,6 +715,8 @@ const GAME_CARD_EMOJI_IDS = {
   hockey: '5415590569231532234',
   drum: '5994377540246966428',
   pvp: '5391267224541474941',
+  upgradeDown: '5231055126105439276',
+  upgradeUp: '5228940017920917247',
 };
 
 /* ---- Reytingdagi top 1/2/3 medal ikonkalari uchun premium animatsiyali emoji ---- */

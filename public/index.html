@@ -695,6 +695,20 @@
   .game-card.upgrade-mini{background:linear-gradient(135deg,#123524,#0d211a);}
   .game-card.upgrade-mini .mini-badge{color:#22C55E;}
 
+  /* ---- UPGRADE mini-karta ikonkasi: pastga/tepaga (qizil/yashil) ikkita NFT emoji ---- */
+  .upg-duo-visual{
+    width:34px; height:34px; margin-top:10px;
+    display:flex; align-items:center; justify-content:center; gap:3px;
+  }
+  .upg-duo-icon{
+    width:16px; height:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .upg-duo-icon video, .upg-duo-icon .lottie-box, .upg-duo-icon img{width:100%; height:100%; object-fit:contain;}
+  .upg-duo-icon .fallback-emoji{
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+
   .hockey-topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
   .hockey-back{
     background:var(--surface); border:1px solid var(--border); color:var(--text);
@@ -1395,7 +1409,10 @@
       </div>
       <div class="game-card upgrade-mini" onclick="openGame('upgrade')">
         <span class="mini-badge">NEW</span>
-        <div class="mini-icon-visual" id="gcVisualUpgrade"><span class="fallback-emoji">📈</span></div>
+        <div class="mini-icon-visual upg-duo-visual" id="gcVisualUpgrade">
+          <div class="upg-duo-icon" id="gcVisualUpgradeDown"><span class="fallback-emoji">🔻</span></div>
+          <div class="upg-duo-icon" id="gcVisualUpgradeUp"><span class="fallback-emoji">🔺</span></div>
+        </div>
         <span class="game-name">UPGRADE</span>
       </div>
     </div>

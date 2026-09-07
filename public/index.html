@@ -2603,7 +2603,7 @@ function renderCaseItems() {
   grid.innerHTML = CASE_ITEMS.map(item => `
     <div class="case-item tier-${item.tier}">
       <div class="emoji">${giftIconHTML(item, `caseGridAnim_${item.id}`)}</div>
-      <div class="val">${item.sell_price} <span class="coin-ico"></span></div>
+      <div class="val">${fmtCoin(item.sell_price)} <span class="coin-ico"></span></div>
     </div>
   `).join('');
   CASE_ITEMS.forEach(item => {
@@ -2627,7 +2627,7 @@ const CASE_REEL_WIN_INDEX = 38;
 function reelItemHTML(item, extraClass, animId) {
   const tierClass = item.isGift ? `tier-${item.tier}` : '';
   const iconHtml = item.isGift ? giftIconHTML(item, animId) : '<span class="coin-ico"></span>';
-  return `<div class="case-reel-item ${tierClass} ${extraClass || ''}"><div class="emoji">${iconHtml}</div><div class="rv">${item.stars} <span class="coin-ico"></span></div></div>`;
+  return `<div class="case-reel-item ${tierClass} ${extraClass || ''}"><div class="emoji">${iconHtml}</div><div class="rv">${fmtCoin(item.stars)} <span class="coin-ico"></span></div></div>`;
 }
 
 function buildReelFillerPool() {
@@ -2733,10 +2733,10 @@ function showCaseResult(reward) {
   const banner = document.getElementById('caseResultBanner');
   if (!banner) return;
   if (reward.isGift) {
-    banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'caseResultAnim')}</div><div>Siz <b>${reward.name || ''} (${reward.stars} <span class="coin-ico"></span>)</b> lik gift yutdingiz! Inventoringizga tushdi — Profil bo'limidan sotishingiz mumkin.</div>`;
+    banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'caseResultAnim')}</div><div>Siz <b>${reward.name || ''} (${fmtCoin(reward.stars)} <span class="coin-ico"></span>)</b> lik gift yutdingiz! Inventoringizga tushdi — Profil bo'limidan sotishingiz mumkin.</div>`;
     mountAnimatedEmoji(document.getElementById('caseResultAnim'), reward.custom_emoji_id, reward.is_video, reward.itemId || reward.id);
   } else if (reward.stars > 0) {
-    banner.innerHTML = `<div class="case-result-emoji"><span class="coin-ico"></span></div><div>Siz <b>${reward.stars} <span class="coin-ico"></span></b> yutdingiz!</div>`;
+    banner.innerHTML = `<div class="case-result-emoji"><span class="coin-ico"></span></div><div>Siz <b>${fmtCoin(reward.stars)} <span class="coin-ico"></span></b> yutdingiz!</div>`;
   } else {
     banner.innerHTML = `<div class="case-result-emoji">😔</div><div>Bu safar hech narsa tushmadi. Ertaga qayta urinib ko'ring!</div>`;
   }
@@ -2891,11 +2891,21 @@ function goTo(pageName) {
   }
 }
 
+function fmtCoin(val) {
+  const n = Number(val);
+  if (!isFinite(n)) return '0';
+  // Round to max 2 decimal places to avoid floating point artifacts
+  // (e.g. 72.64999999999999 -> 72.65), and trim trailing zeros
+  // (e.g. 100.00 -> 100, 0.10 -> 0.1).
+  const rounded = Math.round((n + Number.EPSILON) * 100) / 100;
+  return rounded.toFixed(2).replace(/\.?0+$/, '');
+}
+
 function syncBalanceDisplays(val) {
   const topEl = document.getElementById('topBalance');
-  if (topEl) topEl.textContent = val;
+  if (topEl) topEl.textContent = fmtCoin(val);
   const playEl = document.getElementById('playHeaderBalance');
-  if (playEl) playEl.textContent = val;
+  if (playEl) playEl.textContent = fmtCoin(val);
 }
 
 function syncUserAvatars() {
@@ -2940,7 +2950,7 @@ function renderLeaderboard(leaderboard) {
       <div class="medal" data-place="${u.place}">${u.place}</div>
       <img class="avatar" src="${u.photo_url || avatarFallback(u.username)}" onerror="this.src=avatarFallback('${u.username}')">
       <div class="name">${u.username}</div>
-      <div class="stars"><span class="coin-ico"></span> ${u.stars}</div>
+      <div class="stars"><span class="coin-ico"></span> ${fmtCoin(u.stars)}</div>
       <div class="gift-badge"><div class="anim-slot" id="lbGiftAnim_${u.place}"></div></div>
     </div>
   `).join('');
@@ -2953,7 +2963,7 @@ function renderLeaderboard(leaderboard) {
       <div class="place">${u.place}</div>
       <img class="avatar" src="${u.photo_url || avatarFallback(u.username)}" onerror="this.src=avatarFallback('${u.username}')">
       <div class="uname">${u.username}</div>
-      <div class="stars"><span class="coin-ico"></span> ${u.stars}</div>
+      <div class="stars"><span class="coin-ico"></span> ${fmtCoin(u.stars)}</div>
     </div>
   `).join('');
 }
@@ -3034,7 +3044,7 @@ function renderTasks(tasks) {
       <div class="card task-row">
         <div class="info">
           <div class="ch-title"><img class="task-icon" src="${meta.icon}" alt="">${t.channel_title || meta.fallbackTitle}</div>
-          <div class="reward"><span class="coin-ico"></span> ${t.stars_reward}</div>
+          <div class="reward"><span class="coin-ico"></span> ${fmtCoin(t.stars_reward)}</div>
         </div>
         ${isDone ? `<button class="btn done" disabled>Bajarildi</button>` : `
           <button class="btn secondary" onclick="window.open('${t.channel_link}', '_blank')">${meta.openLabel}</button>
@@ -3067,7 +3077,7 @@ function renderDailyTasks(dt) {
 
   const gameCards = DAILY_TASK_DEFS.map(def => {
     const st = dt[def.key] || { done: false, resetAt: null };
-    const rewardHtml = `<div class="reward"><span class="coin-ico"></span> ${DAILY_TASK_GAME_REWARD}</div>`;
+    const rewardHtml = `<div class="reward"><span class="coin-ico"></span> ${fmtCoin(DAILY_TASK_GAME_REWARD)}</div>`;
     if (st.done) {
       return `
         <div class="card task-row" data-daily="${def.key}">
@@ -3093,7 +3103,7 @@ function renderDailyTasks(dt) {
     <div class="card task-row" data-daily="invite">
       <div class="info">
         <div class="ch-title"><img class="task-icon" src="task-icons/invite.png" alt="">3 ta do'stga yuboring</div>
-        <div class="reward"><span class="coin-ico"></span> ${DAILY_TASK_GAME_REWARD} &middot; ${inv.count}/${inv.target}</div>
+        <div class="reward"><span class="coin-ico"></span> ${fmtCoin(DAILY_TASK_GAME_REWARD)} &middot; ${inv.count}/${inv.target}</div>
       </div>
       ${inv.done
         ? `<button class="btn done" disabled>Bajarildi <span class="daily-reset-timer" data-reset="${inv.resetAt}">${inv.resetAt ? fmtHms(inv.resetAt - Date.now()) : ''}</span></button>`
@@ -3766,7 +3776,7 @@ async function loadReferral(force = false) {
         <div class="friend-row">
           <img class="avatar" src="${avatar}" onerror="this.style.visibility='hidden'">
           <span>${f.username || 'Foydalanuvchi'}</span>
-          <span class="plus-stars">+${f.stars || REFERRAL_REWARD} <span class="coin-ico"></span></span>
+          <span class="plus-stars">+${fmtCoin(f.stars || REFERRAL_REWARD)} <span class="coin-ico"></span></span>
         </div>`;
     }).join('');
   } catch (e) { friendsList.innerHTML = '<p class="empty">Yuklab bo\'lmadi</p>'; }
@@ -3789,8 +3799,8 @@ async function loadProfile() {
   document.getElementById('profAvatar').src = currentUserData.photo_url || avatarFallback(currentUserData.username);
   document.getElementById('profId').textContent = `ID: ${currentUserData.telegram_id}`;
   document.getElementById('profName').textContent = currentUserData.username;
-  document.getElementById('profBalance').textContent = currentUserData.balance;
-  document.getElementById('profTotalWon').textContent = currentUserData.total_won || 0;
+  document.getElementById('profBalance').textContent = fmtCoin(currentUserData.balance);
+  document.getElementById('profTotalWon').textContent = fmtCoin(currentUserData.total_won || 0);
   document.getElementById('profWins').textContent = currentUserData.wins || 0;
   if (tgUser && tgUser.id === ADMIN_ID) {
     document.getElementById('adminOpenerBtn').style.display = 'block';
@@ -3815,7 +3825,7 @@ async function loadInventory() {
         <div class="nft-anim" id="nftAnim_${it.id}"></div>
         <div class="nft-name">${it.name}</div>
         <div class="nft-count">x${it.count}</div>
-        <button class="nft-sell-btn" onclick="sellNft('${it.id}', ${it.sell_price})">💰 Sotish — ${it.sell_price} <span class="coin-ico"></span></button>
+        <button class="nft-sell-btn" onclick="sellNft('${it.id}', ${it.sell_price})">💰 Sotish — ${fmtCoin(it.sell_price)} <span class="coin-ico"></span></button>
       </div>
     `).join('');
 
@@ -4119,7 +4129,7 @@ async function sellNft(itemId, sellPrice) {
 
     currentUserData.balance = data.balance;
     syncBalanceDisplays(currentUserData.balance);
-    document.getElementById('profBalance').textContent = currentUserData.balance;
+    document.getElementById('profBalance').textContent = fmtCoin(currentUserData.balance);
     alert(`Sotildi! +${data.sold_for} coin`);
     loadInventory();
   } catch (e) {
@@ -4238,7 +4248,7 @@ function openGameBetModal(game) {
     return;
   }
   document.getElementById('gameBetOverlay').classList.add('active');
-  document.getElementById('gameBetBalance').innerHTML = `<span class="coin-ico"></span> ${(currentUserData?.balance ?? 0)}`;
+  document.getElementById('gameBetBalance').innerHTML = `<span class="coin-ico"></span> ${fmtCoin(currentUserData?.balance ?? 0)}`;
   gameSwitchBetTab('ton');
 }
 function closeGameBetModal() {
@@ -4819,7 +4829,7 @@ function openCrashBetModal() {
   const overlay = document.getElementById('crashBetOverlay');
   overlay.classList.add('active');
   const balEl = document.getElementById('crashBetBalance');
-  if (balEl) balEl.innerHTML = `<span class="coin-ico"></span> ${(currentUserData?.balance ?? 0)}`;
+  if (balEl) balEl.innerHTML = `<span class="coin-ico"></span> ${fmtCoin(currentUserData?.balance ?? 0)}`;
   crashSwitchBetTab('ton');
 }
 function closeCrashBetModal() {
@@ -5266,7 +5276,7 @@ function initHockeyPage() {
     renderHockeyPlayers();
     if (loader) loader.classList.add('hide');
 
-    document.getElementById('hockeyPot').textContent = hockeyState.pot || 0;
+    document.getElementById('hockeyPot').textContent = fmtCoin(hockeyState.pot || 0);
     const cd = document.getElementById('hockeyCountdown');
 
     if (hockeyState.status === 'betting') {
@@ -5986,7 +5996,7 @@ function initDrumPage() {
     renderDrumPlayers();
     if (drumLoader) drumLoader.classList.add('hide');
 
-    document.getElementById('drumPot').textContent = drumState.pot || 0;
+    document.getElementById('drumPot').textContent = fmtCoin(drumState.pot || 0);
     const cd = document.getElementById('drumCountdown');
 
     if (drumState.status === 'betting') {
@@ -6470,9 +6480,9 @@ function mnRenderGame(room) {
   const opp = room.players[mnState.myIndex === 0 ? 1 : 0];
   document.getElementById('mn-p0name').textContent = me ? (me.username || 'Siz') : 'Siz';
   document.getElementById('mn-p1name').textContent = opp ? (opp.username || 'Raqib') : 'Raqib';
-  document.getElementById('mn-p0coin').innerHTML = `${room.bet} <span class="coin-ico"></span>`;
-  document.getElementById('mn-p1coin').innerHTML = `${room.bet} <span class="coin-ico"></span>`;
-  document.getElementById('mn-bank').innerHTML = `${room.bank} <span class="coin-ico"></span>`;
+  document.getElementById('mn-p0coin').innerHTML = `${fmtCoin(room.bet)} <span class="coin-ico"></span>`;
+  document.getElementById('mn-p1coin').innerHTML = `${fmtCoin(room.bet)} <span class="coin-ico"></span>`;
+  document.getElementById('mn-bank').innerHTML = `${fmtCoin(room.bank)} <span class="coin-ico"></span>`;
   document.getElementById('mnExtremalBadge').style.display = room.extremal ? 'block' : 'none';
   document.getElementById('mnDemoBadge').style.display = room.vsBot ? 'block' : 'none';
 

@@ -1142,6 +1142,21 @@
     font-weight: 800; font-size: 14px; cursor: pointer;
   }
 
+  /* GIFT UPGRADE — yutqazish modali: yuqoridagi bilan bir xil qolip, faqat qizil tema */
+  .nft-lose-card {
+    background: linear-gradient(180deg, rgba(255,90,90,0.10), var(--surface) 40%);
+    border: 1px solid rgba(255,90,90,0.5);
+    box-shadow: 0 0 60px rgba(255,80,80,0.25);
+  }
+  .nft-lose-title { color: #ff6b6b; }
+  .nft-lose-x {
+    width: 120px; height: 120px; border-radius: 50%; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,80,80,.12); border: 2px solid rgba(255,90,90,.5);
+    font-size: 54px; font-weight: 800; color: #ff5a5a;
+  }
+  .nft-lose-ok-btn { background: linear-gradient(135deg, #ff9a8a, #ff5a5a); color: #2a0a0a; }
+
   /* HOCKEY/DRUM — YUTUQ OYNACHASI (raund yutilganda coin + barcha yutilgan
      NFT'larni ko'rsatuvchi oynacha, alert()/banner o'rniga) */
   .round-win-overlay {
@@ -1551,8 +1566,6 @@
       <div style="width:32px;"></div>
     </div>
 
-    <div class="case-result-banner" id="upgResultBanner"></div>
-
     <div class="upg-card upg-hero">
       <div class="upg-hero-icon">📈</div>
       <div>
@@ -1762,6 +1775,35 @@
     <div class="nft-win-name" id="nftWinName"></div>
     <div class="nft-win-desc" id="nftWinDesc"></div>
     <button class="nft-win-ok-btn" onclick="closeNftWinModal()">Ajoyib!</button>
+  </div>
+</div>
+
+<!-- GIFT UPGRADE — YUTUQ MODALI (Raketadagi bilan bir xil uslub) -->
+<div class="nft-win-overlay" id="upgWinOverlay">
+  <div class="nft-win-card">
+    <div class="nft-win-title">🎉 TABRIKLAYMIZ!</div>
+    <div class="nft-win-mult" id="upgWinSub">Upgrade muvaffaqiyatli o'tdi!</div>
+    <div class="nft-win-anim-wrap">
+      <div class="nft-win-anim-glow"></div>
+      <div class="nft-win-anim" id="upgWinAnim"></div>
+    </div>
+    <div class="nft-win-name" id="upgWinName"></div>
+    <div class="nft-win-desc" id="upgWinDesc"></div>
+    <button class="nft-win-ok-btn" onclick="closeUpgWinModal()">Ajoyib!</button>
+  </div>
+</div>
+
+<!-- GIFT UPGRADE — YUTQAZISH MODALI (xuddi shu uslub, qizil rangda) -->
+<div class="nft-win-overlay nft-lose-overlay" id="upgLoseOverlay">
+  <div class="nft-win-card nft-lose-card">
+    <div class="nft-win-title nft-lose-title">Afsuski...</div>
+    <div class="nft-win-mult" id="upgLoseSub">Bu safar omadingiz kelmadi</div>
+    <div class="nft-win-anim-wrap">
+      <div class="nft-lose-x">✕</div>
+    </div>
+    <div class="nft-win-name" id="upgLoseName"></div>
+    <div class="nft-win-desc" id="upgLoseDesc"></div>
+    <button class="nft-win-ok-btn nft-lose-ok-btn" onclick="closeUpgLoseModal()">Tushunarli</button>
   </div>
 </div>
 
@@ -6445,9 +6487,9 @@ function finishUpgradeSpin(result) {
   }
 
   if (result.win) {
-    showUpgradeResult(true, upgState.yourItem, upgState.targetItem);
+    showUpgradeWinModal(upgState.targetItem);
   } else {
-    showUpgradeResult(false, upgState.yourItem, upgState.targetItem);
+    showUpgradeLoseModal(upgState.yourItem);
   }
 
   upgState.yourItem = null;
@@ -6458,18 +6500,43 @@ function finishUpgradeSpin(result) {
   updateUpgradeUI();
 }
 
-/* Upgrade natijasini "Kunlik Case" uslubidagi slayd-banner orqali ko'rsatish
-   (brauzerning standart alert() oynasi o'rniga). */
-function showUpgradeResult(win, yourItem, targetItem) {
-  const banner = document.getElementById('upgResultBanner');
-  if (!banner) return;
-  if (win) {
-    banner.innerHTML = `<div class="case-result-emoji">🎉</div><div>Yutdingiz! Siz <b>"${targetItem.name}"</b> ni oldingiz!</div>`;
-  } else {
-    banner.innerHTML = `<div class="case-result-emoji">❌</div><div>Afsuski, bu safar omadingiz kelmadi. <b>"${yourItem.name}"</b> yo'qoldi.</div>`;
+/* Upgrade natijasini Raketadagi NFT-yutish modali bilan bir xil uslubda
+   ko'rsatish (banner/alert() o'rniga to'liq ekranli modal). */
+function showUpgradeWinModal(targetItem) {
+  const overlay = document.getElementById('upgWinOverlay');
+  if (!overlay) return;
+  document.getElementById('upgWinName').textContent = targetItem.name || '';
+  document.getElementById('upgWinDesc').innerHTML =
+    `Ushbu NFT'ni Inventar bo'limidan <b>${targetItem.sell_price} <span class="coin-ico"></span></b> ga sotishingiz mumkin.`;
+  const animEl = document.getElementById('upgWinAnim');
+  animEl.innerHTML = '';
+  if (targetItem.custom_emoji_id) {
+    mountAnimatedEmoji(animEl, targetItem.custom_emoji_id, targetItem.is_video, targetItem.id);
   }
-  banner.classList.add('show');
-  setTimeout(() => banner.classList.remove('show'), 5000);
+  overlay.classList.add('active');
+}
+
+function closeUpgWinModal() {
+  const overlay = document.getElementById('upgWinOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('active');
+  const animEl = document.getElementById('upgWinAnim');
+  if (animEl) animEl.innerHTML = '';
+}
+
+function showUpgradeLoseModal(yourItem) {
+  const overlay = document.getElementById('upgLoseOverlay');
+  if (!overlay) return;
+  document.getElementById('upgLoseName').textContent = yourItem.name || '';
+  document.getElementById('upgLoseDesc').textContent =
+    `"${yourItem.name}" yo'qoldi. Keyingi safar omad tilaymiz!`;
+  overlay.classList.add('active');
+}
+
+function closeUpgLoseModal() {
+  const overlay = document.getElementById('upgLoseOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('active');
 }
 
 // Kosmik fon: yulduzlar (meteorlar) ong tomondan chap tomonga tasodifiy uchib o'tadi

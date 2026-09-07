@@ -2191,6 +2191,16 @@ const CRASH_BET_API_URL = '/api/crash/bet';
 const CRASH_BET_NFT_API_URL = '/api/crash/bet_nft';
 const ADMIN_ACTION_API_URL = '/api/admin_action';
 const SIMPLE_ADMIN_GIVE_COIN_API_URL = '/api/simple_admin_give_coin';
+// Ikkinchi himoya qatlami: admin parolini bir marta so'raymiz va shu sessiya
+// davomida eslab qolamiz. Bu parol serverdagi ADMIN_PASSWORD bilan solishtiriladi —
+// hatto Telegram ID soxtalashtirilsa ham, bu parolsiz admin amallari ishlamaydi.
+let adminPasswordCache = '';
+function ensureAdminPassword() {
+  if (!adminPasswordCache) {
+    adminPasswordCache = window.prompt('Admin parolini kiriting:') || '';
+  }
+  return adminPasswordCache;
+}
 const CLAIM_TASK_API_URL = '/api/claim_task';
 const DAILY_TASKS_API_URL = '/api/daily_tasks';
 const DAILY_TASK_INVITE_PROGRESS_URL = '/api/daily_task/invite_progress';
@@ -4172,7 +4182,7 @@ async function sellNft(itemId, sellPrice) {
 
 function toggleAdminModal(show) {
   const modal = document.getElementById('adminModal');
-  if(show) { modal.classList.add('active'); loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
+  if(show) { ensureAdminPassword(); modal.classList.add('active'); loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
   else modal.classList.remove('active');
 }
 
@@ -4349,10 +4359,13 @@ async function callAdminAction(action, payload = {}) {
   const res = await fetch(ADMIN_ACTION_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ initData: tg?.initData || '', action, payload })
+    body: JSON.stringify({ initData: tg?.initData || '', adminPassword: adminPasswordCache, action, payload })
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'server_error');
+  if (!res.ok) {
+    if (data.error === 'wrong_password') { adminPasswordCache = ''; alert("Admin paroli noto'g'ri!"); }
+    throw new Error(data.error || 'server_error');
+  }
   return data;
 }
 
@@ -4369,7 +4382,7 @@ async function adminGiveStars() {
 /* ==================== ODDIY ADMIN: faqat ID orqali coin berish ==================== */
 function toggleSimpleAdminModal(show) {
   const modal = document.getElementById('simpleAdminModal');
-  if (show) { modal.classList.add('active'); }
+  if (show) { ensureAdminPassword(); modal.classList.add('active'); }
   else { modal.classList.remove('active'); }
 }
 async function simpleAdminGiveCoin() {
@@ -4381,10 +4394,13 @@ async function simpleAdminGiveCoin() {
     const res = await fetch(SIMPLE_ADMIN_GIVE_COIN_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData: tg?.initData || '', userId: id, amount: amt })
+      body: JSON.stringify({ initData: tg?.initData || '', adminPassword: adminPasswordCache, userId: id, amount: amt })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'server_error');
+    if (!res.ok) {
+      if (data.error === 'wrong_password') adminPasswordCache = '';
+      throw new Error(data.error || 'server_error');
+    }
     msg.style.color = "var(--success)";
     msg.textContent = `Muvaffaqiyatli! Yangi balans: ${fmtCoin(data.balance)}`;
     document.getElementById('sa_userTid').value = '';

@@ -19,6 +19,11 @@ const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).fi
 // Oddiy adminlar: faqat ID orqali coin berish huquqiga ega, boshqa hech qanday
 // admin funksiyasiga ega emas (statistika, task, promo, konkurs va h.k. yo'q).
 const SIMPLE_ADMIN_IDS = (process.env.SIMPLE_ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+// IKKINCHI HIMOYA QATLAMI: hatto kimdir Telegram ID'ni (masalan chiqib ketgan
+// BOT_TOKEN yordamida) soxtalashtira olsa ham, bu maxfiy parolni bilmasa admin
+// amallarini bajara olmaydi. Buni faqat siz bilasiz, hech qayerda frontendda
+// ko'rinmaydi va Railway Variables orqali istalgan vaqtda o'zgartirilishi mumkin.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const INTERNAL_KEY = process.env.INTERNAL_KEY || '';
 const WEBAPP_URL = (process.env.WEBAPP_URL || '').replace(/\/$/, '');
 const DB_FILE = path.join(__dirname, 'db.json');
@@ -49,6 +54,9 @@ const gameHistory = { hockey: [], drum: [], crash: [] };
 // Telegram Stars orqali balans to'ldirishda bir xil to'lovni ikki marta
 // kreditlab qo'ymaslik uchun qayta ishlangan telegram_payment_charge_id'lar:
 const processedTopupCharges = new Set();
+// Admin amallari audit-jurnali: kim (Telegram ID), qachon, qaysi endpointni
+// chaqirgani va qanday parametrlar bilan — xavfsizlik tekshiruvi uchun.
+let adminAuditLog = [];
 
 function createUser(id, username) {
   return {
@@ -144,6 +152,7 @@ function serializeState() {
     gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number },
     leaderboardEndAt,
     processedTopupCharges: Array.from(processedTopupCharges),
+    adminAuditLog,
   };
 }
 function saveDb() {
@@ -193,6 +202,7 @@ function loadDb() {
     }
     leaderboardEndAt = data.leaderboardEndAt || null;
     (data.processedTopupCharges || []).forEach(id => processedTopupCharges.add(id));
+    adminAuditLog = Array.isArray(data.adminAuditLog) ? data.adminAuditLog : [];
     console.log(`DB yuklandi: ${users.size} foydalanuvchi, ${tasks.length} vazifa, ${promos.length} promo, ${vouchers.length} voucher`);
   } catch (e) { console.error('DB yuklashda xatolik:', e.message); }
 }
@@ -241,6 +251,12 @@ function validateInitData(initData, botToken) {
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
     const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
     if (computedHash !== hash) return null;
+    // ---- MUHIM: initData muddati tekshiruvi ----
+    // Agar biror sabab bilan (masalan eski BOT_TOKEN chiqib ketishi) initData
+    // qo'lga tushib qolsa, uni cheksiz qayta ishlatib bo'lmasligi uchun
+    // auth_date 24 soatdan eski bo'lsa rad etamiz ("replay attack" himoyasi).
+    const authDate = Number(params.get('auth_date') || 0);
+    if (!authDate || (Date.now() / 1000 - authDate) > 86400) return null;
     const userJson = params.get('user');
     if (!userJson) return null;
     return JSON.parse(userJson);
@@ -1568,12 +1584,31 @@ app.post('/api/internal_contest_ticket_credit', (req, res) => {
 /* ============================================================
    ADMIN AMALLARI
    ============================================================ */
+/* ---- Admin amallari audit-log: kim, qachon, nima qilgani doim db.json
+   ichida saqlanadi — kelajakda shubhali harakatni tekshirish uchun. ---- */
+function logAdminAction(tgId, action, details) {
+  try {
+    if (!Array.isArray(adminAuditLog)) adminAuditLog = [];
+    adminAuditLog.push({ tgId: String(tgId), action, details: details || null, at: Date.now() });
+    if (adminAuditLog.length > 2000) adminAuditLog.splice(0, adminAuditLog.length - 2000);
+    saveDb();
+  } catch (e) { console.error('logAdminAction xatolik:', e.message); }
+}
 function requireAdmin(req, res) {
   const tgUser = getTgUserFromInitData(req.body.initData);
   if (!tgUser || !ADMIN_IDS.includes(String(tgUser.id))) {
     res.status(403).json({ error: 'forbidden' });
     return false;
   }
+  // IKKINCHI HIMOYA QATLAMI: ADMIN_PASSWORD sozlangan bo'lsa, so'rovda ham
+  // to'g'ri parol kelishi shart — aks holda soxta Telegram ID bilan ham
+  // admin amallarini bajarib bo'lmaydi.
+  if (ADMIN_PASSWORD && req.body.adminPassword !== ADMIN_PASSWORD) {
+    logAdminAction(tgUser.id, 'FORBIDDEN_WRONG_PASSWORD', { path: req.path });
+    res.status(403).json({ error: 'wrong_password' });
+    return false;
+  }
+  logAdminAction(tgUser.id, req.path, req.body);
   return true;
 }
 /* ---- Oddiy admin: to'liq ADMIN_IDS ro'yxatidagilar ham, alohida
@@ -1588,6 +1623,12 @@ function requireSimpleAdmin(req, res) {
     res.status(403).json({ error: 'forbidden' });
     return false;
   }
+  if (ADMIN_PASSWORD && req.body.adminPassword !== ADMIN_PASSWORD) {
+    logAdminAction(id, 'FORBIDDEN_WRONG_PASSWORD', { path: req.path });
+    res.status(403).json({ error: 'wrong_password' });
+    return false;
+  }
+  logAdminAction(id, req.path, req.body);
   return true;
 }
 function resetGameState(game) {
@@ -1613,6 +1654,16 @@ app.get('/api/internal_stats', (req, res) => {
     hockey: { status: hockeyState.status, players: hockeyState.players.length, round: hockeyState.game_number },
     drum: { status: drumState.status, players: drumState.players.length, round: drumState.game_number },
   });
+});
+
+/* ---- Admin amallari audit-jurnalini ko'rish (faqat INTERNAL_KEY bilan) ----
+   Xavfsizlik nazorati uchun: kim, qachon, qaysi admin amalini bajarganini
+   shu yerdan tekshirish mumkin. So'nggi 200 tasi qaytariladi. */
+app.get('/api/internal_admin_audit', (req, res) => {
+  if (!INTERNAL_KEY || req.get('x-internal-key') !== INTERNAL_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  res.json({ log: adminAuditLog.slice(-200).reverse() });
 });
 
 app.post('/api/admin_action', (req, res) => {

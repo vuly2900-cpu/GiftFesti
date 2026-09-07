@@ -944,13 +944,18 @@
   .upg-wheel{
     position:absolute; inset:0; border-radius:50%;
     border:7px solid #142a1e; box-shadow:0 0 0 2px var(--border), 0 12px 30px rgba(0,0,0,.5);
-    transform:rotate(0deg);
-    transition: transform 5s cubic-bezier(.15,.65,.1,1);
     background:conic-gradient(var(--success) 0deg 360deg, var(--danger) 360deg 360deg);
+  }
+  /* Endi disk emas — sariq strelka aylananing markazi atrofida aylanadi va
+     tasodifiy (shansga mos zonada) to'xtaydi, disk o'zi statik qoladi. */
+  .upg-wheel-pointer-rotator{
+    position:absolute; inset:0; z-index:8;
+    transform:rotate(0deg);
+    transition:none;
   }
   .upg-wheel-pointer{
     position:absolute; top:-6px; left:50%; transform:translateX(-50%);
-    width:0; height:0; z-index:8;
+    width:0; height:0;
     border-left:10px solid transparent; border-right:10px solid transparent;
     border-top:18px solid var(--gold);
     filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));
@@ -1546,6 +1551,8 @@
       <div style="width:32px;"></div>
     </div>
 
+    <div class="case-result-banner" id="upgResultBanner"></div>
+
     <div class="upg-card upg-hero">
       <div class="upg-hero-icon">📈</div>
       <div>
@@ -1578,7 +1585,9 @@
 
     <div class="upg-wheel-wrap">
       <div class="upg-wheel" id="upgWheel"></div>
-      <div class="upg-wheel-pointer"></div>
+      <div class="upg-wheel-pointer-rotator" id="upgPointerRotator">
+        <div class="upg-wheel-pointer"></div>
+      </div>
       <div class="upg-wheel-center">
         <div class="upg-chance-pct" id="upgChancePct">100.0%</div>
         <div class="upg-chance-label" id="upgChanceLabel">JUDA YUQORI</div>
@@ -6396,7 +6405,7 @@ async function upgradeConfirm() {
 const UPGRADE_SPIN_DURATION_MS = 5000;
 
 function startUpgradeSpinAnimation(result) {
-  const wheel = document.getElementById('upgWheel');
+  const pointer = document.getElementById('upgPointerRotator');
   const chanceDeg = result.chance / 100 * 360;
   const pad = Math.min(4, chanceDeg / 4, (360 - chanceDeg) / 4);
   let landingAngle;
@@ -6406,14 +6415,16 @@ function startUpgradeSpinAnimation(result) {
     landingAngle = chanceDeg + pad + Math.random() * Math.max(0.5, (360 - chanceDeg) - pad * 2);
   }
   const SPINS = 5;
-  const targetRotation = SPINS * 360 + (360 - landingAngle);
+  // Disk statik qoladi — strelka shu diskning markazi atrofida aylanib,
+  // "landingAngle" burchagida (shansga mos yashil/qizil zonada) to'xtaydi.
+  const targetRotation = SPINS * 360 + landingAngle;
 
-  wheel.style.transition = 'none';
-  wheel.style.transform = 'rotate(0deg)';
+  pointer.style.transition = 'none';
+  pointer.style.transform = 'rotate(0deg)';
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      wheel.style.transition = `transform ${UPGRADE_SPIN_DURATION_MS / 1000}s cubic-bezier(.15,.65,.1,1)`;
-      wheel.style.transform = `rotate(${targetRotation}deg)`;
+      pointer.style.transition = `transform ${UPGRADE_SPIN_DURATION_MS / 1000}s cubic-bezier(.15,.65,.1,1)`;
+      pointer.style.transform = `rotate(${targetRotation}deg)`;
     });
   });
 
@@ -6434,22 +6445,31 @@ function finishUpgradeSpin(result) {
   }
 
   if (result.win) {
-    upgradeResultAlert(`🎉 Yutdingiz! Siz "${upgState.targetItem.name}" ni oldingiz!`);
+    showUpgradeResult(true, upgState.yourItem, upgState.targetItem);
   } else {
-    upgradeResultAlert(`💥 Yutqazdingiz! "${upgState.yourItem.name}" yo'qoldi.`);
+    showUpgradeResult(false, upgState.yourItem, upgState.targetItem);
   }
 
   upgState.yourItem = null;
   upgState.targetItem = null;
-  const wheel = document.getElementById('upgWheel');
-  wheel.style.transition = 'none';
-  wheel.style.transform = 'rotate(0deg)';
+  const pointer = document.getElementById('upgPointerRotator');
+  pointer.style.transition = 'none';
+  pointer.style.transform = 'rotate(0deg)';
   updateUpgradeUI();
 }
 
-/* Upgrade natijasini ko'rsatish uchun oddiy xabar */
-function upgradeResultAlert(msg) {
-  alert(msg);
+/* Upgrade natijasini "Kunlik Case" uslubidagi slayd-banner orqali ko'rsatish
+   (brauzerning standart alert() oynasi o'rniga). */
+function showUpgradeResult(win, yourItem, targetItem) {
+  const banner = document.getElementById('upgResultBanner');
+  if (!banner) return;
+  if (win) {
+    banner.innerHTML = `<div class="case-result-emoji">🎉</div><div>Yutdingiz! Siz <b>"${targetItem.name}"</b> ni oldingiz!</div>`;
+  } else {
+    banner.innerHTML = `<div class="case-result-emoji">❌</div><div>Afsuski, bu safar omadingiz kelmadi. <b>"${yourItem.name}"</b> yo'qoldi.</div>`;
+  }
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 5000);
 }
 
 // Kosmik fon: yulduzlar (meteorlar) ong tomondan chap tomonga tasodifiy uchib o'tadi

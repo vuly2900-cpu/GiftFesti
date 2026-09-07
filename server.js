@@ -16,14 +16,17 @@ const PORT = process.env.PORT || 3000;
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const MAIN_CHANNEL = process.env.MAIN_CHANNEL || '@GiftFesti';
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+// Oddiy adminlar: faqat ID orqali coin berish huquqiga ega, boshqa hech qanday
+// admin funksiyasiga ega emas (statistika, task, promo, konkurs va h.k. yo'q).
+const SIMPLE_ADMIN_IDS = (process.env.SIMPLE_ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
 const INTERNAL_KEY = process.env.INTERNAL_KEY || '';
 const WEBAPP_URL = (process.env.WEBAPP_URL || '').replace(/\/$/, '');
 const DB_FILE = path.join(__dirname, 'db.json');
-const REFERRAL_REWARD = 10;
+const REFERRAL_REWARD = 50;
 const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const DAILY_TASK_MS = 24 * 60 * 60 * 1000;
-const DAILY_GAME_TASK_REWARD = 0.5;
-const DAILY_INVITE_TASK_REWARD = 0.5;
+const DAILY_GAME_TASK_REWARD = 15;
+const DAILY_INVITE_TASK_REWARD = 15;
 const DAILY_INVITE_TARGET = 3;
 const COINS_PER_STAR = 100; // Balansni to'ldirish narxi: 1 Telegram Stars = 100 coin
 const CONTEST_TICKET_STARS_RATE = 100; // Konkurs: 1 Telegram Stars = 100 ta bilet
@@ -56,6 +59,7 @@ function createUser(id, username) {
     referredBy: null,
     referralRewarded: false,
     isAdmin: ADMIN_IDS.includes(String(id)),
+    isSimpleAdmin: SIMPLE_ADMIN_IDS.includes(String(id)),
     nftInventory: {},      // itemId(NFT_CATALOG dagi) -> dona soni
     nftInstancePrices: {}, // itemId -> [narx1, narx2, ...] (raketa o'yinidan yutilgan NFT'larning haqiqiy narxi)
     nftInitialized: false, // starter (tekin) NFT'lar berilganmi
@@ -122,6 +126,7 @@ function serializeUser(u) {
     completed_tasks: Array.from(u.completedTasks),
     lastCaseOpenedAt: u.lastCaseOpenedAt ? { seconds: Math.floor(u.lastCaseOpenedAt / 1000) } : null,
     isAdmin: u.isAdmin,
+    isSimpleAdmin: u.isSimpleAdmin || SIMPLE_ADMIN_IDS.includes(String(u.id)),
     daily_tasks: getDailyTasksView(u),
   };
 }
@@ -1553,6 +1558,20 @@ function requireAdmin(req, res) {
   }
   return true;
 }
+/* ---- Oddiy admin: to'liq ADMIN_IDS ro'yxatidagilar ham, alohida
+   SIMPLE_ADMIN_IDS ro'yxatidagilar ham ishlata oladi — lekin oddiy admin
+   FAQAT quyidagi /api/simple_admin_give_coin endpointidan foydalana oladi,
+   boshqa hech qanday admin funksiyasiga (statistika, task, promo, konkurs
+   va h.k.) ruxsati yo'q. ---- */
+function requireSimpleAdmin(req, res) {
+  const tgUser = getTgUserFromInitData(req.body.initData);
+  const id = tgUser ? String(tgUser.id) : null;
+  if (!id || !(SIMPLE_ADMIN_IDS.includes(id) || ADMIN_IDS.includes(id))) {
+    res.status(403).json({ error: 'forbidden' });
+    return false;
+  }
+  return true;
+}
 function resetGameState(game) {
   if (game === 'hockey') { clearTimeout(gameTimers.hockey); hockeyState = defaultHockeyState(); emitState('hockey'); }
   else if (game === 'drum') { clearTimeout(gameTimers.drum); drumState = defaultDrumState(); emitState('drum'); }
@@ -1718,6 +1737,20 @@ app.post('/api/admin_action', (req, res) => {
     console.error('admin_action xatolik:', e);
     res.status(400).json({ error: e.message || 'server_error' });
   }
+});
+
+/* ---- Oddiy admin panel: FAQAT Telegram ID orqali coin berish. Boshqa
+   hech qanday amal bu endpoint orqali (yoki oddiy admin uchun umuman)
+   qilib bo'lmaydi. ---- */
+app.post('/api/simple_admin_give_coin', (req, res) => {
+  if (!requireSimpleAdmin(req, res)) return;
+  const { userId, amount } = req.body || {};
+  const target = users.get(String(userId || '').trim());
+  if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+  const amt = Number(amount);
+  if (!amt || amt <= 0) return res.status(400).json({ error: 'INVALID_AMOUNT' });
+  target.balance = round2(target.balance + amt);
+  res.json({ ok: true, balance: target.balance });
 });
 
 /* ============================================================

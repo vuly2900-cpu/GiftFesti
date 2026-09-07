@@ -1770,8 +1770,24 @@
     </div>
 
     <button class="btn" id="adminOpenerBtn" style="width:100%; display:none; background:var(--surface-2); border:1px solid var(--border); color:var(--gold); padding:12px; font-size:14px;" onclick="toggleAdminModal(true)">⚙️ Admin Panelni ochish</button>
+    <button class="btn" id="simpleAdminOpenerBtn" style="width:100%; display:none; background:var(--surface-2); border:1px solid var(--border); color:var(--gold); padding:12px; font-size:14px; margin-top:8px;" onclick="toggleSimpleAdminModal(true)">🪙 Oddiy admin panel</button>
   </section>
 </main>
+
+<!-- ODDIY ADMIN MODAL: faqat ID orqali coin berish -->
+<div class="modal-overlay" id="simpleAdminModal" onclick="if(event.target===this) toggleSimpleAdminModal(false)">
+  <div class="modal-window">
+    <button class="modal-close" onclick="toggleSimpleAdminModal(false)">×</button>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px; color:var(--gold);">🪙 Oddiy admin panel</h2>
+    <p style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">Faqat Telegram ID orqali coin berish mumkin.</p>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <input type="text" id="sa_userTid" placeholder="Telegram ID">
+      <input type="number" id="sa_giveCoin" placeholder="Coin miqdori">
+      <button class="btn" onclick="simpleAdminGiveCoin()">Coin berish</button>
+    </div>
+    <p id="sa_msg" style="font-size:12px; margin-top:10px; color:var(--text-dim);"></p>
+  </div>
+</div>
 
 <!-- REFERAL MODAL -->
 <div class="modal-overlay" id="referralModal" onclick="if(event.target===this) closeReferralModal()">
@@ -2174,6 +2190,7 @@ const PLACE_BET_NFT_API_URL = '/api/place_bet_nft';
 const CRASH_BET_API_URL = '/api/crash/bet';
 const CRASH_BET_NFT_API_URL = '/api/crash/bet_nft';
 const ADMIN_ACTION_API_URL = '/api/admin_action';
+const SIMPLE_ADMIN_GIVE_COIN_API_URL = '/api/simple_admin_give_coin';
 const CLAIM_TASK_API_URL = '/api/claim_task';
 const DAILY_TASKS_API_URL = '/api/daily_tasks';
 const DAILY_TASK_INVITE_PROGRESS_URL = '/api/daily_task/invite_progress';
@@ -3805,6 +3822,9 @@ async function loadProfile() {
   if (tgUser && tgUser.id === ADMIN_ID) {
     document.getElementById('adminOpenerBtn').style.display = 'block';
   }
+  if (currentUserData && currentUserData.isSimpleAdmin) {
+    document.getElementById('simpleAdminOpenerBtn').style.display = 'block';
+  }
   loadInventory();
 }
 
@@ -4332,6 +4352,36 @@ async function adminGiveStars() {
     await callAdminAction('give_stars', { userId: id, amount: amt });
     alert("Coin berildi!");
   } catch (e) { console.error(e); alert("Xatolik yuz berdi!"); }
+}
+
+/* ==================== ODDIY ADMIN: faqat ID orqali coin berish ==================== */
+function toggleSimpleAdminModal(show) {
+  const modal = document.getElementById('simpleAdminModal');
+  if (show) { modal.classList.add('active'); }
+  else { modal.classList.remove('active'); }
+}
+async function simpleAdminGiveCoin() {
+  const msg = document.getElementById('sa_msg');
+  const id = document.getElementById('sa_userTid').value.trim();
+  const amt = parseFloat(document.getElementById('sa_giveCoin').value);
+  if (!id || !amt || amt <= 0) { msg.style.color = "var(--danger)"; msg.textContent = "ID va coin miqdorini to'g'ri kiriting."; return; }
+  try {
+    const res = await fetch(SIMPLE_ADMIN_GIVE_COIN_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', userId: id, amount: amt })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'server_error');
+    msg.style.color = "var(--success)";
+    msg.textContent = `Muvaffaqiyatli! Yangi balans: ${fmtCoin(data.balance)}`;
+    document.getElementById('sa_userTid').value = '';
+    document.getElementById('sa_giveCoin').value = '';
+  } catch (e) {
+    console.error(e);
+    msg.style.color = "var(--danger)";
+    msg.textContent = "Xatolik: foydalanuvchi topilmadi yoki ruxsat yo'q.";
+  }
 }
 
 /* ==================== NFT katalog keshi (yutuq oynachasida ikonka

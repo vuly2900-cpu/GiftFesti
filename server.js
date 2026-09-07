@@ -1706,7 +1706,7 @@ app.post('/api/admin_action', (req, res) => {
         break;
       }
       case 'reset_everything': {
-        users.forEach(u => { u.balance = 0; u.total_won = 0; u.wins = 0; u.completedTasks = new Set(); u.lastCaseOpenedAt = null; });
+        users.forEach(u => { u.balance = 0; u.total_won = 0; u.wins = 0; u.completedTasks = new Set(); u.lastCaseOpenedAt = null; u.nftInventory = {}; });
         resetGameState('hockey'); resetGameState('drum');
         break;
       }
@@ -2102,9 +2102,9 @@ function emitState(game) { io.emit(`${game}:state`, getState(game)); }
 const GIFT_FESTI_BOT_ID = -9990001;
 const GIFT_FESTI_BOT_NAME = 'GIFT FESTI';
 const GIFT_FESTI_BOT_PHOTO = '/gifts/giftfesti_bot.png';
-const GIFT_FESTI_MIN_COIN = 0.5;
-const GIFT_FESTI_MAX_COIN = 2.5;
-const GIFT_FESTI_NFT_MAX_PRICE = 5;
+const GIFT_FESTI_MIN_COIN = 3;
+const GIFT_FESTI_MAX_COIN = 10;
+const GIFT_FESTI_NFT_MAX_PRICE = 20;
 const GIFT_FESTI_NFT_CHANCE = 0.35; // ~35% ehtimol bilan coin o'rniga NFT tikadi
 const GIFT_FESTI_DELAY_MIN_MS = 1500;
 const GIFT_FESTI_DELAY_MAX_MS = 6000;

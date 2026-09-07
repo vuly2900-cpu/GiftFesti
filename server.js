@@ -1224,6 +1224,66 @@ app.post('/api/sell_nft', (req, res) => {
   res.json({ ok: true, balance: user.balance, sold_for: sellPrice });
 });
 
+/* ============================================================
+   GIFT UPGRADE — bitta NFT'ni qimmatroq NFT'ga "yuqoriga ko'tarish"
+   ehtimoli o'z NFT narxi / maqsad NFT narxi nisbatiga qarab
+   hisoblanadi, natija esa TO'LIQ SERVERDA aniqlanadi (firibgarlik
+   oldi olinishi uchun) — client faqat aylanish animatsiyasini ko'rsatadi.
+   ============================================================ */
+const UPGRADE_HOUSE_EDGE = 0.97;   // ~3% uy ustunligi
+const UPGRADE_MIN_CHANCE = 1;      // % — hech qachon 0 bo'lmasin
+const UPGRADE_MAX_CHANCE = 95;     // % — hech qachon 100 bo'lmasin (doim risk qolsin)
+
+function getNftInstanceSellPrice(user, itemId) {
+  const item = NFT_BY_ID.get(itemId);
+  if (!item) return null;
+  const customPrices = user.nftInstancePrices && user.nftInstancePrices[itemId];
+  return (customPrices && customPrices.length) ? customPrices[0] : item.sell_price;
+}
+
+function computeUpgradeChance(yourPrice, targetPrice) {
+  const fair = (yourPrice / targetPrice) * 100;
+  const withEdge = fair * UPGRADE_HOUSE_EDGE;
+  return Math.max(UPGRADE_MIN_CHANCE, Math.min(UPGRADE_MAX_CHANCE, round2(withEdge)));
+}
+
+app.post('/api/upgrade/spin', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { yourItemId, targetItemId } = req.body || {};
+
+  const yourItem = NFT_BY_ID.get(yourItemId);
+  const targetItem = NFT_BY_ID.get(targetItemId);
+  if (!yourItem || !targetItem) return res.status(404).json({ error: 'NOT_FOUND' });
+  if (yourItemId === targetItemId) return res.status(400).json({ error: 'SAME_ITEM' });
+
+  ensureNftStarterPack(user);
+  const have = user.nftInventory[yourItemId] || 0;
+  if (have <= 0) return res.status(400).json({ error: 'NOT_OWNED' });
+
+  const yourPrice = getNftInstanceSellPrice(user, yourItemId);
+  const targetPrice = targetItem.sell_price;
+  if (targetPrice <= yourPrice) return res.status(400).json({ error: 'TARGET_TOO_CHEAP' });
+
+  const chance = computeUpgradeChance(yourPrice, targetPrice);
+  const win = Math.random() * 100 < chance;
+
+  // O'z NFT'ingiz natijadan qat'iy nazar sarflanadi (upgrade'ga tikiladi).
+  user.nftInventory[yourItemId] = have - 1;
+  const customPrices = user.nftInstancePrices && user.nftInstancePrices[yourItemId];
+  if (customPrices && customPrices.length) customPrices.shift();
+
+  if (win) {
+    grantNftToUser(user, targetItemId);
+    user.wins = (user.wins || 0) + 1;
+  }
+
+  res.json({
+    ok: true, win, chance,
+    yourItemId, targetItemId,
+    yourPrice, targetPrice,
+  });
+});
+
 /* ---- Reyting top 1/2/3 medal ikonkalarining animatsiya metadatasi ---- */
 app.get('/api/medal_emojis', async (req, res) => {
   if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });

@@ -887,6 +887,70 @@
     text-align:center; color:var(--text-dim); font-size:13px; padding:0 30px; z-index:2;
   }
 
+  /* GIFT UPGRADE O'YINI */
+  .upg-card{
+    background:linear-gradient(180deg, var(--surface-2), var(--surface));
+    border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:14px;
+  }
+  .upg-hero{display:flex; align-items:center; gap:12px;}
+  .upg-hero-icon{
+    width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,#22C55E,#0d7a45);
+    display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;
+  }
+  .upg-hero h2{font-size:16px; margin:0 0 2px;}
+  .upg-hint{font-size:12px; color:var(--text-dim); margin:0;}
+  .upg-select-row{display:flex; align-items:center; gap:8px;}
+  .upg-select-col{flex:1; min-width:0;}
+  .upg-step-badge{
+    display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700;
+    color:#22C55E; background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.3);
+    padding:4px 10px; border-radius:999px; margin-bottom:8px;
+  }
+  .upg-select-box{
+    border:1.5px dashed var(--border); border-radius:14px; padding:16px 8px; text-align:center;
+    cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  .upg-select-box:active{transform:scale(.98);}
+  .upg-select-box.upg-disabled{opacity:.4; cursor:not-allowed; pointer-events:none;}
+  .upg-select-box.upg-filled{border-style:solid; border-color:#22C55E; background:rgba(34,197,94,.06);}
+  .upg-select-plus{
+    width:40px; height:40px; margin:0 auto 8px; border-radius:10px; background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--text-dim); overflow:hidden;
+  }
+  .upg-select-box.upg-filled .upg-select-plus{background:transparent;}
+  .upg-select-label{font-size:12.5px; font-weight:700; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .upg-select-sub{font-size:10.5px; color:var(--text-dim); line-height:1.3;}
+  .upg-lightning{
+    width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#4ade80,#16a34a);
+    display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;
+    box-shadow:0 0 14px rgba(74,222,128,.5);
+  }
+
+  .upg-wheel-wrap{position:relative; width:220px; height:220px; margin:20px auto 8px;}
+  .upg-wheel{
+    position:absolute; inset:0; border-radius:50%;
+    border:7px solid #142a1e; box-shadow:0 0 0 2px var(--border), 0 12px 30px rgba(0,0,0,.5);
+    transform:rotate(0deg);
+    transition: transform 5s cubic-bezier(.15,.65,.1,1);
+    background:conic-gradient(var(--success) 0deg 360deg, var(--danger) 360deg 360deg);
+  }
+  .upg-wheel-pointer{
+    position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+    width:0; height:0; z-index:8;
+    border-left:10px solid transparent; border-right:10px solid transparent;
+    border-top:18px solid var(--gold);
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));
+  }
+  .upg-wheel-center{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:150px; height:150px; border-radius:50%; background:var(--bg);
+    border:2px solid #142a1e; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    z-index:6; text-align:center;
+  }
+  .upg-chance-pct{font-size:25px; font-weight:800; color:#22C55E;}
+  .upg-chance-label{font-size:10.5px; letter-spacing:1px; color:var(--text-dim); margin-top:3px; text-transform:uppercase; font-weight:700;}
+  .upg-picker-title{font-size:15px; font-weight:700; margin-bottom:12px;}
+
   /* CAPTCHA OVERLAY */
   .captcha-overlay {
     position: fixed; inset: 0; background: var(--bg); z-index: 1000;
@@ -1330,8 +1394,8 @@
         <span class="game-name">Kunlik Case</span>
       </div>
       <div class="game-card upgrade-mini" onclick="openGame('upgrade')">
-        <span class="mini-badge">SOON</span>
-        <div class="mini-icon-visual" id="gcVisualUpgrade"><span class="fallback-emoji">🆙</span></div>
+        <span class="mini-badge">NEW</span>
+        <div class="mini-icon-visual" id="gcVisualUpgrade"><span class="fallback-emoji">📈</span></div>
         <span class="game-name">UPGRADE</span>
       </div>
     </div>
@@ -1456,6 +1520,67 @@
     <button class="crash-big-bet-btn" id="drumBigBetBtn" onclick="openGameBetModal('drum')">Stavka qilish</button>
     <div class="hockey-players" id="drumPlayersList"></div>
   </section>
+
+
+  <section class="page" id="page-upgrade">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('play')">‹</button>
+      <div class="game-number-badge mono">Gift Upgrade</div>
+      <div style="width:32px;"></div>
+    </div>
+
+    <div class="upg-card upg-hero">
+      <div class="upg-hero-icon">📈</div>
+      <div>
+        <h2>Gift Upgrade</h2>
+        <p class="upg-hint">Sovg'angizni yaxshiroqqa aylantiring</p>
+      </div>
+    </div>
+
+    <div class="upg-card">
+      <div class="upg-select-row">
+        <div class="upg-select-col">
+          <span class="upg-step-badge">① Sizning sovg'angiz</span>
+          <div class="upg-select-box" id="upgYourBox" onclick="openUpgradePicker('your')">
+            <div class="upg-select-plus" id="upgYourVisual">+</div>
+            <div class="upg-select-label" id="upgYourLabel">Sovg'a tanlang</div>
+            <div class="upg-select-sub" id="upgYourSub">Upgrade qilish uchun sovg'a tanlang</div>
+          </div>
+        </div>
+        <div class="upg-lightning">⚡</div>
+        <div class="upg-select-col">
+          <span class="upg-step-badge">② Maqsad sovg'a</span>
+          <div class="upg-select-box upg-disabled" id="upgTargetBox" onclick="openUpgradePicker('target')">
+            <div class="upg-select-plus" id="upgTargetVisual">+</div>
+            <div class="upg-select-label" id="upgTargetLabel">Avval sovg'a tanlang</div>
+            <div class="upg-select-sub" id="upgTargetSub">Davom etish uchun sovg'a tanlang</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="upg-wheel-wrap">
+      <div class="upg-wheel" id="upgWheel"></div>
+      <div class="upg-wheel-pointer"></div>
+      <div class="upg-wheel-center">
+        <div class="upg-chance-pct" id="upgChancePct">100.0%</div>
+        <div class="upg-chance-label" id="upgChanceLabel">JUDA YUQORI</div>
+      </div>
+    </div>
+
+    <button class="crash-big-bet-btn" id="upgConfirmBtn" onclick="upgradeConfirm()" disabled>Ikkalasini ham tanlang</button>
+  </section>
+
+  <!-- GIFT UPGRADE — sovg'a tanlash paneli -->
+  <div class="nft-stake-overlay" id="upgPickerOverlay" onclick="if(event.target===this) closeUpgradePicker()">
+    <div class="nft-stake-sheet" style="position:relative;">
+      <button class="modal-close" onclick="closeUpgradePicker()">×</button>
+      <h3 class="upg-picker-title" id="upgPickerTitle">Sovg'a tanlang</h3>
+      <div class="nft-stake-grid" id="upgPickerGrid">
+        <p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>
+      </div>
+    </div>
+  </div>
 
 
   <section class="page" id="page-case">
@@ -2658,6 +2783,7 @@ function goTo(pageName) {
   if (pageName === 'hockey') initHockeyPage();
   if (pageName === 'drum') initDrumPage();
   if (pageName === 'case') initCasePage();
+  if (pageName === 'upgrade') initUpgradePage();
   if (pageName === 'crash') initCrashPage();
   else if (crashUnsubscribe) { crashUnsubscribe(); crashUnsubscribe = null; }
 
@@ -4559,7 +4685,7 @@ function openGame(name) {
   if (name === 'crash') goTo('crash');
   else if (name === 'hockey') goTo('hockey');
   else if (name === 'drum') goTo('drum');
-  else if (name === 'upgrade') alert("🆙 UPGRADE — tez kunda!");
+  else if (name === 'upgrade') goTo('upgrade');
   else alert("Tez orada...");
 }
 
@@ -6057,6 +6183,256 @@ function renderDrumPlayers() {
         <div class="chance mono">${chance}%</div>
       </div>`;
   }).join('');
+}
+
+// ==================== GIFT UPGRADE ====================
+const upgState = {
+  yourItem: null,    // /api/inventory dan: {id, name, custom_emoji_id, sell_price, count, is_video}
+  targetItem: null,  // /api/nft_catalog dan: {id, name, custom_emoji_id, sell_price, is_video}
+  picking: null,      // 'your' | 'target' | null
+  inventory: [],
+  catalog: [],
+  spinning: false,
+};
+
+async function initUpgradePage() {
+  if (upgState.spinning) return; // aylanish jarayonida qayta yuklamaymiz
+  upgState.yourItem = null;
+  upgState.targetItem = null;
+  updateUpgradeUI();
+  try {
+    const [invRes, catRes] = await Promise.all([
+      fetch(`${INVENTORY_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`),
+      fetch(NFT_CATALOG_API_URL),
+    ]);
+    upgState.inventory = (await invRes.json()).items || [];
+    upgState.catalog = (await catRes.json()).items || [];
+  } catch (e) {
+    console.error("Upgrade ma'lumotlari yuklanmadi:", e.message);
+  }
+}
+
+function upgradeChancePercent() {
+  if (!upgState.yourItem || !upgState.targetItem) return 100;
+  const raw = (upgState.yourItem.sell_price / upgState.targetItem.sell_price) * 100 * 0.97;
+  return Math.max(1, Math.min(95, raw));
+}
+
+function upgradeChanceLabel(pct) {
+  if (pct >= 75) return 'JUDA YUQORI';
+  if (pct >= 50) return 'YUQORI';
+  if (pct >= 25) return "O'RTA";
+  if (pct >= 10) return 'PAST';
+  return 'JUDA PAST';
+}
+
+function updateUpgradeUI() {
+  const yourBox = document.getElementById('upgYourBox');
+  const yourVisual = document.getElementById('upgYourVisual');
+  const yourLabel = document.getElementById('upgYourLabel');
+  const yourSub = document.getElementById('upgYourSub');
+  if (upgState.yourItem) {
+    yourVisual.innerHTML = '<div class="anim-slot" id="upgYourAnim"></div>';
+    yourLabel.textContent = upgState.yourItem.name;
+    yourSub.textContent = `${upgState.yourItem.sell_price} coin`;
+    yourBox.classList.add('upg-filled');
+    mountAnimatedEmoji(document.getElementById('upgYourAnim'), upgState.yourItem.custom_emoji_id, upgState.yourItem.is_video, 'upgYour');
+  } else {
+    yourVisual.textContent = '+';
+    yourLabel.textContent = "Sovg'a tanlang";
+    yourSub.textContent = "Upgrade qilish uchun sovg'a tanlang";
+    yourBox.classList.remove('upg-filled');
+  }
+
+  const targetBox = document.getElementById('upgTargetBox');
+  const targetVisual = document.getElementById('upgTargetVisual');
+  const targetLabel = document.getElementById('upgTargetLabel');
+  const targetSub = document.getElementById('upgTargetSub');
+  if (!upgState.yourItem) {
+    targetBox.classList.add('upg-disabled');
+    targetBox.classList.remove('upg-filled');
+    targetVisual.textContent = '+';
+    targetLabel.textContent = 'Avval sovg\'a tanlang';
+    targetSub.textContent = "Davom etish uchun sovg'a tanlang";
+  } else {
+    targetBox.classList.remove('upg-disabled');
+    if (upgState.targetItem) {
+      targetVisual.innerHTML = '<div class="anim-slot" id="upgTargetAnim"></div>';
+      targetLabel.textContent = upgState.targetItem.name;
+      targetSub.textContent = `${upgState.targetItem.sell_price} coin`;
+      targetBox.classList.add('upg-filled');
+      mountAnimatedEmoji(document.getElementById('upgTargetAnim'), upgState.targetItem.custom_emoji_id, upgState.targetItem.is_video, 'upgTarget');
+    } else {
+      targetVisual.textContent = '+';
+      targetLabel.textContent = "Sovg'a tanlang";
+      targetSub.textContent = "Maqsad sovg'ani tanlang";
+      targetBox.classList.remove('upg-filled');
+    }
+  }
+
+  const pct = upgradeChancePercent();
+  document.getElementById('upgChancePct').textContent = pct.toFixed(1) + '%';
+  document.getElementById('upgChanceLabel').textContent = upgradeChanceLabel(pct);
+  const wheel = document.getElementById('upgWheel');
+  const chanceDeg = pct / 100 * 360;
+  wheel.style.background = `conic-gradient(var(--success) 0deg ${chanceDeg}deg, var(--danger) ${chanceDeg}deg 360deg)`;
+
+  const btn = document.getElementById('upgConfirmBtn');
+  if (upgState.yourItem && upgState.targetItem) {
+    btn.disabled = false;
+    btn.textContent = '⚡ Upgrade qilish';
+  } else {
+    btn.disabled = true;
+    btn.textContent = 'Ikkalasini ham tanlang';
+  }
+}
+
+function openUpgradePicker(which) {
+  if (upgState.spinning) return;
+  if (which === 'target' && !upgState.yourItem) return;
+  upgState.picking = which;
+  document.getElementById('upgPickerTitle').textContent =
+    which === 'your' ? "Sizning sovg'angizni tanlang" : "Maqsad sovg'ani tanlang";
+  renderUpgradePickerList();
+  document.getElementById('upgPickerOverlay').classList.add('active');
+}
+
+function closeUpgradePicker() {
+  document.getElementById('upgPickerOverlay').classList.remove('active');
+  upgState.picking = null;
+}
+
+function renderUpgradePickerList() {
+  const list = document.getElementById('upgPickerGrid');
+  let items;
+  if (upgState.picking === 'your') {
+    items = upgState.inventory;
+  } else {
+    const minPrice = upgState.yourItem ? upgState.yourItem.sell_price : 0;
+    items = upgState.catalog.filter(it => it.sell_price > minPrice);
+  }
+  if (!items.length) {
+    list.innerHTML = `<p class="empty" style="font-size:12px; grid-column:1/-1;">${upgState.picking === 'your' ? "Inventoringizda NFT yo'q" : "Mos sovg'a topilmadi"}</p>`;
+    return;
+  }
+  list.innerHTML = items.map(it => `
+    <div class="nft-stake-item" onclick="pickUpgradeItem('${it.id}')" style="cursor:pointer;">
+      <div class="anim-slot" id="upgPick_${it.id}"></div>
+      <div class="n-name">${it.name}</div>
+      <div class="n-price"><span class="coin-ico"></span> ${it.sell_price}${it.count ? ' · x' + it.count : ''}</div>
+    </div>
+  `).join('');
+  items.forEach(it => mountAnimatedEmoji(document.getElementById(`upgPick_${it.id}`), it.custom_emoji_id, it.is_video, `upgpick_${it.id}`));
+}
+
+function pickUpgradeItem(itemId) {
+  if (upgState.picking === 'your') {
+    const item = upgState.inventory.find(i => i.id === itemId);
+    if (!item) return;
+    upgState.yourItem = item;
+    // Agar avval tanlangan maqsad endi arzonroq/teng bo'lib qolsa — tozalanadi
+    if (upgState.targetItem && upgState.targetItem.sell_price <= item.sell_price) {
+      upgState.targetItem = null;
+    }
+  } else {
+    const item = upgState.catalog.find(i => i.id === itemId);
+    if (!item) return;
+    upgState.targetItem = item;
+  }
+  closeUpgradePicker();
+  updateUpgradeUI();
+}
+
+async function upgradeConfirm() {
+  if (!upgState.yourItem || !upgState.targetItem || upgState.spinning) return;
+  upgState.spinning = true;
+  const btn = document.getElementById('upgConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Kutilmoqda...';
+
+  try {
+    const res = await fetch('/api/upgrade/spin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        initData: tg?.initData || '',
+        yourItemId: upgState.yourItem.id,
+        targetItemId: upgState.targetItem.id,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert("Xatolik yuz berdi, qayta urinib ko'ring.");
+      upgState.spinning = false;
+      updateUpgradeUI();
+      return;
+    }
+    startUpgradeSpinAnimation(data);
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi.');
+    upgState.spinning = false;
+    updateUpgradeUI();
+  }
+}
+
+const UPGRADE_SPIN_DURATION_MS = 5000;
+
+function startUpgradeSpinAnimation(result) {
+  const wheel = document.getElementById('upgWheel');
+  const chanceDeg = result.chance / 100 * 360;
+  const pad = Math.min(4, chanceDeg / 4, (360 - chanceDeg) / 4);
+  let landingAngle;
+  if (result.win) {
+    landingAngle = pad + Math.random() * Math.max(0.5, chanceDeg - pad * 2);
+  } else {
+    landingAngle = chanceDeg + pad + Math.random() * Math.max(0.5, (360 - chanceDeg) - pad * 2);
+  }
+  const SPINS = 5;
+  const targetRotation = SPINS * 360 + (360 - landingAngle);
+
+  wheel.style.transition = 'none';
+  wheel.style.transform = 'rotate(0deg)';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      wheel.style.transition = `transform ${UPGRADE_SPIN_DURATION_MS / 1000}s cubic-bezier(.15,.65,.1,1)`;
+      wheel.style.transform = `rotate(${targetRotation}deg)`;
+    });
+  });
+
+  const btn = document.getElementById('upgConfirmBtn');
+  btn.textContent = 'Aylanmoqda...';
+
+  setTimeout(() => finishUpgradeSpin(result), UPGRADE_SPIN_DURATION_MS + 150);
+}
+
+function finishUpgradeSpin(result) {
+  upgState.spinning = false;
+
+  // Mahalliy inventar nusxasini yangilaymiz (sarflangan NFT)
+  const invItem = upgState.inventory.find(i => i.id === result.yourItemId);
+  if (invItem) {
+    invItem.count -= 1;
+    if (invItem.count <= 0) upgState.inventory = upgState.inventory.filter(i => i.id !== invItem.id);
+  }
+
+  if (result.win) {
+    upgradeResultAlert(`🎉 Yutdingiz! Siz "${upgState.targetItem.name}" ni oldingiz!`);
+  } else {
+    upgradeResultAlert(`💥 Yutqazdingiz! "${upgState.yourItem.name}" yo'qoldi.`);
+  }
+
+  upgState.yourItem = null;
+  upgState.targetItem = null;
+  const wheel = document.getElementById('upgWheel');
+  wheel.style.transition = 'none';
+  wheel.style.transform = 'rotate(0deg)';
+  updateUpgradeUI();
+}
+
+/* Upgrade natijasini ko'rsatish uchun oddiy xabar */
+function upgradeResultAlert(msg) {
+  alert(msg);
 }
 
 // Kosmik fon: yulduzlar (meteorlar) ong tomondan chap tomonga tasodifiy uchib o'tadi

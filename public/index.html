@@ -1853,8 +1853,147 @@
       </button>
     </div>
 
-    <button class="btn" id="adminOpenerBtn" style="width:100%; display:none; background:var(--surface-2); border:1px solid var(--border); color:var(--gold); padding:12px; font-size:14px;" onclick="toggleAdminModal(true)">⚙️ Admin Panelni ochish</button>
+    <button class="btn" id="adminOpenerBtn" style="width:100%; display:none; background:var(--surface-2); border:1px solid var(--border); color:var(--gold); padding:12px; font-size:14px;" onclick="goTo('admin')">⚙️ Admin Panelni ochish</button>
     <button class="btn" id="simpleAdminOpenerBtn" style="width:100%; display:none; background:var(--surface-2); border:1px solid var(--border); color:var(--gold); padding:12px; font-size:14px; margin-top:8px;" onclick="toggleSimpleAdminModal(true)">🪙 Oddiy admin panel</button>
+  </section>
+
+<!-- ... Admin boshqaruv paneli (to'liq bo'lim) ... -->
+  <section class="page" id="page-admin">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('profile')">‹</button>
+      <div class="game-number-badge mono">⚙️ Admin panel</div>
+      <span style="width:34px;"></span>
+    </div>
+    
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--success);"><span class="coin-ico"></span> Foydalanuvchiga Coin berish</p>
+      <input type="text" id="a_userTid" placeholder="Foydalanuvchi Telegram ID si">
+      <input type="number" id="a_giveStars" placeholder="Coin miqdori">
+      <button class="btn" style="width:100%;" onclick="adminGiveStars()">Coin Yuborish</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--success);">🖼️ Foydalanuvchiga NFT berish</p>
+      <input type="text" id="a_nftUserTid" placeholder="Foydalanuvchi Telegram ID si">
+      <select id="a_nftSelect" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+        <option value="">Yuklanmoqda...</option>
+      </select>
+      <input type="number" id="a_nftAmount" placeholder="Dona soni" value="1" min="1" style="margin-top:8px;">
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminGiveNft()">NFT Berish</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">👑 Foydalanuvchiga VIP berish</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Telegram ID orqali 6 soatga VIP beriladi (mavjud muddat bo'lsa, ustiga qo'shiladi).</p>
+      <input type="text" id="a_vipUserTid" placeholder="Foydalanuvchi Telegram ID si">
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminGiveVip()">👑 VIP Berish (6 soat)</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎟️ Yangi Promokod yaratish</p>
+      <input type="text" id="a_promoCode" placeholder="Kod nomi (Masalan: BONUS yoki STARS)">
+      <input type="number" id="a_promoReward" placeholder="Qancha stars berishi">
+      <input type="number" id="a_promoUses" placeholder="Maksimal aktivatsiyalar soni">
+      <button class="btn" style="width:100%;" onclick="adminCreatePromo()">Promokod yaratish</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎁 Yangi Voucher yaratish</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Yaratilgach, bot avtomatik ravishda rasm bilan @GiftFesti kanaliga e'lon qiladi — "Olish uchun bosing" tugmasi orqali botga kirib faollashtiriladi.</p>
+      <input type="number" id="a_voucherUses" placeholder="Aktivatsiyalar soni (nechta odam olishi mumkin)">
+      <input type="number" id="a_voucherReward" placeholder="Har biriga necha coin berilishi">
+      <select id="a_voucherRequireType" onchange="adminVoucherToggleRequireTarget()" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+        <option value="">Shart qo'yilmasin (hamma darhol oladi)</option>
+        <option value="channel">📢 Majburiy kanal</option>
+        <option value="chat">💬 Majburiy chat (guruh)</option>
+        <option value="bot">🤖 Majburiy bot (boshqa botni ishga tushirish)</option>
+      </select>
+      <input type="text" id="a_voucherRequireTarget" placeholder="Masalan: @KanalNomi yoki t.me/... yoki @BotNomi" style="display:none; margin-top:8px;">
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateVoucher()">Voucher yaratish va kanalga joylash</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎉 Yangi Konkurs yaratish</p>
+      <input type="text" id="a_konkursTitle" placeholder="Konkurs nomi">
+      <input type="text" id="a_konkursDesc" placeholder="Tavsif (ixtiyoriy)" style="margin-top:8px;">
+      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">🏆 Sovg'alar (har biri bitta g'olibga beriladi — NFT yoki VIP👑 aralash qo'yish mumkin)</p>
+      <div id="a_konkursPrizesBox">
+        <select class="a-konkurs-prize-select" style="width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+          <option value="">Yuklanmoqda...</option>
+        </select>
+      </div>
+      <button type="button" class="btn secondary" style="width:100%; margin-top:6px; padding:9px; font-size:12px;" onclick="adminKonkursAddPrizeRow()">+ Yana sovg'a qo'shish</button>
+
+      <div class="admin-subbtn-grid" style="margin-top:10px;">
+        <button class="btn secondary active" id="a_konkursTypeFreeBtn" onclick="adminKonkursSetType('free')">🎁 Bepul</button>
+        <button class="btn secondary" id="a_konkursTypePaidBtn" onclick="adminKonkursSetType('paid')">💰 Pullik</button>
+      </div>
+      <input type="number" id="a_konkursTicketPrice" placeholder="Bitta bilet narxi (coin)" style="display:none; margin-top:8px;" min="0.1" step="0.1">
+
+      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">⏱ Konkurs davomiyligi (vaqti tugasa, g'oliblarga NFT avtomatik beriladi)</p>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <input type="number" id="a_konkursDuration" placeholder="Miqdor (masalan 24)" min="0" step="1" style="flex:1;">
+        <select id="a_konkursDurationUnit" style="flex:1; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+          <option value="hours">Soat</option>
+          <option value="days">Kun</option>
+        </select>
+      </div>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">Bo'sh qoldirilsa — muddatsiz, faqat qo'lda "Yakunlash" tugmasi orqali tugatiladi.</p>
+
+      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">📢 Majburiy kanal/guruhlar (ixtiyoriy, bir nechtasini qo'shsa bo'ladi)</p>
+      <div id="a_konkursChannelsBox">
+        <input type="text" class="a-konkurs-channel-input" placeholder="@KanalNomi yoki t.me/..." style="margin-top:6px;">
+      </div>
+      <button type="button" class="btn secondary" style="width:100%; margin-top:6px; padding:9px; font-size:12px;" onclick="adminKonkursAddChannelRow()">+ Yana kanal/guruh qo'shish</button>
+
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateContest()">Konkurs yaratish</button>
+
+      <p style="font-size:12px; font-weight:600; margin:12px 0 6px; color:var(--text-dim);">Faol / yakunlangan konkurslar</p>
+      <div id="adminContestsList"><p class="empty" style="font-size:12px;">Yuklash uchun panelni oching...</p></div>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:4px;">📋 Yangi vazifa qo'shish</p>
+      <select id="a_taskType" style="width:100%; margin-bottom:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+        <option value="channel">📢 Kanal (obuna tekshiriladi)</option>
+        <option value="chat">💬 Chat/Guruh (a'zolik tekshiriladi)</option>
+        <option value="bot">🤖 Bot (tekshirilmaydi)</option>
+      </select>
+      <input type="text" id="a_channelLink" placeholder="Havola (t.me/...)">
+      <input type="text" id="a_channelTitle" placeholder="Nomi (Kanal/Chat/Bot nomi)">
+      <input type="number" id="a_reward" placeholder="Coin miqdori">
+      <button class="btn" style="width:100%;" onclick="adminAddTask()">Vazifa qo'shish</button>
+
+      <p style="font-size:12px; font-weight:600; margin:12px 0 6px; color:var(--text-dim);">Yaratilgan vazifalar</p>
+      <div id="adminTasksList"><p class="empty" style="font-size:12px;">Yuklash uchun panelni oching...</p></div>
+
+      <button class="btn danger" style="width:100%; margin-top:8px;" onclick="adminDeleteAllTasks()">Barcha vazifalarni o'chirish</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:4px; color:var(--gold);">🎯 Faqat bittasini 0 dan boshlash</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Faqat tanlangan bo'lim tozalanadi, qolganlariga tegilmaydi.</p>
+      <div class="admin-subbtn-grid">
+        <button class="btn secondary" onclick="adminResetRatingOnly()">🏆 Reyting</button>
+        <button class="btn secondary" onclick="adminResetHockeyOnly()">🏒 Hokkey (#1)</button>
+        <button class="btn secondary" onclick="adminResetDrumOnly()">🎡 Baraban (#1)</button>
+        <button class="btn secondary" onclick="adminResetCaseCooldowns()">🎁 Case (0 dan)</button>
+      </div>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">⏳ Reyting qachon tugashini belgilash</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Reyting sahifasidagi "Tugashiga" taymer shu vaqtga qarab hisoblanadi.</p>
+      <input type="datetime-local" id="a_lbEndAt" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminSetLeaderboardEnd()">Tugash vaqtini saqlash</button>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:6px;" id="a_lbEndCurrent"></p>
+    </div>
+
+    <div>
+      <p style="font-size:13px; font-weight:600; margin-bottom:4px; color:var(--danger);">⚠️ Tizimni tozalash</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Hamma narsa (balanslar, reytinglar, NFT inventarlar, o'yinlar) 0 dan boshlanadi.</p>
+      <button class="btn danger" style="width:100%;" onclick="adminResetEverything()">Hamma narsani 0 dan boshlash</button>
+    </div>
   </section>
 </main>
 
@@ -2112,144 +2251,6 @@
       <button class="amt-btn" id="crashDirDownBtn" onclick="setCrashDirection('down')" style="flex:1;">⬇️ Pas</button>
     </div>
     <p style="font-size:11.5px; color:var(--text-dim); margin-top:10px;">"Pas" tanlansa, raketa animatsiyasiz oddiy 🚀 ko'rinishida pastga qarab uchadi.</p>
-  </div>
-</div>
-
-<!-- ... Admin boshqaruv paneli ... -->
-<div class="modal-overlay" id="adminModal">
-  <div class="modal-window">
-    <button class="modal-close" onclick="toggleAdminModal(false)">×</button>
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px; color:var(--gold);">⚙️ Admin boshqaruv paneli</h2>
-    
-    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--success);"><span class="coin-ico"></span> Foydalanuvchiga Coin berish</p>
-      <input type="text" id="a_userTid" placeholder="Foydalanuvchi Telegram ID si">
-      <input type="number" id="a_giveStars" placeholder="Coin miqdori">
-      <button class="btn" style="width:100%;" onclick="adminGiveStars()">Coin Yuborish</button>
-    </div>
-
-    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--success);">🖼️ Foydalanuvchiga NFT berish</p>
-      <input type="text" id="a_nftUserTid" placeholder="Foydalanuvchi Telegram ID si">
-      <select id="a_nftSelect" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-        <option value="">Yuklanmoqda...</option>
-      </select>
-      <input type="number" id="a_nftAmount" placeholder="Dona soni" value="1" min="1" style="margin-top:8px;">
-      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminGiveNft()">NFT Berish</button>
-    </div>
-
-    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">👑 Foydalanuvchiga VIP berish</p>
-      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Telegram ID orqali 6 soatga VIP beriladi (mavjud muddat bo'lsa, ustiga qo'shiladi).</p>
-      <input type="text" id="a_vipUserTid" placeholder="Foydalanuvchi Telegram ID si">
-      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminGiveVip()">👑 VIP Berish (6 soat)</button>
-    </div>
-
-    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎟️ Yangi Promokod yaratish</p>
-      <input type="text" id="a_promoCode" placeholder="Kod nomi (Masalan: BONUS yoki STARS)">
-      <input type="number" id="a_promoReward" placeholder="Qancha stars berishi">
-      <input type="number" id="a_promoUses" placeholder="Maksimal aktivatsiyalar soni">
-      <button class="btn" style="width:100%;" onclick="adminCreatePromo()">Promokod yaratish</button>
-    </div>
-
-    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎁 Yangi Voucher yaratish</p>
-      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Yaratilgach, bot avtomatik ravishda rasm bilan @GiftFesti kanaliga e'lon qiladi — "Olish uchun bosing" tugmasi orqali botga kirib faollashtiriladi.</p>
-      <input type="number" id="a_voucherUses" placeholder="Aktivatsiyalar soni (nechta odam olishi mumkin)">
-      <input type="number" id="a_voucherReward" placeholder="Har biriga necha coin berilishi">
-      <select id="a_voucherRequireType" onchange="adminVoucherToggleRequireTarget()" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-        <option value="">Shart qo'yilmasin (hamma darhol oladi)</option>
-        <option value="channel">📢 Majburiy kanal</option>
-        <option value="chat">💬 Majburiy chat (guruh)</option>
-        <option value="bot">🤖 Majburiy bot (boshqa botni ishga tushirish)</option>
-      </select>
-      <input type="text" id="a_voucherRequireTarget" placeholder="Masalan: @KanalNomi yoki t.me/... yoki @BotNomi" style="display:none; margin-top:8px;">
-      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateVoucher()">Voucher yaratish va kanalga joylash</button>
-    </div>
-
-    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎉 Yangi Konkurs yaratish</p>
-      <input type="text" id="a_konkursTitle" placeholder="Konkurs nomi">
-      <input type="text" id="a_konkursDesc" placeholder="Tavsif (ixtiyoriy)" style="margin-top:8px;">
-      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">🏆 Sovg'alar (har biri bitta g'olibga beriladi — NFT yoki VIP👑 aralash qo'yish mumkin)</p>
-      <div id="a_konkursPrizesBox">
-        <select class="a-konkurs-prize-select" style="width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-          <option value="">Yuklanmoqda...</option>
-        </select>
-      </div>
-      <button type="button" class="btn secondary" style="width:100%; margin-top:6px; padding:9px; font-size:12px;" onclick="adminKonkursAddPrizeRow()">+ Yana sovg'a qo'shish</button>
-
-      <div class="admin-subbtn-grid" style="margin-top:10px;">
-        <button class="btn secondary active" id="a_konkursTypeFreeBtn" onclick="adminKonkursSetType('free')">🎁 Bepul</button>
-        <button class="btn secondary" id="a_konkursTypePaidBtn" onclick="adminKonkursSetType('paid')">💰 Pullik</button>
-      </div>
-      <input type="number" id="a_konkursTicketPrice" placeholder="Bitta bilet narxi (coin)" style="display:none; margin-top:8px;" min="0.1" step="0.1">
-
-      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">⏱ Konkurs davomiyligi (vaqti tugasa, g'oliblarga NFT avtomatik beriladi)</p>
-      <div style="display:flex; gap:8px; margin-top:6px;">
-        <input type="number" id="a_konkursDuration" placeholder="Miqdor (masalan 24)" min="0" step="1" style="flex:1;">
-        <select id="a_konkursDurationUnit" style="flex:1; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-          <option value="hours">Soat</option>
-          <option value="days">Kun</option>
-        </select>
-      </div>
-      <p style="font-size:11px; color:var(--text-dim); margin-top:4px;">Bo'sh qoldirilsa — muddatsiz, faqat qo'lda "Yakunlash" tugmasi orqali tugatiladi.</p>
-
-      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">📢 Majburiy kanal/guruhlar (ixtiyoriy, bir nechtasini qo'shsa bo'ladi)</p>
-      <div id="a_konkursChannelsBox">
-        <input type="text" class="a-konkurs-channel-input" placeholder="@KanalNomi yoki t.me/..." style="margin-top:6px;">
-      </div>
-      <button type="button" class="btn secondary" style="width:100%; margin-top:6px; padding:9px; font-size:12px;" onclick="adminKonkursAddChannelRow()">+ Yana kanal/guruh qo'shish</button>
-
-      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateContest()">Konkurs yaratish</button>
-
-      <p style="font-size:12px; font-weight:600; margin:12px 0 6px; color:var(--text-dim);">Faol / yakunlangan konkurslar</p>
-      <div id="adminContestsList"><p class="empty" style="font-size:12px;">Yuklash uchun panelni oching...</p></div>
-    </div>
-
-    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:4px;">📋 Yangi vazifa qo'shish</p>
-      <select id="a_taskType" style="width:100%; margin-bottom:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-        <option value="channel">📢 Kanal (obuna tekshiriladi)</option>
-        <option value="chat">💬 Chat/Guruh (a'zolik tekshiriladi)</option>
-        <option value="bot">🤖 Bot (tekshirilmaydi)</option>
-      </select>
-      <input type="text" id="a_channelLink" placeholder="Havola (t.me/...)">
-      <input type="text" id="a_channelTitle" placeholder="Nomi (Kanal/Chat/Bot nomi)">
-      <input type="number" id="a_reward" placeholder="Coin miqdori">
-      <button class="btn" style="width:100%;" onclick="adminAddTask()">Vazifa qo'shish</button>
-
-      <p style="font-size:12px; font-weight:600; margin:12px 0 6px; color:var(--text-dim);">Yaratilgan vazifalar</p>
-      <div id="adminTasksList"><p class="empty" style="font-size:12px;">Yuklash uchun panelni oching...</p></div>
-
-      <button class="btn danger" style="width:100%; margin-top:8px;" onclick="adminDeleteAllTasks()">Barcha vazifalarni o'chirish</button>
-    </div>
-
-    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:4px; color:var(--gold);">🎯 Faqat bittasini 0 dan boshlash</p>
-      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Faqat tanlangan bo'lim tozalanadi, qolganlariga tegilmaydi.</p>
-      <div class="admin-subbtn-grid">
-        <button class="btn secondary" onclick="adminResetRatingOnly()">🏆 Reyting</button>
-        <button class="btn secondary" onclick="adminResetHockeyOnly()">🏒 Hokkey (#1)</button>
-        <button class="btn secondary" onclick="adminResetDrumOnly()">🎡 Baraban (#1)</button>
-        <button class="btn secondary" onclick="adminResetCaseCooldowns()">🎁 Case (0 dan)</button>
-      </div>
-    </div>
-
-    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">⏳ Reyting qachon tugashini belgilash</p>
-      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Reyting sahifasidagi "Tugashiga" taymer shu vaqtga qarab hisoblanadi.</p>
-      <input type="datetime-local" id="a_lbEndAt" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminSetLeaderboardEnd()">Tugash vaqtini saqlash</button>
-      <p style="font-size:11px; color:var(--text-dim); margin-top:6px;" id="a_lbEndCurrent"></p>
-    </div>
-
-    <div>
-      <p style="font-size:13px; font-weight:600; margin-bottom:4px; color:var(--danger);">⚠️ Tizimni tozalash</p>
-      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Hamma narsa (balanslar, reytinglar, NFT inventarlar, o'yinlar) 0 dan boshlanadi.</p>
-      <button class="btn danger" style="width:100%;" onclick="adminResetEverything()">Hamma narsani 0 dan boshlash</button>
-    </div>
   </div>
 </div>
 
@@ -3211,6 +3212,7 @@ function goTo(pageName) {
   if (pageName === 'case') initCasePage();
   if (pageName === 'upgrade') initUpgradePage();
   if (pageName === 'crash') initCrashPage();
+  if (pageName === 'admin') openAdminPage();
   else if (crashUnsubscribe) { crashUnsubscribe(); crashUnsubscribe = null; }
 
   // Xokkey/Baraban sahifasidan chiqilganda realtime listenerni
@@ -4655,10 +4657,18 @@ async function sellNft(itemId, sellPrice) {
   }
 }
 
+function openAdminPage() {
+  ensureAdminPassword();
+  loadAdminTasksList();
+  loadAdminNftSelect();
+  loadAdminKonkursNftSelect();
+  loadAdminContestsList();
+  loadAdminLeaderboardEndDisplay();
+}
+// Eski nom bilan chaqiruvchi joylar buzilmasligi uchun moslashuvchan qoldirildi
+// (endi modal emas, to'liq bo'lim sifatida ochiladi — goTo('admin') orqali).
 function toggleAdminModal(show) {
-  const modal = document.getElementById('adminModal');
-  if(show) { ensureAdminPassword(); modal.classList.add('active'); loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
-  else modal.classList.remove('active');
+  if (show) goTo('admin'); else goTo('profile');
 }
 
 async function loadAdminLeaderboardEndDisplay() {

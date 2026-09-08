@@ -84,6 +84,7 @@ function createUser(id, username) {
     isSimpleAdmin: SIMPLE_ADMIN_IDS.includes(String(id)),
     nftInventory: {},      // itemId(NFT_CATALOG dagi) -> dona soni
     nftInstancePrices: {}, // itemId -> [narx1, narx2, ...] (raketa o'yinidan yutilgan NFT'larning haqiqiy narxi)
+    nftInstanceBackgrounds: {}, // itemId -> [fon1, fon2, ...] (nftInstancePrices bilan sinxron: null | 'onyx_black' | 'black')
     nftInitialized: false, // starter (tekin) NFT'lar berilganmi
     vip: { expiresAt: 0 }, // VIP👑: muddati tugagan vaqt (ms, epoch); 0 = hech qachon sotib olinmagan
     dailyTasks: {
@@ -189,6 +190,7 @@ function loadDb() {
         completedTasks: new Set(u.completedTasks || []),
         nftInventory: u.nftInventory || {},
         nftInstancePrices: u.nftInstancePrices || {},
+        nftInstanceBackgrounds: u.nftInstanceBackgrounds || {},
         nftInitialized: u.nftInitialized || false,
         vip: u.vip || { expiresAt: 0 },
         dailyTasks: {
@@ -699,9 +701,29 @@ const NFT_CATALOG = [
 const NFT_BY_ID = new Map(NFT_CATALOG.map(i => [i.id, i]));
 const CASE_ITEM_IDS = ['teddy', 'heart_gift', 'gift_box', 'rose', 'cake', 'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond'];
 
+/* ============================================================
+   NFT FONLARI (backdrop) — har bir NFT donasi (instance) tasodifiy
+   ravishda maxsus fonli bo'lib chiqishi mumkin (faqat Case ochishda
+   yoki Raketa/Crash o'yinida yutilganda — sotib bo'lmaydi). Fon narxni
+   doimiy ravishda ko'paytiradi: Onyx Black — x2, Black — x4. ---- */
+const BACKDROP_CATALOG = [
+  { id: 'onyx_black', name: 'Onyx Black', multiplier: 2 },
+  { id: 'black', name: 'Black', multiplier: 4 },
+];
+const BACKDROP_BY_ID = new Map(BACKDROP_CATALOG.map(b => [b.id, b]));
+const BACKDROP_DROP_CHANCE = 0.08;   // ~8% ehtimol bilan tushgan NFT fonli bo'ladi
+const BACKDROP_BLACK_SHARE = 0.2;    // fonli chiqqanlarning 20% i "Black" (qolgani "Onyx Black")
+
+/* ---- Tasodifiy fon: null (oddiy), yoki BACKDROP_CATALOG dagi id. ---- */
+function rollBackdrop() {
+  if (Math.random() >= BACKDROP_DROP_CHANCE) return null;
+  return Math.random() < BACKDROP_BLACK_SHARE ? 'black' : 'onyx_black';
+}
+
 function ensureNftStarterPack(user) {
   if (!user.nftInventory) user.nftInventory = {};
   if (!user.nftInstancePrices) user.nftInstancePrices = {};
+  if (!user.nftInstanceBackgrounds) user.nftInstanceBackgrounds = {};
   if (user.nftInitialized) return;
   NFT_CATALOG.forEach(item => {
     if (item.free) user.nftInventory[item.id] = (user.nftInventory[item.id] || 0) + 1;
@@ -711,14 +733,135 @@ function ensureNftStarterPack(user) {
 
 /* ---- Bitta NFT dona sifatida foydalanuvchi inventoriga qo'shish.
    customPrice berilsa (masalan raketa o'yinida yutilgan bo'lsa), bu dona
-   sotilganda katalogdagi standart narx emas, aynan shu narx qo'llanadi. ---- */
-function grantNftToUser(user, itemId, customPrice = null) {
+   sotilganda katalogdagi standart narx emas, aynan shu narx qo'llanadi.
+   opts.rollBackdrop = true bo'lsa — tasodifiy fon (Onyx Black/Black)
+   tushishi mumkin (faqat Case va Raketa/Crash uchun). opts.forcedBackground
+   berilsa (masalan mavjud dona boshqa foydalanuvchiga o'tkazilganda) — fon
+   qayta o'ynatilmasdan aynan shu holicha saqlanadi. Natija sifatida
+   { price, background } qaytaradi. ---- */
+function grantNftToUser(user, itemId, customPrice = null, opts = {}) {
   ensureNftStarterPack(user);
   user.nftInventory[itemId] = (user.nftInventory[itemId] || 0) + 1;
-  if (customPrice !== null && customPrice !== undefined) {
-    if (!user.nftInstancePrices[itemId]) user.nftInstancePrices[itemId] = [];
-    user.nftInstancePrices[itemId].push(round2(customPrice));
+
+  const item = NFT_BY_ID.get(itemId);
+  const basePrice = (customPrice !== null && customPrice !== undefined) ? customPrice : (item ? item.sell_price : 0);
+
+  let background = null;
+  if (Object.prototype.hasOwnProperty.call(opts, 'forcedBackground')) {
+    background = opts.forcedBackground || null;
+  } else if (opts.rollBackdrop) {
+    background = rollBackdrop();
   }
+
+  const backdrop = background ? BACKDROP_BY_ID.get(background) : null;
+  const finalPrice = round2(backdrop ? basePrice * backdrop.multiplier : basePrice);
+
+  const needsInstanceEntry = (customPrice !== null && customPrice !== undefined) || !!background;
+  if (needsInstanceEntry) {
+    if (!user.nftInstancePrices[itemId]) user.nftInstancePrices[itemId] = [];
+    if (!user.nftInstanceBackgrounds[itemId]) user.nftInstanceBackgrounds[itemId] = [];
+    user.nftInstancePrices[itemId].push(finalPrice);
+    user.nftInstanceBackgrounds[itemId].push(background);
+  }
+
+  return { price: finalPrice, background };
+}
+
+/* ---- Berilgan itemId uchun "keyingi sotiladigan/ishlatiladigan" dona
+   narxi va fonini FIFO tartibida OLIB TASHLAMASDAN ko'radi (peek). ---- */
+function peekNftInstance(user, itemId, background) {
+  const item = NFT_BY_ID.get(itemId);
+  if (!item) return null;
+  const totalCount = user.nftInventory[itemId] || 0;
+  if (totalCount <= 0) return null;
+  const prices = user.nftInstancePrices && user.nftInstancePrices[itemId];
+  const backgrounds = user.nftInstanceBackgrounds && user.nftInstanceBackgrounds[itemId];
+  const trackedLen = prices ? prices.length : 0;
+
+  if (background) {
+    if (backgrounds) {
+      const idx = backgrounds.indexOf(background);
+      if (idx !== -1) return { price: prices[idx], background };
+    }
+    return null;
+  }
+  const untrackedCount = totalCount - trackedLen;
+  if (untrackedCount > 0) return { price: item.sell_price, background: null };
+  if (backgrounds) {
+    const idx = backgrounds.findIndex(b => !b);
+    if (idx !== -1) return { price: prices[idx], background: null };
+  }
+  if (prices && prices.length) return { price: prices[0], background: (backgrounds && backgrounds[0]) || null };
+  return { price: item.sell_price, background: null };
+}
+
+/* ---- peekNftInstance bilan bir xil tanlov mantig'i, lekin donani
+   HAQIQATDA inventardan OLIB TASHLAYDI (sotish / stavka qo'yish uchun).
+   background=null/undefined bo'lsa — avval oddiy (fonsiz) dona, u
+   bo'lmasa fonli donalardan biri olinadi. background aniq berilsa —
+   faqat o'sha fondagi dona qidiriladi (topilmasa null qaytadi). ---- */
+function takeNftInstance(user, itemId, background) {
+  const item = NFT_BY_ID.get(itemId);
+  if (!item) return null;
+  const totalCount = user.nftInventory[itemId] || 0;
+  if (totalCount <= 0) return null;
+
+  const prices = user.nftInstancePrices && user.nftInstancePrices[itemId];
+  const backgrounds = user.nftInstanceBackgrounds && user.nftInstanceBackgrounds[itemId];
+  const trackedLen = prices ? prices.length : 0;
+
+  if (background) {
+    if (prices && backgrounds) {
+      const idx = backgrounds.indexOf(background);
+      if (idx !== -1) {
+        const price = prices[idx];
+        prices.splice(idx, 1);
+        backgrounds.splice(idx, 1);
+        user.nftInventory[itemId] = totalCount - 1;
+        return { price, background };
+      }
+    }
+    return null;
+  }
+
+  const untrackedCount = totalCount - trackedLen;
+  if (untrackedCount > 0) {
+    user.nftInventory[itemId] = totalCount - 1;
+    return { price: item.sell_price, background: null };
+  }
+  if (prices && backgrounds) {
+    const idx = backgrounds.findIndex(b => !b);
+    if (idx !== -1) {
+      const price = prices[idx];
+      prices.splice(idx, 1);
+      backgrounds.splice(idx, 1);
+      user.nftInventory[itemId] = totalCount - 1;
+      return { price, background: null };
+    }
+    if (prices.length) {
+      const price = prices.shift();
+      const bg = backgrounds.length ? backgrounds.shift() : null;
+      user.nftInventory[itemId] = totalCount - 1;
+      return { price, background: bg };
+    }
+  }
+  return null;
+}
+
+/* ---- customPrices/nftInstanceBackgrounds massivlarini bir vaqtda FIFO
+   tartibida "iste'mol qiladi" (stavka qo'yish / upgrade uchun) — ikkala
+   massiv doim sinxron qoladi. Tracked (maxsus narxli yoki fonli) dona
+   bo'lmasa, katalogdagi standart narx va fonsiz holat qaytadi. ---- */
+function consumeNftInstanceFIFO(user, itemId) {
+  const item = NFT_BY_ID.get(itemId);
+  const prices = user.nftInstancePrices && user.nftInstancePrices[itemId];
+  const backgrounds = user.nftInstanceBackgrounds && user.nftInstanceBackgrounds[itemId];
+  if (prices && prices.length) {
+    const price = prices.shift();
+    const background = (backgrounds && backgrounds.length) ? backgrounds.shift() : null;
+    return { price: round2(price), background };
+  }
+  return { price: item ? item.sell_price : 0, background: null };
 }
 
 /* ---- Bir martalik migratsiya: eski "bepul starter" NFT'lar (lol_pop,
@@ -731,6 +874,7 @@ function resetRetiredStarterNfts() {
     RETIRED_STARTER_NFT_IDS.forEach(id => {
       if (u.nftInventory[id]) u.nftInventory[id] = 0;
       if (u.nftInstancePrices && u.nftInstancePrices[id]) u.nftInstancePrices[id] = [];
+      if (u.nftInstanceBackgrounds && u.nftInstanceBackgrounds[id]) u.nftInstanceBackgrounds[id] = [];
     });
   });
 }
@@ -1108,13 +1252,17 @@ app.post('/api/open_case', async (req, res) => {
   if (reward.isGift) {
     // MUHIM: endi gift avtomatik coinga aylanmaydi — inventoryga tushadi,
     // foydalanuvchi o'zi xohlasa keyinroq /api/sell_nft orqali sotadi.
-    grantNftToUser(user, reward.itemId);
+    // Tasodifiy fon (Onyx Black / Black) ham shu yerda chiqishi mumkin.
+    const granted = grantNftToUser(user, reward.itemId, null, { rollBackdrop: true });
     const item = NFT_BY_ID.get(reward.itemId);
     const meta = await getEmojiMeta(item.custom_emoji_id);
+    const bgMeta = granted.background ? BACKDROP_BY_ID.get(granted.background) : null;
     reward.name = item.name;
     reward.custom_emoji_id = item.custom_emoji_id;
-    reward.sell_price = item.sell_price;
+    reward.sell_price = granted.price;
     reward.is_video = meta.is_video;
+    reward.background = granted.background;
+    reward.background_name = bgMeta ? bgMeta.name : null;
   } else {
     user.balance = round2(user.balance + reward.stars);
   }
@@ -1207,21 +1355,40 @@ app.get('/api/inventory', async (req, res) => {
 
   const items = [];
   for (const item of NFT_CATALOG) {
-    const count = user.nftInventory[item.id] || 0;
-    if (count <= 0) continue;
+    const totalCount = user.nftInventory[item.id] || 0;
+    if (totalCount <= 0) continue;
     const meta = await getEmojiMeta(item.custom_emoji_id);
-    const customPrices = user.nftInstancePrices && user.nftInstancePrices[item.id];
-    // Sotilganda birinchi navbatda ishlatiladigan narx (raketa'dan yutilgan
-    // bo'lsa aynan shu maxsus narx, aks holda katalogdagi standart narx).
-    const nextSellPrice = (customPrices && customPrices.length) ? customPrices[0] : item.sell_price;
-    items.push({
-      id: item.id,
-      name: item.name,
-      custom_emoji_id: item.custom_emoji_id,
-      sell_price: nextSellPrice,
-      count,
-      is_video: meta.is_video,
-    });
+
+    // Donalarni fon bo'yicha guruhlaymiz: oddiy (fonsiz), Onyx Black, Black —
+    // har biri narxi va soni bilan alohida qatorda ko'rsatiladi.
+    const prices = (user.nftInstancePrices && user.nftInstancePrices[item.id]) || [];
+    const backgrounds = (user.nftInstanceBackgrounds && user.nftInstanceBackgrounds[item.id]) || [];
+    const groups = new Map(); // key: fon id yoki '__none__' -> {count, price, background}
+    for (let i = 0; i < prices.length; i++) {
+      const bg = backgrounds[i] || null;
+      const key = bg || '__none__';
+      if (!groups.has(key)) groups.set(key, { count: 0, price: prices[i], background: bg });
+      groups.get(key).count += 1;
+    }
+    const untrackedCount = totalCount - prices.length;
+    if (untrackedCount > 0) {
+      if (!groups.has('__none__')) groups.set('__none__', { count: 0, price: item.sell_price, background: null });
+      groups.get('__none__').count += untrackedCount;
+    }
+
+    for (const g of groups.values()) {
+      const bgMeta = g.background ? BACKDROP_BY_ID.get(g.background) : null;
+      items.push({
+        id: item.id,
+        name: item.name,
+        custom_emoji_id: item.custom_emoji_id,
+        sell_price: g.price,
+        count: g.count,
+        is_video: meta.is_video,
+        background: g.background,
+        background_name: bgMeta ? bgMeta.name : null,
+      });
+    }
   }
   res.json({ ok: true, items });
 });
@@ -1240,25 +1407,25 @@ app.get('/api/nft_catalog', async (req, res) => {
   res.json({ ok: true, items });
 });
 
+app.get('/api/backdrops', (req, res) => {
+  res.json({ ok: true, backdrops: BACKDROP_CATALOG, drop_chance: BACKDROP_DROP_CHANCE });
+});
+
 app.post('/api/sell_nft', (req, res) => {
   const user = requireUser(req, res); if (!user) return;
-  const { itemId } = req.body || {};
+  const { itemId, background } = req.body || {};
   const item = NFT_BY_ID.get(itemId);
   if (!item) return res.status(404).json({ error: 'NOT_FOUND' });
+  if (background && !BACKDROP_BY_ID.has(background)) return res.status(400).json({ error: 'INVALID_BACKGROUND' });
 
   ensureNftStarterPack(user);
-  const have = user.nftInventory[itemId] || 0;
-  if (have <= 0) return res.status(400).json({ error: 'NOT_OWNED' });
+  // Foydalanuvchi qaysi variantni (oddiy / Onyx Black / Black) sotmoqchi
+  // ekanini frontend aniq ko'rsatadi — shu variantdan bitta dona olinadi.
+  const taken = takeNftInstance(user, itemId, background || null);
+  if (!taken) return res.status(400).json({ error: 'NOT_OWNED' });
 
-  user.nftInventory[itemId] = have - 1;
-  // Agar shu dona raketa o'yinida maxsus narxda yutilgan bo'lsa (masalan
-  // 3.44), o'sha aniq narx qo'llanadi; aks holda katalogdagi standart narx.
-  let sellPrice = item.sell_price;
-  const customPrices = user.nftInstancePrices && user.nftInstancePrices[itemId];
-  if (customPrices && customPrices.length) sellPrice = customPrices.shift();
-
-  user.balance = round2(user.balance + sellPrice);
-  res.json({ ok: true, balance: user.balance, sold_for: sellPrice });
+  user.balance = round2(user.balance + taken.price);
+  res.json({ ok: true, balance: user.balance, sold_for: taken.price, background: taken.background });
 });
 
 /* ============================================================
@@ -1307,7 +1474,11 @@ app.post('/api/upgrade/spin', (req, res) => {
   // O'z NFT'ingiz natijadan qat'iy nazar sarflanadi (upgrade'ga tikiladi).
   user.nftInventory[yourItemId] = have - 1;
   const customPrices = user.nftInstancePrices && user.nftInstancePrices[yourItemId];
-  if (customPrices && customPrices.length) customPrices.shift();
+  const customBackgrounds = user.nftInstanceBackgrounds && user.nftInstanceBackgrounds[yourItemId];
+  if (customPrices && customPrices.length) {
+    customPrices.shift();
+    if (customBackgrounds && customBackgrounds.length) customBackgrounds.shift();
+  }
 
   if (win) {
     grantNftToUser(user, targetItemId);
@@ -2511,7 +2682,8 @@ function finalizeRound(game) {
       // g'olibning inventoriga o'tadi, narxi ham qulflangan holicha saqlanadi.
       state.players.forEach(p => {
         (p.nfts || []).forEach(n => {
-          grantNftToUser(wUser, n.itemId, n.price);
+          // Fon (agar bo'lsa) qayta o'ynatilmasdan, aynan shu holicha g'olibga o'tadi.
+          grantNftToUser(wUser, n.itemId, n.price, { forcedBackground: n.background || null });
           wonNftsCount += 1;
         });
       });
@@ -2627,10 +2799,8 @@ app.post('/api/place_bet_nft', (req, res) => {
   for (const id of itemIds) {
     const item = NFT_BY_ID.get(id);
     user.nftInventory[id] -= 1;
-    let price = item.sell_price;
-    const customPrices = user.nftInstancePrices && user.nftInstancePrices[id];
-    if (customPrices && customPrices.length) price = customPrices.shift();
-    staked.push({ itemId: id, name: item.name, custom_emoji_id: item.custom_emoji_id, price: round2(price) });
+    const taken = consumeNftInstanceFIFO(user, id);
+    staked.push({ itemId: id, name: item.name, custom_emoji_id: item.custom_emoji_id, price: round2(taken.price), background: taken.background });
   }
   const nftValue = round2(staked.reduce((s, n) => s + n.price, 0));
 
@@ -2882,10 +3052,8 @@ app.post('/api/crash/bet_nft', (req, res) => {
   for (const id of itemIds) {
     const item = NFT_BY_ID.get(id);
     user.nftInventory[id] -= 1;
-    let price = item.sell_price;
-    const customPrices = user.nftInstancePrices && user.nftInstancePrices[id];
-    if (customPrices && customPrices.length) price = customPrices.shift();
-    staked.push({ itemId: id, name: item.name, custom_emoji_id: item.custom_emoji_id, price: round2(price) });
+    const taken = consumeNftInstanceFIFO(user, id);
+    staked.push({ itemId: id, name: item.name, custom_emoji_id: item.custom_emoji_id, price: round2(taken.price), background: taken.background });
   }
   const nftValue = round2(staked.reduce((s, n) => s + n.price, 0));
 
@@ -2957,16 +3125,21 @@ io.on('connection', (socket) => {
     let won = 0;
     let wonNft = null;
     if (nftMatch) {
-      grantNftToUser(user, nftMatch.id, wonValue);
+      // Yutilgan NFT ham (Case kabi) tasodifiy fonli (Onyx Black/Black)
+      // bo'lib chiqishi mumkin — bunda narx fon multiplikatoriga ko'payadi.
+      const granted = grantNftToUser(user, nftMatch.id, wonValue, { rollBackdrop: true });
       // Popup'da NFT'ning haqiqiy animatsiyasini ko'rsatish uchun
       // custom_emoji_id / is_video ma'lumotini ham qo'shib yuboramiz.
       const nftMeta = await getEmojiMeta(nftMatch.custom_emoji_id);
+      const bgMeta = granted.background ? BACKDROP_BY_ID.get(granted.background) : null;
       wonNft = {
         id: nftMatch.id,
         name: nftMatch.name,
-        price: wonValue,
+        price: granted.price,
         custom_emoji_id: nftMatch.custom_emoji_id,
         is_video: nftMeta.is_video,
+        background: granted.background,
+        background_name: bgMeta ? bgMeta.name : null,
       };
     } else {
       won = wonValue;

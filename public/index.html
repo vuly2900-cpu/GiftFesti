@@ -1146,6 +1146,40 @@
     color:rgba(255,255,255,.85); text-shadow:0 1px 3px rgba(0,0,0,.6);
   }
 
+  /* TIL (LANGUAGE) SOZLAMALARI */
+  .lang-swatch-grid{ display:flex; flex-direction:column; gap:8px; }
+  .lang-swatch{
+    display:flex; align-items:center; gap:10px; width:100%;
+    padding:12px 14px; border-radius:12px; border:1.5px solid var(--border);
+    background:var(--surface-2); color:var(--text); cursor:pointer;
+    font-size:14px; font-weight:600; transition:border-color .15s ease;
+  }
+  .lang-swatch .flag{font-size:20px;}
+  .lang-swatch .check{margin-left:auto; font-size:15px; color:var(--gold); opacity:0;}
+  .lang-swatch.active{border-color:var(--gold); background:rgba(232,185,35,.08);}
+  .lang-swatch.active .check{opacity:1;}
+
+  /* BIRINCHI MARTA KIRGANDA — TIL TANLASH EKRANI */
+  .lang-onboard-overlay{
+    position:fixed; inset:0; z-index:900; background:#07050c;
+    display:none; align-items:center; justify-content:center; padding:24px;
+  }
+  .lang-onboard-overlay.active{display:flex;}
+  .lang-onboard-card{width:100%; max-width:340px; text-align:center;}
+  .lang-onboard-emoji{font-size:44px; margin-bottom:10px;}
+  .lang-onboard-title{font-size:19px; font-weight:800; margin-bottom:6px;}
+  .lang-onboard-sub{font-size:13px; color:var(--text-dim); margin-bottom:22px;}
+  .lang-onboard-grid{display:flex; flex-direction:column; gap:10px;}
+  .lang-onboard-btn{
+    display:flex; align-items:center; gap:12px; width:100%;
+    padding:14px 16px; border-radius:14px; border:1.5px solid var(--border);
+    background:var(--surface-2); color:var(--text); cursor:pointer;
+    font-size:15px; font-weight:700; transition:border-color .15s ease, transform .15s ease;
+  }
+  .lang-onboard-btn:active{transform:scale(.97);}
+  .lang-onboard-btn .flag{font-size:24px;}
+  .lang-onboard-btn:hover, .lang-onboard-btn:active{border-color:var(--gold);}
+
   /* RAKETA — NFT YUTISH MODALI (alert() o'rniga) */
   .nft-win-overlay {
     position: fixed; inset: 0; background: rgba(5, 8, 14, 0.9);
@@ -1333,6 +1367,20 @@
 </head>
 <body>
 
+<!-- BIRINCHI MARTA KIRGANDA — TIL TANLASH EKRANI -->
+<div class="lang-onboard-overlay" id="langOnboardOverlay">
+  <div class="lang-onboard-card">
+    <div class="lang-onboard-emoji">🌐</div>
+    <div class="lang-onboard-title">Tilni tanlang / Выберите язык / Choose language</div>
+    <div class="lang-onboard-sub">Keyinchalik Profil → Sozlamalar bo'limidan o'zgartirishingiz mumkin</div>
+    <div class="lang-onboard-grid">
+      <button class="lang-onboard-btn" onclick="chooseOnboardLang('uz')"><span class="flag">🇺🇿</span> O'zbekcha</button>
+      <button class="lang-onboard-btn" onclick="chooseOnboardLang('ru')"><span class="flag">🇷🇺</span> Русский</button>
+      <button class="lang-onboard-btn" onclick="chooseOnboardLang('en')"><span class="flag">🇬🇧</span> English</button>
+    </div>
+  </div>
+</div>
+
 <div class="cosmic-bg" id="cosmicBg" aria-hidden="true">
   <div class="nebula nebula-violet"></div>
   <div class="nebula nebula-blue"></div>
@@ -1450,19 +1498,19 @@
           <span class="play-balance-amt mono"><span class="coin-ico"></span><span id="playHeaderBalance">0</span></span>
         </div>
       </div>
-      <button class="play-topup-btn" onclick="openTopupOverlay()">💳 To'ldirish</button>
+      <button class="play-topup-btn" onclick="openTopupOverlay()">💳 <span data-i18n="topup_btn">To'ldirish</span></button>
     </div>
 
     <div class="game-card crash" onclick="openGame('crash')">
-      <span class="game-badge hot">⚡ Hot</span>
-      <span class="game-name">🚀 RAKETA</span>
+      <span class="game-badge hot">⚡ <span data-i18n="badge_hot">Hot</span></span>
+      <span class="game-name">🚀 <span data-i18n="game_rocket">RAKETA</span></span>
       <div class="game-card-visual" id="gcVisualCrash"><span class="fallback-emoji">🚀</span></div>
     </div>
 
     <div class="game-card pvp" onclick="goTo('pvp')">
       <div class="pvp-left">
         <div class="mini-icon-visual" id="gcVisualPvp" style="width:26px;height:26px;margin-top:0;"><span class="fallback-emoji" style="font-size:22px;">⚔️</span></div>
-        <span class="game-name">Battle PvP</span>
+        <span class="game-name" data-i18n="game_pvp">Battle PvP</span>
       </div>
       <div class="pvp-avatars">
         <span class="pvp-dot purple"></span>
@@ -1473,17 +1521,17 @@
 
     <div class="mini-row">
       <div class="game-card case-mini" onclick="goTo('case')">
-        <span class="mini-badge">FREE 24H</span>
+        <span class="mini-badge" data-i18n="badge_free24h">FREE 24H</span>
         <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
-        <span class="game-name">Kunlik Case</span>
+        <span class="game-name" data-i18n="game_case">Kunlik Case</span>
       </div>
       <div class="game-card upgrade-mini" onclick="openGame('upgrade')">
-        <span class="mini-badge">NEW</span>
+        <span class="mini-badge" data-i18n="badge_new">NEW</span>
         <div class="mini-icon-visual upg-duo-visual" id="gcVisualUpgrade">
           <div class="upg-duo-icon" id="gcVisualUpgradeDown"><span class="fallback-emoji">🔻</span></div>
           <div class="upg-duo-icon" id="gcVisualUpgradeUp"><span class="fallback-emoji">🔺</span></div>
         </div>
-        <span class="game-name">UPGRADE</span>
+        <span class="game-name" data-i18n="game_upgrade">UPGRADE</span>
       </div>
     </div>
   </section>
@@ -1491,17 +1539,17 @@
   <section class="page" id="page-pvp">
     <div class="hockey-topbar">
       <button class="hockey-back" onclick="goTo('play')">‹</button>
-      <div class="game-number-badge mono">Battle PvP</div>
+      <div class="game-number-badge mono" data-i18n="game_pvp">Battle PvP</div>
       <span style="width:34px;"></span>
     </div>
     <div class="game-card hockey" onclick="openGame('hockey')">
-      <span class="game-badge">🏒 Mukammal Fizika</span>
-      <span class="game-name">Xokkey</span>
+      <span class="game-badge">🏒 <span data-i18n="badge_physics">Mukammal Fizika</span></span>
+      <span class="game-name" data-i18n="game_hockey">Xokkey</span>
       <div class="game-card-visual" id="gcVisualHockey"><span class="fallback-emoji">🏒</span></div>
     </div>
     <div class="game-card drum" onclick="openGame('drum')">
-      <span class="game-badge">🥁 Hit</span>
-      <span class="game-name">Baraban</span>
+      <span class="game-badge">🥁 <span data-i18n="badge_hit">Hit</span></span>
+      <span class="game-name" data-i18n="game_drum">Baraban</span>
       <div class="game-card-visual" id="gcVisualDrum"><span class="fallback-emoji">🥁</span></div>
     </div>
   </section>
@@ -1831,28 +1879,28 @@
       <div class="vip-benefit-row">
         <span class="vip-benefit-ic">👑</span>
         <div>
-          <p class="vip-benefit-title">Profilingizda toj</p>
-          <p class="vip-benefit-desc">Raketa, Hokkey va Baraban o'yinlarida ishtirok etganingizda, Telegram profil rasmingiz ustida oltin 👑 toj chiqib turadi — xuddi profilga "kiydirilgandek". Boshqa o'yinchilar sizni darhol VIP sifatida tanib olishadi.</p>
+          <p class="vip-benefit-title" data-i18n="vip_benefit1_title">Profilingizda toj</p>
+          <p class="vip-benefit-desc" data-i18n="vip_benefit1_desc">Raketa, Hokkey va Baraban o'yinlarida ishtirok etganingizda, Telegram profil rasmingiz ustida oltin 👑 toj chiqib turadi — xuddi profilga "kiydirilgandek". Boshqa o'yinchilar sizni darhol VIP sifatida tanib olishadi.</p>
         </div>
       </div>
       <div class="vip-benefit-row">
         <span class="vip-benefit-ic">💸</span>
         <div>
-          <p class="vip-benefit-title">Yutqazsangiz ham — 20% qaytadi</p>
-          <p class="vip-benefit-desc">VIP faol paytida shu o'yinlarning birortasida coin tikib yutqazib qo'ysangiz, tikkan coiningizning <b>20%i</b> avtomatik ravishda balansingizga qaytariladi. Ya'ni har bir yutqazishda zarar avtomatik kamayadi.</p>
+          <p class="vip-benefit-title" data-i18n="vip_benefit2_title">Yutqazsangiz ham — 20% qaytadi</p>
+          <p class="vip-benefit-desc" data-i18n="vip_benefit2_desc">VIP faol paytida shu o'yinlarning birortasida coin tikib yutqazib qo'ysangiz, tikkan coiningizning <b>20%i</b> avtomatik ravishda balansingizga qaytariladi. Ya'ni har bir yutqazishda zarar avtomatik kamayadi.</p>
         </div>
       </div>
       <div class="vip-benefit-row">
         <span class="vip-benefit-ic">⏳</span>
         <div>
-          <p class="vip-benefit-title">6 soat amal qiladi</p>
-          <p class="vip-benefit-desc">Sotib olingan zahotidan boshlab 6 soat davomida faol turadi. Muddat tugagach, imtiyozlar avtomatik o'chadi — xohlasangiz, xuddi shu narxda yana sotib olishingiz mumkin.</p>
+          <p class="vip-benefit-title" data-i18n="vip_benefit3_title">6 soat amal qiladi</p>
+          <p class="vip-benefit-desc" data-i18n="vip_benefit3_desc">Sotib olingan zahotidan boshlab 6 soat davomida faol turadi. Muddat tugagach, imtiyozlar avtomatik o'chadi — xohlasangiz, xuddi shu narxda yana sotib olishingiz mumkin.</p>
         </div>
       </div>
     </div>
 
     <div id="vipTimerBox" class="vip-timer-box" style="display:none;">
-      <span>Amal qilish muddati tugashiga:</span>
+      <span data-i18n="vip_timer_label">Amal qilish muddati tugashiga:</span>
       <span class="mono" id="vipTimerText">--:--:--</span>
     </div>
 
@@ -1878,9 +1926,12 @@
 <div class="modal-overlay" id="bgSettingsModal" onclick="if(event.target===this) closeBgSettings()">
   <div class="modal-window">
     <button class="modal-close" onclick="closeBgSettings()">×</button>
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:18px;">Sozlamalar</h2>
-    <p style="font-size:13px; font-weight:600; color:var(--text-dim); margin-bottom:10px;">Fon</p>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:18px;" data-i18n="settings_title">Sozlamalar</h2>
+    <p style="font-size:13px; font-weight:600; color:var(--text-dim); margin-bottom:10px;" data-i18n="settings_bg_label">Fon</p>
     <div class="bg-swatch-grid" id="bgSwatchGrid"></div>
+
+    <p style="font-size:13px; font-weight:600; color:var(--text-dim); margin:18px 0 10px;" data-i18n="settings_lang_label">Til</p>
+    <div class="lang-swatch-grid" id="langSwatchGrid"></div>
   </div>
 </div>
 
@@ -2170,11 +2221,11 @@
 </div>
 
 <nav class="bottomnav">
-  <button class="navbtn" data-page="rating" onclick="goTo('rating')"><span class="ic">🏆</span>Reyting</button>
-  <button class="navbtn" data-page="tasks" onclick="goTo('tasks')"><span class="ic">📋</span>Vazifalar</button>
-  <button class="navbtn" data-page="play" onclick="goTo('play')"><span class="ic">🎮</span>O'ynash</button>
-  <button class="navbtn" data-page="konkurs" onclick="goTo('konkurs')"><span class="ic">🎉</span>Konkurs</button>
-  <button class="navbtn" data-page="profile" onclick="goTo('profile')"><span class="ic">👤</span>Profil</button>
+  <button class="navbtn" data-page="rating" onclick="goTo('rating')"><span class="ic">🏆</span><span data-i18n="nav_rating">Reyting</span></button>
+  <button class="navbtn" data-page="tasks" onclick="goTo('tasks')"><span class="ic">📋</span><span data-i18n="nav_tasks">Vazifalar</span></button>
+  <button class="navbtn" data-page="play" onclick="goTo('play')"><span class="ic">🎮</span><span data-i18n="nav_play">O'ynash</span></button>
+  <button class="navbtn" data-page="konkurs" onclick="goTo('konkurs')"><span class="ic">🎉</span><span data-i18n="nav_konkurs">Konkurs</span></button>
+  <button class="navbtn" data-page="profile" onclick="goTo('profile')"><span class="ic">👤</span><span data-i18n="nav_profile">Profil</span></button>
 </nav>
 
 <script>
@@ -2261,6 +2312,7 @@ function renderBgSwatches(activeKey){
 
 function openBgSettings(){
   renderBgSwatches(getSavedBgTheme());
+  renderLangSwatches();
   document.getElementById('bgSettingsModal').classList.add('active');
 }
 function closeBgSettings(){
@@ -2268,6 +2320,123 @@ function closeBgSettings(){
 }
 
 applyBgTheme(getSavedBgTheme());
+
+// ================= TIL (I18N) =================
+const LANG_KEY = 'gf_lang';
+const LANG_CHOSEN_KEY = 'gf_lang_chosen';
+const I18N = {
+  uz: {
+    nav_rating: "Reyting", nav_tasks: "Vazifalar", nav_play: "O'ynash", nav_konkurs: "Konkurs", nav_profile: "Profil",
+    badge_hot: "Hot", badge_free24h: "FREE 24H", badge_new: "NEW", badge_physics: "Mukammal Fizika", badge_hit: "Hit",
+    game_rocket: "RAKETA", game_pvp: "Battle PvP", game_case: "Kunlik Case", game_upgrade: "UPGRADE", game_hockey: "Xokkey", game_drum: "Baraban",
+    topup_btn: "To'ldirish",
+    settings_title: "Sozlamalar", settings_bg_label: "Fon", settings_lang_label: "Til",
+    vip_card_sub_inactive: "Raketa, Hokkey va Barabanda maxsus imtiyozlar",
+    vip_card_sub_active: "Faol — imtiyozlar ishlamoqda",
+    vip_modal_status_inactive: "6 soatga faollashadi",
+    vip_modal_status_active: "👑 VIP hozir faol",
+    vip_benefit1_title: "Profilingizda toj",
+    vip_benefit1_desc: "Raketa, Hokkey va Baraban o'yinlarida ishtirok etganingizda, Telegram profil rasmingiz ustida oltin 👑 toj chiqib turadi — xuddi profilga \"kiydirilgandek\". Boshqa o'yinchilar sizni darhol VIP sifatida tanib olishadi.",
+    vip_benefit2_title: "Yutqazsangiz ham — 20% qaytadi",
+    vip_benefit2_desc: "VIP faol paytida shu o'yinlarning birortasida coin tikib yutqazib qo'ysangiz, tikkan coiningizning <b>20%i</b> avtomatik ravishda balansingizga qaytariladi. Ya'ni har bir yutqazishda zarar avtomatik kamayadi.",
+    vip_benefit3_title: "6 soat amal qiladi",
+    vip_benefit3_desc: "Sotib olingan zahotidan boshlab 6 soat davomida faol turadi. Muddat tugagach, imtiyozlar avtomatik o'chadi — xohlasangiz, xuddi shu narxda yana sotib olishingiz mumkin.",
+    vip_timer_label: "Amal qilish muddati tugashiga:",
+    vip_buy_active: "Allaqachon faol",
+    vip_badge_active: "FAOL",
+    vip_buy_now: "Sotib olish",
+  },
+  ru: {
+    nav_rating: "Рейтинг", nav_tasks: "Задания", nav_play: "Играть", nav_konkurs: "Конкурс", nav_profile: "Профиль",
+    badge_hot: "Хит", badge_free24h: "БЕСПЛ. 24Ч", badge_new: "НОВОЕ", badge_physics: "Идеальная физика", badge_hit: "Хит",
+    game_rocket: "РАКЕТА", game_pvp: "Battle PvP", game_case: "Ежедн. кейс", game_upgrade: "АПГРЕЙД", game_hockey: "Хоккей", game_drum: "Барабан",
+    topup_btn: "Пополнить",
+    settings_title: "Настройки", settings_bg_label: "Фон", settings_lang_label: "Язык",
+    vip_card_sub_inactive: "Особые привилегии в Ракете, Хоккее и Барабане",
+    vip_card_sub_active: "Активен — привилегии действуют",
+    vip_modal_status_inactive: "Активируется на 6 часов",
+    vip_modal_status_active: "👑 VIP сейчас активен",
+    vip_benefit1_title: "Корона в профиле",
+    vip_benefit1_desc: "Когда вы участвуете в Ракете, Хоккее или Барабане, над вашим фото в Telegram появляется золотая корона 👑 — как будто она надета на профиль. Другие игроки сразу узнают в вас VIP.",
+    vip_benefit2_title: "Даже проигрыш — 20% вернётся",
+    vip_benefit2_desc: "Если во время активного VIP вы проиграете монеты в одной из этих игр, <b>20%</b> от ставки автоматически вернётся на баланс. То есть каждый проигрыш обходится дешевле.",
+    vip_benefit3_title: "Действует 6 часов",
+    vip_benefit3_desc: "Активен ровно 6 часов с момента покупки. По истечении срока привилегии отключаются — вы можете купить снова по той же цене.",
+    vip_timer_label: "До окончания действия:",
+    vip_buy_active: "Уже активен",
+    vip_badge_active: "АКТИВЕН",
+    vip_buy_now: "Купить",
+  },
+  en: {
+    nav_rating: "Rating", nav_tasks: "Tasks", nav_play: "Play", nav_konkurs: "Contest", nav_profile: "Profile",
+    badge_hot: "Hot", badge_free24h: "FREE 24H", badge_new: "NEW", badge_physics: "Perfect Physics", badge_hit: "Hit",
+    game_rocket: "ROCKET", game_pvp: "Battle PvP", game_case: "Daily Case", game_upgrade: "UPGRADE", game_hockey: "Hockey", game_drum: "Drum",
+    topup_btn: "Top up",
+    settings_title: "Settings", settings_bg_label: "Background", settings_lang_label: "Language",
+    vip_card_sub_inactive: "Special perks in Rocket, Hockey and Drum",
+    vip_card_sub_active: "Active — perks are running",
+    vip_modal_status_inactive: "Activates for 6 hours",
+    vip_modal_status_active: "👑 VIP is active now",
+    vip_benefit1_title: "Crown on your profile",
+    vip_benefit1_desc: "While you're playing Rocket, Hockey or Drum, a golden 👑 crown appears above your Telegram profile photo — like it's worn on your profile. Other players instantly recognize you as VIP.",
+    vip_benefit2_title: "Even losses get 20% back",
+    vip_benefit2_desc: "If you lose coins in any of these games while VIP is active, <b>20%</b> of your stake is automatically refunded to your balance. Every loss costs you less.",
+    vip_benefit3_title: "Lasts 6 hours",
+    vip_benefit3_desc: "Stays active for exactly 6 hours from purchase. Once it expires, the perks turn off automatically — you can buy it again at the same price.",
+    vip_timer_label: "Time remaining:",
+    vip_buy_active: "Already active",
+    vip_badge_active: "ACTIVE",
+    vip_buy_now: "Buy",
+  },
+};
+function getLang() { return localStorage.getItem(LANG_KEY) || 'uz'; }
+function t(key) {
+  const lang = getLang();
+  return (I18N[lang] && I18N[lang][key]) || I18N.uz[key] || key;
+}
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.innerHTML = t(key); // innerHTML: ba'zi tarjimalarda <b> kabi teglar bor (masalan VIP 20% matni)
+  });
+  // VIP karta/modal hali skript to'liq yuklanmagan bo'lishi mumkin (masalan,
+  // ilova birinchi marta ochilganda til tanlash ekrani darhol chizilganda) —
+  // shu holatda xato chiqarmasdan jim o'tkazib yuboramiz, keyinroq
+  // loadVipStatus() chaqirilganda o'zi to'g'ri tilda chiziladi.
+  try { renderVipCard(); renderVipModalState(); } catch (e) { /* hali tayyor emas */ }
+}
+function setLang(lang) {
+  if (!I18N[lang]) lang = 'uz';
+  localStorage.setItem(LANG_KEY, lang);
+  applyI18n();
+  renderLangSwatches();
+}
+function renderLangSwatches() {
+  const grid = document.getElementById('langSwatchGrid');
+  if (!grid) return;
+  const active = getLang();
+  const opts = [ { key: 'uz', flag: '🇺🇿', label: "O'zbekcha" }, { key: 'ru', flag: '🇷🇺', label: 'Русский' }, { key: 'en', flag: '🇬🇧', label: 'English' } ];
+  grid.innerHTML = opts.map(o => `
+    <button type="button" class="lang-swatch${o.key === active ? ' active' : ''}" onclick="setLang('${o.key}')">
+      <span class="flag">${o.flag}</span> ${o.label} <span class="check">✓</span>
+    </button>
+  `).join('');
+}
+function chooseOnboardLang(lang) {
+  setLang(lang);
+  localStorage.setItem(LANG_CHOSEN_KEY, '1');
+  const overlay = document.getElementById('langOnboardOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+function initLangOnboarding() {
+  if (!localStorage.getItem(LANG_CHOSEN_KEY)) {
+    const overlay = document.getElementById('langOnboardOverlay');
+    if (overlay) overlay.classList.add('active');
+  }
+  applyI18n();
+}
+initLangOnboarding();
+
 
 // OBUNA TEKSHIRISH SOZLAMALARI (endi shu serverning o'zida, Firebase emas)
 const SUBSCRIPTION_API_URL = '/api/check_subscription';
@@ -4023,22 +4192,22 @@ function renderVipCard() {
   stopVipCountdown();
   if (vipStatus.active) {
     card.classList.add('is-active');
-    right.innerHTML = `<span class="mono" style="font-weight:700; color:var(--success); font-size:13px;" id="vipCardTimer">${fmtCountdown(vipStatus.expiresAt - Date.now())}</span><span class="vip-discount-pill" style="background:var(--success); color:#04220f;">FAOL</span>`;
-    sub.textContent = "Faol — imtiyozlar ishlamoqda";
+    right.innerHTML = `<span class="mono" style="font-weight:700; color:var(--success); font-size:13px;" id="vipCardTimer">${fmtCountdown(vipStatus.expiresAt - Date.now())}</span><span class="vip-discount-pill" style="background:var(--success); color:#04220f;">${t('vip_badge_active')}</span>`;
+    sub.textContent = t('vip_card_sub_active');
     vipCountdownTimer = setInterval(() => {
       const left = vipStatus.expiresAt - Date.now();
-      const t = document.getElementById('vipCardTimer');
+      const timerEl = document.getElementById('vipCardTimer');
       if (left <= 0) {
         vipStatus.active = false;
         renderVipCard();
         renderVipModalState();
         return;
       }
-      if (t) t.textContent = fmtCountdown(left);
+      if (timerEl) timerEl.textContent = fmtCountdown(left);
     }, 1000);
   } else {
     card.classList.remove('is-active');
-    sub.textContent = 'Raketa, Hokkey va Barabanda maxsus imtiyozlar';
+    sub.textContent = t('vip_card_sub_inactive');
     right.innerHTML = `
       <div class="vip-price-box">
         <span class="vip-price-old">10⭐</span>
@@ -4055,16 +4224,16 @@ function renderVipModalState() {
   const buyBtnText = document.getElementById('vipBuyBtnText');
   if (!statusEl) return;
   if (vipStatus.active) {
-    statusEl.textContent = '👑 VIP hozir faol';
+    statusEl.textContent = t('vip_modal_status_active');
     timerBox.style.display = 'flex';
     document.getElementById('vipTimerText').textContent = fmtCountdown(vipStatus.expiresAt - Date.now());
     buyBtn.disabled = true;
-    buyBtnText.textContent = 'Allaqachon faol';
+    buyBtnText.textContent = t('vip_buy_active');
   } else {
-    statusEl.textContent = '6 soatga faollashadi';
+    statusEl.textContent = t('vip_modal_status_inactive');
     timerBox.style.display = 'none';
     buyBtn.disabled = false;
-    buyBtnText.innerHTML = 'Sotib olish — 9⭐ <span style="opacity:.65; text-decoration:line-through; font-weight:500;">10⭐</span>';
+    buyBtnText.innerHTML = `${t('vip_buy_now') || 'Sotib olish'} — 9⭐ <span style="opacity:.65; text-decoration:line-through; font-weight:500;">10⭐</span>`;
   }
 }
 

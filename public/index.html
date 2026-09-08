@@ -6809,6 +6809,35 @@ function finishUpgradeSpin(result) {
     if (invItem.count <= 0) upgState.inventory = upgState.inventory.filter(i => i.id !== invItem.id);
   }
 
+  // Yutgan bo'lsa — yangi NFT darhol mahalliy inventar ro'yxatiga ham
+  // qo'shiladi (aks holda sahifadan chiqib qayta kirmaguncha "tanlash"
+  // paneli va Profildagi Inventar bo'sh ko'rinib qolardi).
+  if (result.win) {
+    const wonItem = upgState.inventory.find(i => i.id === result.targetItemId);
+    if (wonItem) {
+      wonItem.count += 1;
+    } else {
+      const catalogItem = upgState.catalog.find(i => i.id === result.targetItemId) || upgState.targetItem;
+      if (catalogItem) {
+        upgState.inventory.push({
+          id: catalogItem.id,
+          name: catalogItem.name,
+          custom_emoji_id: catalogItem.custom_emoji_id,
+          is_video: catalogItem.is_video,
+          sell_price: catalogItem.sell_price,
+          count: 1,
+        });
+      }
+    }
+  }
+
+  // Profil sahifasidagi NFT Inventar tepasidagi/karta ro'yxati ham,
+  // ochiq turgan bo'lsa, darhol yangilanadi (Telegramda ilovani
+  // yopib-qayta ochish shart bo'lmasin).
+  if (document.getElementById('page-profile')?.classList.contains('active')) {
+    loadInventory();
+  }
+
   if (result.win) {
     showUpgradeWinModal(upgState.targetItem);
   } else {

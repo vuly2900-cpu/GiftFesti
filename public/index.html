@@ -1782,11 +1782,16 @@
   <div class="modal-window">
     <button class="modal-close" onclick="toggleSimpleAdminModal(false)">×</button>
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px; color:var(--gold);">🪙 Oddiy admin panel</h2>
-    <p style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">Faqat Telegram ID orqali coin berish mumkin.</p>
+    <p style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">Faqat Telegram ID orqali coin yoki VIP berish mumkin.</p>
     <div style="display:flex; flex-direction:column; gap:8px;">
       <input type="text" id="sa_userTid" placeholder="Telegram ID">
       <input type="number" id="sa_giveCoin" placeholder="Coin miqdori">
       <button class="btn" onclick="simpleAdminGiveCoin()">Coin berish</button>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+      <p style="font-size:12px; font-weight:600; color:var(--gold);">👑 VIP berish (6 soat)</p>
+      <input type="text" id="sa_vipUserTid" placeholder="Telegram ID">
+      <button class="btn" onclick="simpleAdminGiveVip()">👑 VIP berish</button>
     </div>
     <p id="sa_msg" style="font-size:12px; margin-top:10px; color:var(--text-dim);"></p>
   </div>
@@ -2050,6 +2055,13 @@
     </div>
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">👑 Foydalanuvchiga VIP berish</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Telegram ID orqali 6 soatga VIP beriladi (mavjud muddat bo'lsa, ustiga qo'shiladi).</p>
+      <input type="text" id="a_vipUserTid" placeholder="Foydalanuvchi Telegram ID si">
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminGiveVip()">👑 VIP Berish (6 soat)</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
       <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎟️ Yangi Promokod yaratish</p>
       <input type="text" id="a_promoCode" placeholder="Kod nomi (Masalan: BONUS yoki STARS)">
       <input type="number" id="a_promoReward" placeholder="Qancha stars berishi">
@@ -2076,7 +2088,7 @@
       <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🎉 Yangi Konkurs yaratish</p>
       <input type="text" id="a_konkursTitle" placeholder="Konkurs nomi">
       <input type="text" id="a_konkursDesc" placeholder="Tavsif (ixtiyoriy)" style="margin-top:8px;">
-      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">🏆 Sovg'alar (har biri bitta g'olibga beriladi — har xil NFT qo'yish mumkin)</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">🏆 Sovg'alar (har biri bitta g'olibga beriladi — NFT yoki VIP👑 aralash qo'yish mumkin)</p>
       <div id="a_konkursPrizesBox">
         <select class="a-konkurs-prize-select" style="width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
           <option value="">Yuklanmoqda...</option>
@@ -2269,6 +2281,7 @@ const CRASH_BET_API_URL = '/api/crash/bet';
 const CRASH_BET_NFT_API_URL = '/api/crash/bet_nft';
 const ADMIN_ACTION_API_URL = '/api/admin_action';
 const SIMPLE_ADMIN_GIVE_COIN_API_URL = '/api/simple_admin_give_coin';
+const SIMPLE_ADMIN_GIVE_VIP_API_URL = '/api/simple_admin_give_vip';
 // Ikkinchi himoya qatlami: admin parolini bir marta so'raymiz va shu sessiya
 // davomida eslab qolamiz. Bu parol serverdagi ADMIN_PASSWORD bilan solishtiriladi —
 // hatto Telegram ID soxtalashtirilsa ham, bu parolsiz admin amallari ishlamaydi.
@@ -3400,6 +3413,7 @@ function mountPrizeStack(prizeList, idPrefix, uniqKey) {
     const emojiId = p.itemCustomEmojiId || (cached && cached.custom_emoji_id);
     const isVideo = p.itemIsVideo ?? (cached && cached.is_video);
     if (emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `${uniqKey}_${p.itemId}`);
+    else if (p.itemId === 'vip_prize' || p.isVip) el.innerHTML = '<span style="font-size:22px; line-height:1;">👑</span>';
   });
 }
 function normalizeContestPrizeList(c) {
@@ -3497,6 +3511,7 @@ function renderContests() {
       const emojiId = p && (p.itemCustomEmojiId || (cached && cached.custom_emoji_id));
       const isVideo = p && (p.itemIsVideo ?? (cached && cached.is_video));
       if (el && emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `k_${c.id}`);
+      else if (el && p && (p.itemId === 'vip_prize' || p.isVip)) el.innerHTML = '<span style="font-size:26px; line-height:1;">👑</span>';
     }
   });
 }
@@ -3518,6 +3533,7 @@ function toggleAllPrizes() {
       const emojiId = p.itemCustomEmojiId || (cached && cached.custom_emoji_id);
       const isVideo = p.itemIsVideo ?? (cached && cached.is_video);
       if (el && emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `kdAll_${p.itemId}_${i}`);
+      else if (el && (p.itemId === 'vip_prize' || p.isVip)) el.innerHTML = '<span style="font-size:22px; line-height:1;">👑</span>';
     });
     grid.dataset.mounted = '1';
   }
@@ -4643,6 +4659,31 @@ async function simpleAdminGiveCoin() {
   }
 }
 
+async function simpleAdminGiveVip() {
+  const msg = document.getElementById('sa_msg');
+  const id = document.getElementById('sa_vipUserTid').value.trim();
+  if (!id) { msg.style.color = "var(--danger)"; msg.textContent = "ID kiriting."; return; }
+  try {
+    const res = await fetch(SIMPLE_ADMIN_GIVE_VIP_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', adminPassword: adminPasswordCache, userId: id })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'wrong_password') adminPasswordCache = '';
+      throw new Error(data.error || 'server_error');
+    }
+    msg.style.color = "var(--success)";
+    msg.textContent = `👑 VIP berildi! Tugash vaqti: ${new Date(data.expiresAt).toLocaleString('uz-UZ')}`;
+    document.getElementById('sa_vipUserTid').value = '';
+  } catch (e) {
+    console.error(e);
+    msg.style.color = "var(--danger)";
+    msg.textContent = "Xatolik: foydalanuvchi topilmadi yoki ruxsat yo'q.";
+  }
+}
+
 /* ==================== NFT katalog keshi (yutuq oynachasida ikonka
    ko'rsatish uchun — bir marta yuklab olinadi va keshda saqlanadi) ==================== */
 let nftCatalogById = null;
@@ -4686,6 +4727,16 @@ async function adminGiveNft() {
   try {
     await callAdminAction('give_nft', { userId: id, itemId, amount });
     alert("NFT berildi!");
+  } catch (e) { console.error(e); alert("Xatolik yuz berdi!"); }
+}
+
+async function adminGiveVip() {
+  const id = document.getElementById('a_vipUserTid').value.trim();
+  if (!id) { alert("Foydalanuvchi ID kiriting!"); return; }
+  try {
+    await callAdminAction('give_vip', { userId: id });
+    alert("👑 VIP berildi! (6 soatga faollashtirildi)");
+    document.getElementById('a_vipUserTid').value = '';
   } catch (e) { console.error(e); alert("Xatolik yuz berdi!"); }
 }
 
@@ -4767,12 +4818,12 @@ async function loadAdminKonkursNftSelect() {
     const res = await fetch(NFT_CATALOG_API_URL);
     const data = await res.json();
     if (!data.ok) throw new Error('server_error');
-    adminKonkursNftOptionsHtml = data.items.map(it =>
+    adminKonkursNftOptionsHtml = '<option value="vip_prize">👑 VIP (6 soat)</option>' + data.items.map(it =>
       `<option value="${it.id}">${it.name} (${it.sell_price} ⭐)</option>`
     ).join('');
   } catch (e) {
     console.error(e);
-    adminKonkursNftOptionsHtml = '<option value="">Yuklab bo\'lmadi</option>';
+    adminKonkursNftOptionsHtml = '<option value="vip_prize">👑 VIP (6 soat)</option>';
   }
   document.querySelectorAll('.a-konkurs-prize-select').forEach(sel => { sel.innerHTML = adminKonkursNftOptionsHtml; });
 }

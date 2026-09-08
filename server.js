@@ -48,6 +48,7 @@ const VIP_DISCOUNT_PERCENT = 10;
 const VIP_DISCOUNTED_STARS = Math.round(VIP_PRICE_STARS * (1 - VIP_DISCOUNT_PERCENT / 100)); // 9
 const VIP_DURATION_MS = 6 * 60 * 60 * 1000; // 6 soat
 const VIP_LOSS_CASHBACK_PERCENT = 20; // Yutqazilgan coindan qaytariladigan ulush
+const VIP_PRIZE_ID = 'vip_prize'; // Konkurs sovg'alari ro'yxatida ishlatiladigan maxsus (NFT bo'lmagan) ID
 
 /* ============================================================
    MA'LUMOTLAR BAZASI (in-memory, db.json ga davriy saqlanadi)
@@ -385,16 +386,23 @@ function contestPrizeList(c) {
   if (c.itemId) return Array(Math.max(1, c.prizeCount || 1)).fill(c.itemId);
   return [];
 }
+/* ---- Konkurs sovg'asi haqida ma'lumot: yoki NFT (katalogdan), yoki
+   VIP👑 (maxsus, NFT bo'lmagan sovg'a — g'olib 6 soatga VIP oladi). ---- */
+function resolveContestPrizeInfo(id) {
+  if (!id) return null;
+  if (id === VIP_PRIZE_ID) {
+    return { itemId: VIP_PRIZE_ID, itemName: `VIP 👑 (${VIP_DURATION_MS / (60 * 60 * 1000)} soat)`, itemCustomEmojiId: null, itemIsVideo: false, isVip: true };
+  }
+  const it = NFT_BY_ID.get(id);
+  return { itemId: id, itemName: it ? it.name : '', itemCustomEmojiId: it ? it.custom_emoji_id : null, itemIsVideo: it ? !!it.is_video : false, isVip: false };
+}
 function serializeContest(c, user) {
   const uid = user ? String(user.id) : null;
   const myEntry = uid ? c.participants.find(p => p.userId === uid) : null;
   const totalTickets = c.participants.reduce((s, p) => s + p.tickets, 0);
   const prizeIds = contestPrizeList(c);
-  const prizes = prizeIds.map(id => {
-    const it = NFT_BY_ID.get(id);
-    return { itemId: id, itemName: it ? it.name : '', itemCustomEmojiId: it ? it.custom_emoji_id : null, itemIsVideo: it ? !!it.is_video : false };
-  });
-  const firstItem = NFT_BY_ID.get(prizeIds[0]);
+  const prizes = prizeIds.map(id => resolveContestPrizeInfo(id));
+  const firstPrize = resolveContestPrizeInfo(prizeIds[0]);
   const channels = contestChannelList(c);
   return {
     id: c.id,
@@ -404,9 +412,9 @@ function serializeContest(c, user) {
     ticketPrice: c.ticketPrice || 0,
     // Orqaga moslik uchun birinchi sovg'a haligacha itemId/itemName sifatida ham qaytariladi.
     itemId: prizeIds[0] || c.itemId,
-    itemName: firstItem ? firstItem.name : '',
-    itemCustomEmojiId: firstItem ? firstItem.custom_emoji_id : null,
-    itemIsVideo: firstItem ? !!firstItem.is_video : false,
+    itemName: firstPrize ? firstPrize.itemName : '',
+    itemCustomEmojiId: firstPrize ? firstPrize.itemCustomEmojiId : null,
+    itemIsVideo: firstPrize ? firstPrize.itemIsVideo : false,
     prizes,
     prizeCount: prizeIds.length,
     requireChannels: channels.map(ch => ({ channel: ch, link: channelToLink(ch) })),
@@ -456,6 +464,13 @@ function finishContest(c) {
   c.winners = chosen.map((p, i) => {
     const itemId = shuffledPrizes[i];
     const u = users.get(p.userId);
+    if (itemId === VIP_PRIZE_ID) {
+      if (u) {
+        if (!u.vip) u.vip = { expiresAt: 0 };
+        u.vip.expiresAt = Math.max(Date.now(), u.vip.expiresAt || 0) + VIP_DURATION_MS;
+      }
+      return { userId: p.userId, username: u ? u.username : `user${p.userId}`, itemId, itemName: `VIP 👑 (${VIP_DURATION_MS / (60 * 60 * 1000)} soat)` };
+    }
     if (u) grantNftToUser(u, itemId);
     const item = NFT_BY_ID.get(itemId);
     return { userId: p.userId, username: u ? u.username : `user${p.userId}`, itemId, itemName: item ? item.name : '' };
@@ -1694,9 +1709,9 @@ function requireAdmin(req, res) {
 }
 /* ---- Oddiy admin: to'liq ADMIN_IDS ro'yxatidagilar ham, alohida
    SIMPLE_ADMIN_IDS ro'yxatidagilar ham ishlata oladi — lekin oddiy admin
-   FAQAT quyidagi /api/simple_admin_give_coin endpointidan foydalana oladi,
-   boshqa hech qanday admin funksiyasiga (statistika, task, promo, konkurs
-   va h.k.) ruxsati yo'q. ---- */
+   FAQAT quyidagi /api/simple_admin_give_coin va /api/simple_admin_give_vip
+   endpointlaridan foydalana oladi, boshqa hech qanday admin funksiyasiga
+   (statistika, task, promo, konkurs va h.k.) ruxsati yo'q. ---- */
 function requireSimpleAdmin(req, res) {
   const tgUser = getTgUserFromInitData(req.body.initData);
   const id = tgUser ? String(tgUser.id) : null;
@@ -1819,6 +1834,13 @@ app.post('/api/admin_action', (req, res) => {
         for (let i = 0; i < amount; i++) grantNftToUser(target, item.id);
         break;
       }
+      case 'give_vip': {
+        const target = users.get(String(payload.userId));
+        if (!target) throw new Error('USER_NOT_FOUND');
+        if (!target.vip) target.vip = { expiresAt: 0 };
+        target.vip.expiresAt = Math.max(Date.now(), target.vip.expiresAt || 0) + VIP_DURATION_MS;
+        break;
+      }
       case 'create_contest': {
         const title = String(payload.title || '').trim();
         if (!title) throw new Error('MISSING_TITLE');
@@ -1831,7 +1853,7 @@ app.post('/api/admin_action', (req, res) => {
           : (payload.itemId ? Array(Math.max(1, parseInt(payload.prizeCount) || 1)).fill(payload.itemId) : []);
         const prizes = rawPrizes.map(id => String(id || '').trim()).filter(Boolean);
         if (!prizes.length) throw new Error('ITEM_NOT_FOUND');
-        for (const id of prizes) { if (!NFT_BY_ID.get(id)) throw new Error('ITEM_NOT_FOUND'); }
+        for (const id of prizes) { if (id !== VIP_PRIZE_ID && !NFT_BY_ID.get(id)) throw new Error('ITEM_NOT_FOUND'); }
         const type = payload.type === 'paid' ? 'paid' : 'free';
         const ticketPrice = type === 'paid' ? Math.max(0.1, Number(payload.ticketPrice) || 1) : 0;
         // requireChannels: bir nechta majburiy kanal/guruh (massiv) qabul qilinadi.
@@ -1901,6 +1923,19 @@ app.post('/api/simple_admin_give_coin', (req, res) => {
   if (!amt || amt <= 0) return res.status(400).json({ error: 'INVALID_AMOUNT' });
   target.balance = round2(target.balance + amt);
   res.json({ ok: true, balance: target.balance });
+});
+
+/* ---- Oddiy admin: Telegram ID orqali foydalanuvchiga VIP👑 berish.
+   Mavjud VIP muddati bo'lsa, ustiga qo'shiladi (Math.max bilan) — bepul
+   sovg'a sifatida berilganda ham foydalanuvchi zarar ko'rmaydi. ---- */
+app.post('/api/simple_admin_give_vip', (req, res) => {
+  if (!requireSimpleAdmin(req, res)) return;
+  const { userId } = req.body || {};
+  const target = users.get(String(userId || '').trim());
+  if (!target) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+  if (!target.vip) target.vip = { expiresAt: 0 };
+  target.vip.expiresAt = Math.max(Date.now(), target.vip.expiresAt || 0) + VIP_DURATION_MS;
+  res.json({ ok: true, expiresAt: target.vip.expiresAt });
 });
 
 /* ============================================================

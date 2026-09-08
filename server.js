@@ -36,6 +36,19 @@ const DAILY_INVITE_TARGET = 3;
 const COINS_PER_STAR = 100; // Balansni to'ldirish narxi: 1 Telegram Stars = 100 coin
 const CONTEST_TICKET_STARS_RATE = 100; // Konkurs: 1 Telegram Stars = 100 ta bilet
 
+/* ---- VIP👑: Profil bo'limidan Telegram Stars evaziga sotib olinadigan
+   vaqtinchalik maqom. Narxi 10 ta stars, 10% chegirma bilan 9 ta stars
+   turadi. Faol bo'lgan 6 soat davomida: (1) Raketa/Hokkey/Baraban
+   o'yinlarida foydalanuvchining profil rasmi ustida 👑 toj ko'rinadi,
+   (2) agar shu o'yinlarda coin yutqazsa, yutqazgan coinning 20%
+   avtomatik qaytariladi. 6 soatdan so'ng maqom tugaydi va qayta
+   sotib olish mumkin. ---- */
+const VIP_PRICE_STARS = 10;
+const VIP_DISCOUNT_PERCENT = 10;
+const VIP_DISCOUNTED_STARS = Math.round(VIP_PRICE_STARS * (1 - VIP_DISCOUNT_PERCENT / 100)); // 9
+const VIP_DURATION_MS = 6 * 60 * 60 * 1000; // 6 soat
+const VIP_LOSS_CASHBACK_PERCENT = 20; // Yutqazilgan coindan qaytariladigan ulush
+
 /* ============================================================
    MA'LUMOTLAR BAZASI (in-memory, db.json ga davriy saqlanadi)
    ============================================================ */
@@ -71,6 +84,7 @@ function createUser(id, username) {
     nftInventory: {},      // itemId(NFT_CATALOG dagi) -> dona soni
     nftInstancePrices: {}, // itemId -> [narx1, narx2, ...] (raketa o'yinidan yutilgan NFT'larning haqiqiy narxi)
     nftInitialized: false, // starter (tekin) NFT'lar berilganmi
+    vip: { expiresAt: 0 }, // VIP👑: muddati tugagan vaqt (ms, epoch); 0 = hech qachon sotib olinmagan
     dailyTasks: {
       crash: 0,   // oxirgi marta "raketa o'ynash" vazifasi uchun coin olingan vaqt (ms)
       hockey: 0,  // oxirgi marta "hokkey o'ynash" vazifasi uchun coin olingan vaqt (ms)
@@ -123,6 +137,10 @@ function maybeGrantDailyGameTask(user, game) {
   }
   return false;
 }
+/* ---- VIP👑: foydalanuvchining hozir VIP maqomi faolmi (muddati o'tmaganmi) ---- */
+function isVipActive(u) {
+  return !!(u && u.vip && u.vip.expiresAt && u.vip.expiresAt > Date.now());
+}
 function serializeUser(u) {
   return {
     telegram_id: Number(u.id),
@@ -136,6 +154,7 @@ function serializeUser(u) {
     isAdmin: u.isAdmin,
     isSimpleAdmin: u.isSimpleAdmin || SIMPLE_ADMIN_IDS.includes(String(u.id)),
     daily_tasks: getDailyTasksView(u),
+    vip: { active: isVipActive(u), expiresAt: (u.vip && u.vip.expiresAt) || 0 },
   };
 }
 
@@ -170,6 +189,7 @@ function loadDb() {
         nftInventory: u.nftInventory || {},
         nftInstancePrices: u.nftInstancePrices || {},
         nftInitialized: u.nftInitialized || false,
+        vip: u.vip || { expiresAt: 0 },
         dailyTasks: {
           crash: (u.dailyTasks && u.dailyTasks.crash) || 0,
           hockey: (u.dailyTasks && u.dailyTasks.hockey) || 0,
@@ -2044,6 +2064,83 @@ app.post('/api/internal_topup_credit', (req, res) => {
 });
 
 /* ============================================================
+   VIP👑 — Profil bo'limidan Telegram Stars evaziga sotib olinadi.
+   Narxi 10 ta stars, 10% chegirma bilan 9 ta stars turadi. Bir marta
+   sotib olingach, 6 soat davomida faol bo'ladi (Raketa/Hokkey/Baraban
+   o'yinlarida toj ko'rinadi va coin yutqazsa 20% qaytariladi).
+   Oqim to'ldirish/konkurs bileti bilan bir xil: avval shu yerdan invoys
+   havolasi so'raladi, so'ng Telegram.WebApp.openInvoice(...) ochiladi,
+   to'lov muvaffaqiyatli bo'lgach bot.js `/api/internal_vip_credit`ni chaqiradi.
+   ============================================================ */
+app.get('/api/vip/status', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  res.json({
+    ok: true,
+    active: isVipActive(user),
+    expiresAt: (user.vip && user.vip.expiresAt) || 0,
+    priceStars: VIP_PRICE_STARS,
+    discountedStars: VIP_DISCOUNTED_STARS,
+    discountPercent: VIP_DISCOUNT_PERCENT,
+    durationHours: VIP_DURATION_MS / (60 * 60 * 1000),
+    cashbackPercent: VIP_LOSS_CASHBACK_PERCENT,
+  });
+});
+
+app.post('/api/vip/create_invoice', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  if (isVipActive(user)) return res.status(400).json({ error: 'ALREADY_ACTIVE', expiresAt: user.vip.expiresAt });
+
+  const payload = `vip:${user.id}:${crypto.randomBytes(4).toString('hex')}`;
+  try {
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'GiftFesti — VIP 👑',
+        description: `VIP maqomi ${VIP_DURATION_MS / (60 * 60 * 1000)} soatga faollashadi (10% chegirma bilan)`,
+        payload,
+        currency: 'XTR',
+        prices: [{ label: 'VIP 👑 (6 soat)', amount: VIP_DISCOUNTED_STARS }],
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, link: data.result, stars: VIP_DISCOUNTED_STARS });
+  } catch (e) {
+    console.error('VIP invoysi yaratishda xatolik:', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+/* ---- bot.js uchun ichki API: VIP to'lovi muvaffaqiyatli bo'lgach chaqiriladi ---- */
+app.post('/api/internal_vip_credit', (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const { payload, telegramPaymentChargeId, totalAmount } = req.body || {};
+
+  if (telegramPaymentChargeId && processedTopupCharges.has(telegramPaymentChargeId)) {
+    const m0 = /^vip:(\d+):/.exec(String(payload || ''));
+    const existingUser = m0 ? users.get(m0[1]) : null;
+    return res.json({ ok: true, alreadyProcessed: true, expiresAt: existingUser ? existingUser.vip.expiresAt : undefined });
+  }
+  const m = /^vip:(\d+):/.exec(String(payload || ''));
+  if (!m) return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+  const userId = m[1];
+  if (Number(totalAmount) !== VIP_DISCOUNTED_STARS) {
+    console.error(`VIP: to'lov summasi mos kelmadi (kutilgan ${VIP_DISCOUNTED_STARS}, kelgan ${totalAmount})`);
+  }
+
+  let user = users.get(userId);
+  if (!user) { user = createUser(userId, `user${userId}`); users.set(userId, user); }
+  if (!user.vip) user.vip = { expiresAt: 0 };
+  const now = Date.now();
+  user.vip.expiresAt = Math.max(now, user.vip.expiresAt || 0) + VIP_DURATION_MS;
+  if (telegramPaymentChargeId) processedTopupCharges.add(telegramPaymentChargeId);
+
+  res.json({ ok: true, expiresAt: user.vip.expiresAt });
+});
+
+/* ============================================================
    HOCKEY — tosh (puck) qayerda to'xtasa, o'sha zonaning egasi yutadi.
    Bu funksiyalar public/index.html dagi bir xil nomli funksiyalarning
    ANIQ NUSXASI (bir xil matematika) — shu tufayli mijozda ko'rsatiladigan
@@ -2384,12 +2481,29 @@ function finalizeRound(game) {
         });
       });
     }
+    // VIP👑 kafolat: yutqazgan (g'olib bo'lmagan) o'yinchi VIP faol bo'lsa,
+    // tikkan coinining 20%i avtomatik ravishda balansiga qaytariladi.
+    state.players.forEach(p => {
+      if (p.id === winner.id) { p.vipCashback = 0; return; }
+      const lUser = users.get(String(p.id));
+      if (lUser && isVipActive(lUser) && p.stars > 0) {
+        const cashback = round2(p.stars * (VIP_LOSS_CASHBACK_PERCENT / 100));
+        if (cashback > 0) {
+          lUser.balance = round2(lUser.balance + cashback);
+          p.vipCashback = cashback;
+        }
+      } else {
+        p.vipCashback = 0;
+      }
+    });
+
     historyEntry.winner_id = winner.id;
     historyEntry.wonNftsCount = wonNftsCount;
     historyEntry.players = state.players.map(p => ({
-      id: p.id, username: p.username, photo: p.photo, stars: p.stars, nfts: p.nfts || [],
+      id: p.id, username: p.username, photo: p.photo, stars: p.stars, nfts: p.nfts || [], vip: !!p.vip,
       chance: pot ? Number(((playerWeight(p) / pot) * 100).toFixed(1)) : 0,
       won: p.id === winner.id ? coinPot : 0,
+      vipCashback: p.vipCashback || 0,
     }));
   }
 
@@ -2427,7 +2541,7 @@ app.post('/api/place_bet', (req, res) => {
   user.balance = round2(user.balance - amt);
   const existing = state.players.find(p => p.id === Number(user.id));
   if (existing) existing.stars = round2(existing.stars + amt);
-  else state.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, stars: amt, color: colorFor(state.players.length) });
+  else state.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, stars: amt, color: colorFor(state.players.length), vip: isVipActive(user) });
   state.pot = round2(state.pot + amt);
 
   if (state.status === 'idle') {
@@ -2487,7 +2601,7 @@ app.post('/api/place_bet_nft', (req, res) => {
 
   let existing = state.players.find(p => p.id === Number(user.id));
   if (!existing) {
-    existing = { id: Number(user.id), username: user.username, photo: user.photo_url, stars: 0, nfts: [], color: colorFor(state.players.length) };
+    existing = { id: Number(user.id), username: user.username, photo: user.photo_url, stars: 0, nfts: [], color: colorFor(state.players.length), vip: isVipActive(user) };
     state.players.push(existing);
   }
   existing.nfts = (existing.nfts || []).concat(staked);
@@ -2584,13 +2698,14 @@ function sanitizeCrashState() {
     players: crashState.players.map(p => ({
       id: p.id, username: p.username, photo: p.photo, bet: p.bet,
       cashedOutAt: p.cashedOutAt, won: p.won, wonNft: p.wonNft || null,
-      betType: p.betType || 'coin', betNfts: p.betNfts || null,
+      betType: p.betType || 'coin', betNfts: p.betNfts || null, vip: !!p.vip,
+      vipCashback: p.vipCashback || 0,
     })),
     // "crashed" bosqichida keyingi raund uchun oldindan qo'yilgan tikishlar —
     // clientda "Keyingi raundga tikildi ✓" holatini ko'rsatish uchun kerak.
     nextQueue: crashNextQueue.map(p => ({
       id: p.id, username: p.username, photo: p.photo, bet: p.bet,
-      betType: p.betType || 'coin', betNfts: p.betNfts || null,
+      betType: p.betType || 'coin', betNfts: p.betNfts || null, vip: !!p.vip,
     })),
     multiplier: crashState.multiplier,
     startedAt: crashState.startedAt,
@@ -2640,10 +2755,26 @@ function finalizeCrashRound() {
   crashState.status = 'crashed';
   crashState.multiplier = crashSecretCrashPoint;
 
+  // VIP👑 kafolat: "OLISH"ga ulgurmagan (ya'ni coinini yutqazgan) o'yinchi
+  // VIP faol bo'lsa, tikkan coinining 20%i avtomatik qaytariladi. Faqat
+  // coin bilan tikkanlarga tegishli — NFT tikkan bo'lsa, NFT o'zi qaytmaydi.
+  crashState.players.forEach(p => {
+    if (p.cashedOutAt) return; // ulgurgan — yutqazmagan
+    if ((p.betType || 'coin') !== 'coin') return;
+    const lUser = users.get(String(p.id));
+    if (lUser && isVipActive(lUser) && p.bet > 0) {
+      const cashback = round2(p.bet * (VIP_LOSS_CASHBACK_PERCENT / 100));
+      if (cashback > 0) {
+        lUser.balance = round2(lUser.balance + cashback);
+        p.vipCashback = cashback;
+      }
+    }
+  });
+
   const historyEntry = {
     round_number: crashState.round_number,
     crashPoint: crashSecretCrashPoint,
-    players: crashState.players.map(p => ({ id: p.id, username: p.username, photo: p.photo, bet: p.bet, cashedOutAt: p.cashedOutAt, won: p.won, wonNft: p.wonNft || null })),
+    players: crashState.players.map(p => ({ id: p.id, username: p.username, photo: p.photo, bet: p.bet, cashedOutAt: p.cashedOutAt, won: p.won, wonNft: p.wonNft || null, vip: !!p.vip, vipCashback: p.vipCashback || 0 })),
   };
   crashLastResult = { round_number: crashState.round_number, crashPoint: crashSecretCrashPoint };
   gameHistory.crash.unshift(historyEntry);
@@ -2669,7 +2800,7 @@ app.post('/api/crash/bet', (req, res) => {
     user.balance = round2(user.balance - amt);
     crashNextQueue.push({
       id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt,
-      betType: 'coin', betNfts: null,
+      betType: 'coin', betNfts: null, vip: isVipActive(user),
     });
     maybeGrantDailyGameTask(user, 'crash');
     emitCrashState();
@@ -2681,7 +2812,7 @@ app.post('/api/crash/bet', (req, res) => {
   user.balance = round2(user.balance - amt);
   crashState.players.push({
     id: Number(user.id), username: user.username, photo: user.photo_url, bet: amt,
-    cashedOutAt: null, won: 0, wonNft: null, betType: 'coin', betNfts: null,
+    cashedOutAt: null, won: 0, wonNft: null, betType: 'coin', betNfts: null, vip: isVipActive(user),
   });
   maybeGrantDailyGameTask(user, 'crash');
   emitCrashState();
@@ -2725,7 +2856,7 @@ app.post('/api/crash/bet_nft', (req, res) => {
 
   const entry = {
     id: Number(user.id), username: user.username, photo: user.photo_url, bet: nftValue,
-    cashedOutAt: null, won: 0, wonNft: null, betType: 'nft', betNfts: staked,
+    cashedOutAt: null, won: 0, wonNft: null, betType: 'nft', betNfts: staked, vip: isVipActive(user),
   };
   if (queueMode) crashNextQueue.push(entry); else crashState.players.push(entry);
   maybeGrantDailyGameTask(user, 'crash');

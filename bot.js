@@ -338,6 +338,26 @@ async function handleSuccessfulPayment(msg) {
       { parse_mode: 'Markdown' });
   }
 
+  // VIP👑 Stars orqali sotib olingan bo'lsa — alohida ichki API
+  if (payload.startsWith('vip:')) {
+    let vipResult;
+    try {
+      vipResult = await internalApiPost('/api/internal_vip_credit', {
+        payload,
+        telegramPaymentChargeId: sp.telegram_payment_charge_id,
+        totalAmount: sp.total_amount,
+      });
+    } catch (e) {
+      console.error("VIP kreditlashda xatolik:", e.message);
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin VIP faollashtirishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (!vipResult || !vipResult.ok) {
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin VIP faollashtirishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (vipResult.alreadyProcessed) return;
+    return sendMessage(chatId, "👑 VIP muvaffaqiyatli faollashtirildi! 6 soat davomida sizga maxsus imtiyozlar amal qiladi.");
+  }
+
   let result;
   try {
     result = await internalApiPost('/api/internal_topup_credit', {

@@ -754,6 +754,19 @@
   .game-card.upgrade-mini{background:linear-gradient(135deg,#123524,#0d211a);}
   .game-card.upgrade-mini .mini-badge{color:#22C55E;}
 
+  /* ---- Case'lar ro'yxati sahifasi (kunlik case + kelajakda qo'shiladigan boshqa case'lar) ---- */
+  .cases-list{display:flex; flex-direction:column; gap:12px;}
+  .cases-list .game-card{
+    flex-direction:row; align-items:center; justify-content:flex-start; gap:12px;
+    min-height:auto; padding:14px 16px; margin-bottom:0;
+  }
+  .cases-list .game-card .mini-icon-visual{margin-top:0; width:40px; height:40px; flex-shrink:0;}
+  .cases-list .game-card .mini-icon-visual .fallback-emoji{font-size:34px;}
+  .cases-list .case-list-info{display:flex; flex-direction:column; gap:4px; align-items:flex-start;}
+  .cases-list .case-list-info .game-name{margin-top:0;}
+  .cases-list .case-list-arrow{margin-left:auto; color:var(--text-dim); font-size:20px; flex-shrink:0;}
+  .cases-list .game-card.case-locked{opacity:.55;}
+
   /* ---- UPGRADE mini-karta ikonkasi: pastga/tepaga (qizil/yashil) ikkita NFT emoji ---- */
   .upg-duo-visual{
     width:34px; height:34px; margin-top:10px;
@@ -1531,7 +1544,7 @@
     </div>
 
     <div class="mini-row">
-      <div class="game-card case-mini" onclick="goTo('case')">
+      <div class="game-card case-mini" onclick="goTo('cases')">
         <span class="mini-badge" data-i18n="badge_free24h">FREE 24H</span>
         <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
         <span class="game-name" data-i18n="game_case">Kunlik Case</span>
@@ -1731,9 +1744,18 @@
   </div>
 
 
-  <section class="page" id="page-case">
+  <section class="page" id="page-cases">
     <div class="hockey-topbar">
       <button class="hockey-back" onclick="goTo('play')">‹</button>
+      <div class="game-number-badge mono">Case'lar</div>
+      <span style="width:34px;"></span>
+    </div>
+    <div class="cases-list" id="casesList"></div>
+  </section>
+
+  <section class="page" id="page-case">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('cases')">‹</button>
       <div class="game-number-badge mono">Kunlik Case</div>
     </div>
 
@@ -2879,6 +2901,30 @@ async function rewardReferrer(referrerId) {
   }
 }
 
+// ==================== CASE'LAR RO'YXATI ====================
+// Hozircha faqat kunlik case mavjud (1-o'rinda). Kelajakda yangi case'lar
+// shu ro'yxatga qo'shiladi — har biri o'z sahifasi (pageId) va, agar band
+// bo'lsa, "locked: true" bilan belgilanadi.
+const CASES_CATALOG = [
+  { id: 'daily', name: 'Kunlik Case', icon: '🏅', badge: 'FREE 24H', pageId: 'case' },
+  // { id: 'premium', name: 'Premium Case', icon: '💎', badge: 'NEW', pageId: 'case-premium' },
+];
+
+function renderCasesList() {
+  const list = document.getElementById('casesList');
+  if (!list) return;
+  list.innerHTML = CASES_CATALOG.map(c => `
+    <div class="game-card case-mini${c.locked ? ' case-locked' : ''}" onclick="${c.locked ? '' : `goTo('${c.pageId}')`}">
+      <div class="mini-icon-visual"><span class="fallback-emoji">${c.icon}</span></div>
+      <div class="case-list-info">
+        <span class="mini-badge">${c.locked ? "Tez kunda" : c.badge}</span>
+        <span class="game-name">${c.name}</span>
+      </div>
+      <span class="case-list-arrow">›</span>
+    </div>
+  `).join('');
+}
+
 // ==================== KUNLIK CASE ====================
 const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 let caseCountdownInterval = null;
@@ -3161,6 +3207,7 @@ function goTo(pageName) {
   if (pageName === 'profile') loadProfile();
   if (pageName === 'hockey') initHockeyPage();
   if (pageName === 'drum') initDrumPage();
+  if (pageName === 'cases') renderCasesList();
   if (pageName === 'case') initCasePage();
   if (pageName === 'upgrade') initUpgradePage();
   if (pageName === 'crash') initCrashPage();

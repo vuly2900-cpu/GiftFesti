@@ -6697,11 +6697,13 @@ function renderUpgradePickerList() {
   const list = document.getElementById('upgPickerGrid');
   let items;
   if (upgState.picking === 'your') {
-    items = upgState.inventory;
+    items = upgState.inventory.slice();
   } else {
     const minPrice = upgState.yourItem ? upgState.yourItem.sell_price : 0;
     items = upgState.catalog.filter(it => it.sell_price > minPrice);
   }
+  // Arzonidan qimmatigacha (o'sish tartibida) saralanadi — tanlash osonroq bo'lishi uchun.
+  items.sort((a, b) => a.sell_price - b.sell_price);
   if (!items.length) {
     list.innerHTML = `<p class="empty" style="font-size:12px; grid-column:1/-1;">${upgState.picking === 'your' ? "Inventoringizda NFT yo'q" : "Mos sovg'a topilmadi"}</p>`;
     return;

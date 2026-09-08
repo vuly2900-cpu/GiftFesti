@@ -442,6 +442,8 @@
   .case-item .emoji{font-size:20px; line-height:1;}
   .anim-slot{display:inline-flex; align-items:center; justify-content:center; overflow:hidden;}
   .anim-slot video, .anim-slot .lottie-box{width:100%; height:100%; object-fit:contain;}
+  .anim-slot.bg-onyx_black{background:radial-gradient(circle at 50% 35%, #4a4f57 0%, #23262c 55%, #0e0f12 100%); border-radius:10px;}
+  .anim-slot.bg-black{background:radial-gradient(circle at 50% 35%, #2a2a2a 0%, #0a0a0a 60%, #000 100%); border-radius:10px; box-shadow:inset 0 0 10px rgba(0,0,0,.9);}
   .case-item .anim-slot{width:32px; height:32px; margin:0 auto;}
   .case-reel-item .anim-slot{width:36px; height:36px; margin:0 auto;}
   .case-result-emoji .anim-slot{width:64px; height:64px; margin:0 auto 4px;}
@@ -460,13 +462,13 @@
   .nft-card .nft-count{font-size:11px; color:var(--text-dim); margin-top:2px;}
   .nft-card .nft-sell-btn{width:100%; margin-top:8px; padding:8px; font-size:12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); color:var(--gold); font-weight:700;}
   .nft-card .nft-sell-btn:active{opacity:.7;}
-  .nft-card.bg-onyx_black{border-color:#8A8FA3; box-shadow:0 0 0 1px #8A8FA3 inset;}
-  .nft-card.bg-onyx_black .nft-anim{background:linear-gradient(150deg,#3a3f4d,#14161c);}
-  .nft-card.bg-black{border-color:#FFD24A; box-shadow:0 0 0 1px #FFD24A inset;}
-  .nft-card.bg-black .nft-anim{background:linear-gradient(150deg,#2a2a2a,#000000);}
-  .nft-bg-badge{display:inline-block; font-size:9.5px; font-weight:800; letter-spacing:.02em; padding:2px 7px; border-radius:20px; margin-top:4px;}
-  .nft-bg-badge.bg-onyx_black{background:rgba(138,143,163,.18); color:#C7CBDA; border:1px solid #8A8FA3;}
-  .nft-bg-badge.bg-black{background:rgba(255,210,74,.14); color:#FFD24A; border:1px solid #FFD24A;}
+  /* ---- NFT fon variantlari: Onyx Black (2x narx) va Black (4x narx) ---- */
+  .nft-card{position:relative;}
+  .nft-card .nft-bg-badge{position:absolute; top:6px; left:6px; font-size:9px; font-weight:800; letter-spacing:.02em; padding:2px 6px; border-radius:6px; z-index:2; text-transform:uppercase;}
+  .nft-card.bg-onyx_black .nft-anim{background:radial-gradient(circle at 50% 35%, #4a4f57 0%, #23262c 55%, #0e0f12 100%);}
+  .nft-card.bg-onyx_black .nft-bg-badge{background:linear-gradient(135deg,#6b7280,#1f2328); color:#e5e7eb; border:1px solid #4b5563;}
+  .nft-card.bg-black .nft-anim{background:radial-gradient(circle at 50% 35%, #2a2a2a 0%, #0a0a0a 60%, #000 100%); box-shadow:inset 0 0 18px rgba(0,0,0,.9);}
+  .nft-card.bg-black .nft-bg-badge{background:linear-gradient(135deg,#3a3a3a,#000); color:#fff; border:1px solid #000; box-shadow:0 0 6px rgba(0,0,0,.8);}
   .case-timer{
     text-align:center; font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace;
     color:var(--text-dim); margin-bottom:12px;
@@ -1223,8 +1225,10 @@
     0%, 100% { opacity: 0.6; transform: scale(0.95); }
     50% { opacity: 1; transform: scale(1.08); }
   }
-  .nft-win-anim { position: relative; width: 100%; height: 100%; z-index: 1; }
+  .nft-win-anim { position: relative; width: 100%; height: 100%; z-index: 1; border-radius: 16px; overflow: hidden; }
   .nft-win-anim video, .nft-win-anim .lottie-box { width: 100%; height: 100%; }
+  .nft-win-anim.bg-onyx_black{background:radial-gradient(circle at 50% 35%, #4a4f57 0%, #23262c 55%, #0e0f12 100%);}
+  .nft-win-anim.bg-black{background:radial-gradient(circle at 50% 35%, #2a2a2a 0%, #0a0a0a 60%, #000 100%); box-shadow:inset 0 0 22px rgba(0,0,0,.9);}
   .nft-win-name { font-size: 19px; font-weight: 800; margin-bottom: 6px; }
   .nft-win-desc { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 18px; }
   .nft-win-ok-btn {
@@ -3041,10 +3045,7 @@ function showCaseResult(reward) {
   const banner = document.getElementById('caseResultBanner');
   if (!banner) return;
   if (reward.isGift) {
-    const bgLine = reward.background_name
-      ? ` <span class="nft-bg-badge bg-${reward.background}" style="vertical-align:1px;">${reward.background_name}</span>`
-      : '';
-    banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'caseResultAnim')}</div><div>Siz <b>${reward.name || ''} (${fmtCoin(reward.sell_price ?? reward.stars)} <span class="coin-ico"></span>)</b> lik gift yutdingiz!${bgLine} Inventoringizga tushdi — Profil bo'limidan sotishingiz mumkin.</div>`;
+    banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'caseResultAnim')}</div><div>Siz <b>${reward.name || ''} (${fmtCoin(reward.stars)} <span class="coin-ico"></span>)</b> lik gift yutdingiz! Inventoringizga tushdi — Profil bo'limidan sotishingiz mumkin.</div>`;
     mountAnimatedEmoji(document.getElementById('caseResultAnim'), reward.custom_emoji_id, reward.is_video, reward.itemId || reward.id);
   } else if (reward.stars > 0) {
     banner.innerHTML = `<div class="case-result-emoji"><span class="coin-ico"></span></div><div>Siz <b>${fmtCoin(reward.stars)} <span class="coin-ico"></span></b> yutdingiz!</div>`;
@@ -4148,17 +4149,17 @@ async function loadInventory() {
       return;
     }
 
-    grid.innerHTML = items.map((it, idx) => `
-      <div class="nft-card ${it.background ? 'bg-' + it.background : ''}">
-        <div class="nft-anim" id="nftAnim_${it.id}_${idx}"></div>
+    grid.innerHTML = items.map(it => `
+      <div class="nft-card ${it.bg ? 'bg-' + it.bg : ''}">
+        ${it.bg ? `<span class="nft-bg-badge">${it.bgLabel}</span>` : ''}
+        <div class="nft-anim" id="nftAnim_${it.id}"></div>
         <div class="nft-name">${it.name}</div>
-        ${it.background_name ? `<div class="nft-bg-badge bg-${it.background}">${it.background_name}</div>` : ''}
         <div class="nft-count">x${it.count}</div>
-        <button class="nft-sell-btn" onclick="sellNft('${it.id}', ${it.sell_price}, ${it.background ? `'${it.background}'` : 'null'})">💰 Sotish — ${fmtCoin(it.sell_price)} <span class="coin-ico"></span></button>
+        <button class="nft-sell-btn" onclick="sellNft('${it.id}', ${it.sell_price})">💰 Sotish — ${fmtCoin(it.sell_price)} <span class="coin-ico"></span></button>
       </div>
     `).join('');
 
-    items.forEach((it, idx) => renderNftAnim({ ...it, id: `${it.id}_${idx}`, custom_emoji_id: it.custom_emoji_id }));
+    items.forEach(it => renderNftAnim(it));
   } catch (e) {
     console.error(e);
     grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklab bo\'lmadi</p>';
@@ -4585,13 +4586,13 @@ function renderNftAnim(item) {
   mountAnimatedEmoji(document.getElementById(`nftAnim_${item.id}`), item.custom_emoji_id, item.is_video, item.id);
 }
 
-async function sellNft(itemId, sellPrice, background) {
+async function sellNft(itemId, sellPrice) {
   if (!confirm(`Ushbu NFT'ni ${sellPrice} coin'ga sotmoqchimisiz?`)) return;
   try {
     const res = await fetch(SELL_NFT_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData: tg?.initData || '', itemId, background: background || null }),
+      body: JSON.stringify({ initData: tg?.initData || '', itemId }),
     });
     const data = await res.json();
     if (!res.ok || !data.ok) { alert('Xatolik yuz berdi!'); return; }
@@ -5676,14 +5677,14 @@ function showNftWinModal(wonNft, multiplier) {
   const overlay = document.getElementById('nftWinOverlay');
   if (!overlay) return;
   document.getElementById('nftWinMult').textContent = `${Number(multiplier).toFixed(2)}x da chiqdingiz`;
-  document.getElementById('nftWinName').textContent = (wonNft.name || '') +
-    (wonNft.background_name ? ` · ${wonNft.background_name}` : '');
+  document.getElementById('nftWinName').textContent = wonNft.name || '';
   document.getElementById('nftWinDesc').innerHTML =
-    `Ushbu NFT'ni Inventar bo'limidan <b>${wonNft.price} <span class="coin-ico"></span></b> ga sotishingiz mumkin.` +
-    (wonNft.background_name ? ` <span class="nft-bg-badge bg-${wonNft.background}">${wonNft.background_name}</span>` : '');
+    `Ushbu NFT'ni Inventar bo'limidan <b>${wonNft.price} <span class="coin-ico"></span></b> ga sotishingiz mumkin.`;
 
   const animEl = document.getElementById('nftWinAnim');
   animEl.innerHTML = '';
+  animEl.classList.remove('bg-onyx_black', 'bg-black');
+  if (wonNft.bg) animEl.classList.add('bg-' + wonNft.bg);
   if (wonNft.custom_emoji_id) {
     mountAnimatedEmoji(animEl, wonNft.custom_emoji_id, wonNft.is_video, wonNft.itemId);
   }
@@ -6805,7 +6806,7 @@ function updateUpgradeUI() {
   const yourLabel = document.getElementById('upgYourLabel');
   const yourSub = document.getElementById('upgYourSub');
   if (upgState.yourItem) {
-    yourVisual.innerHTML = '<div class="anim-slot" id="upgYourAnim"></div>';
+    yourVisual.innerHTML = `<div class="anim-slot ${upgState.yourItem.bg ? 'bg-' + upgState.yourItem.bg : ''}" id="upgYourAnim"></div>`;
     yourLabel.textContent = upgState.yourItem.name;
     yourSub.textContent = `${upgState.yourItem.sell_price} coin`;
     yourBox.classList.add('upg-filled');
@@ -6830,7 +6831,7 @@ function updateUpgradeUI() {
   } else {
     targetBox.classList.remove('upg-disabled');
     if (upgState.targetItem) {
-      targetVisual.innerHTML = '<div class="anim-slot" id="upgTargetAnim"></div>';
+      targetVisual.innerHTML = `<div class="anim-slot ${upgState.targetItem.bg ? 'bg-' + upgState.targetItem.bg : ''}" id="upgTargetAnim"></div>`;
       targetLabel.textContent = upgState.targetItem.name;
       targetSub.textContent = `${upgState.targetItem.sell_price} coin`;
       targetBox.classList.add('upg-filled');
@@ -6892,7 +6893,7 @@ function renderUpgradePickerList() {
   }
   list.innerHTML = items.map(it => `
     <div class="nft-stake-item" onclick="pickUpgradeItem('${it.id}')" style="cursor:pointer;">
-      <div class="anim-slot" id="upgPick_${it.id}"></div>
+      <div class="anim-slot ${it.bg ? 'bg-' + it.bg : ''}" id="upgPick_${it.id}"></div>
       <div class="n-name">${it.name}</div>
       <div class="n-price"><span class="coin-ico"></span> ${it.sell_price}${it.count ? ' · x' + it.count : ''}</div>
     </div>

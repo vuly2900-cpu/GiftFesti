@@ -50,6 +50,16 @@ const VIP_DURATION_MS = 6 * 60 * 60 * 1000; // 6 soat
 const VIP_LOSS_CASHBACK_PERCENT = 20; // Yutqazilgan coindan qaytariladigan ulush
 const VIP_PRIZE_ID = 'vip_prize'; // Konkurs sovg'alari ro'yxatida ishlatiladigan maxsus (NFT bo'lmagan) ID
 
+/* ---- PEPE Case: 2-case. Coin yoki Telegram Stars evaziga ochiladigan case,
+   kunlik case'dan farqli o'laroq cooldown yo'q — istalgan payt sotib olib
+   ochish mumkin. Ichida faqat 2 ta baza NFT (heart_locked va plush_pepe),
+   har biri 3 xil fon variantida (oddiy / Onyx Black / Black) chiqishi
+   mumkin. Narxi: 15 000 coin YOKI 10 ta Stars (10% chegirma bilan 9 ta). ---- */
+const PEPE_CASE_PRICE_COIN = 15000;
+const PEPE_CASE_PRICE_STARS = 10;
+const PEPE_CASE_DISCOUNT_PERCENT = 10;
+const PEPE_CASE_DISCOUNTED_STARS = Math.round(PEPE_CASE_PRICE_STARS * (1 - PEPE_CASE_DISCOUNT_PERCENT / 100)); // 9
+
 /* ============================================================
    MA'LUMOTLAR BAZASI (in-memory, db.json ga davriy saqlanadi)
    ============================================================ */
@@ -85,6 +95,7 @@ function createUser(id, username) {
     nftInventory: {},      // itemId(NFT_CATALOG dagi) -> dona soni
     nftInstancePrices: {}, // itemId -> [narx1, narx2, ...] (raketa o'yinidan yutilgan NFT'larning haqiqiy narxi)
     nftInitialized: false, // starter (tekin) NFT'lar berilganmi
+    pendingPepeCaseReward: null, // PEPE Case Stars orqali sotib olinganda, to'lov tasdiqlangач frontend shu yerdan natijani oladi
     vip: { expiresAt: 0 }, // VIP👑: muddati tugagan vaqt (ms, epoch); 0 = hech qachon sotib olinmagan
     dailyTasks: {
       crash: 0,   // oxirgi marta "raketa o'ynash" vazifasi uchun coin olingan vaqt (ms)
@@ -1056,6 +1067,34 @@ function pickCaseReward() {
   return outcomes[outcomes.length - 1];
 }
 
+/* ---- PEPE Case sovrinlari — og'irliklar (weight) nisbiy qiymat sifatida
+   ishlatiladi, 100% ga yig'ilishi shart emas (CASE_TIER_WEIGHTS bilan bir
+   xil mantiq). baseId + bg (fon) NFT_BG_TYPES orqali composite kalitga
+   ("heart_locked::onyx_black" kabi) aylantiriladi va narxi shu fonning
+   multiplikatoriga ko'ra avtomatik hisoblanadi (getNftDef). ---- */
+const PEPE_CASE_ITEMS = [
+  { baseId: 'heart_locked', bg: null, weight: 70 },
+  { baseId: 'heart_locked', bg: 'onyx_black', weight: 60 },
+  { baseId: 'heart_locked', bg: 'black', weight: 50 },
+  { baseId: 'plush_pepe', bg: null, weight: 35 },
+  { baseId: 'plush_pepe', bg: 'onyx_black', weight: 25 },
+  { baseId: 'plush_pepe', bg: 'black', weight: 15 },
+];
+function pickPepeCaseReward() {
+  const totalWeight = PEPE_CASE_ITEMS.reduce((s, o) => s + o.weight, 0);
+  let rand = Math.random() * totalWeight;
+  let picked = PEPE_CASE_ITEMS[PEPE_CASE_ITEMS.length - 1];
+  for (const o of PEPE_CASE_ITEMS) {
+    if (rand < o.weight) { picked = o; break; }
+    rand -= o.weight;
+  }
+  const def = getNftDef(makeNftKey(picked.baseId, picked.bg));
+  return {
+    itemId: def.id, baseId: picked.baseId, bg: picked.bg, bgLabel: def.bgLabel,
+    isGift: true, name: def.name, custom_emoji_id: def.custom_emoji_id, sell_price: def.sell_price, stars: def.sell_price,
+  };
+}
+
 /* ============================================================
    EXPRESS + SOCKET.IO SETUP
    ============================================================ */
@@ -1180,6 +1219,125 @@ app.get('/api/case_items', async (req, res) => {
     });
   }
   res.json({ ok: true, items, tierWeights: CASE_TIER_WEIGHTS });
+});
+
+/* ============================================================
+   PEPE CASE (2-case) — coin yoki Telegram Stars evaziga, cooldownsiz
+   ============================================================ */
+
+/* ---- Case'dagi mumkin bo'lgan gift'lar (fon variantlari bilan) + narxlar ---- */
+app.get('/api/pepe_case_items', async (req, res) => {
+  const items = [];
+  for (const o of PEPE_CASE_ITEMS) {
+    const def = getNftDef(makeNftKey(o.baseId, o.bg));
+    const meta = await getEmojiMeta(def.custom_emoji_id);
+    items.push({
+      id: def.id, baseId: o.baseId, bg: o.bg, bgLabel: def.bgLabel,
+      name: def.name, custom_emoji_id: def.custom_emoji_id,
+      sell_price: def.sell_price, weight: o.weight, is_video: meta.is_video,
+    });
+  }
+  res.json({
+    ok: true, items,
+    priceCoin: PEPE_CASE_PRICE_COIN,
+    priceStars: PEPE_CASE_PRICE_STARS,
+    discountedStars: PEPE_CASE_DISCOUNTED_STARS,
+    discountPercent: PEPE_CASE_DISCOUNT_PERCENT,
+  });
+});
+
+/* ---- Coinga sotib olib darhol ochish (invoice kerak emas, natija shu yerda qaytadi) ---- */
+app.post('/api/open_pepe_case', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const subscribed = await isSubscribed(user.id, MAIN_CHANNEL);
+  if (!subscribed) return res.status(403).json({ error: 'not_subscribed' });
+
+  ensureNftStarterPack(user);
+  if (Number(user.balance) < PEPE_CASE_PRICE_COIN) {
+    return res.status(400).json({ error: 'INSUFFICIENT_BALANCE', required: PEPE_CASE_PRICE_COIN });
+  }
+  user.balance = round2(user.balance - PEPE_CASE_PRICE_COIN);
+
+  const reward = pickPepeCaseReward();
+  const meta = await getEmojiMeta(reward.custom_emoji_id);
+  reward.is_video = meta.is_video;
+  grantNftToUser(user, reward.itemId);
+  user.total_won = round2((user.total_won || 0) + reward.sell_price);
+
+  res.json({ ok: true, reward, balance: user.balance });
+});
+
+/* ---- Stars evaziga: avval invoys havolasi so'raladi, to'lov muvaffaqiyatli
+   bo'lgach bot.js `/api/internal_pepe_case_credit`ni chaqiradi va natija
+   foydalanuvchida "kutilayotgan sovrin" sifatida saqlanadi — frontend
+   to'lovdan keyin shu natijani `/api/pepe_case/claim_result` orqali oladi. ---- */
+app.post('/api/pepe_case/create_invoice', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  const subscribed = await isSubscribed(user.id, MAIN_CHANNEL);
+  if (!subscribed) return res.status(403).json({ error: 'not_subscribed' });
+
+  const payload = `pepecase:${user.id}:${crypto.randomBytes(4).toString('hex')}`;
+  try {
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'GiftFesti — PEPE Case',
+        description: `PEPE Case'ni ochish (10% chegirma bilan)`,
+        payload,
+        currency: 'XTR',
+        prices: [{ label: 'PEPE Case', amount: PEPE_CASE_DISCOUNTED_STARS }],
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, link: data.result, stars: PEPE_CASE_DISCOUNTED_STARS });
+  } catch (e) {
+    console.error('PEPE case invoysi yaratishda xatolik:', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+/* ---- bot.js uchun ichki API: Stars to'lovi muvaffaqiyatli bo'lgach chaqiriladi ---- */
+app.post('/api/internal_pepe_case_credit', (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const { payload, telegramPaymentChargeId, totalAmount } = req.body || {};
+
+  if (telegramPaymentChargeId && processedTopupCharges.has(telegramPaymentChargeId)) {
+    const m0 = /^pepecase:(\d+):/.exec(String(payload || ''));
+    const existingUser = m0 ? users.get(m0[1]) : null;
+    return res.json({ ok: true, alreadyProcessed: true, reward: existingUser ? existingUser.pendingPepeCaseReward : null });
+  }
+  const m = /^pepecase:(\d+):/.exec(String(payload || ''));
+  if (!m) return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+  const userId = m[1];
+  if (Number(totalAmount) !== PEPE_CASE_DISCOUNTED_STARS) {
+    console.error(`PEPE case: to'lov summasi mos kelmadi (kutilgan ${PEPE_CASE_DISCOUNTED_STARS}, kelgan ${totalAmount})`);
+  }
+
+  let user = users.get(userId);
+  if (!user) { user = createUser(userId, `user${userId}`); users.set(userId, user); }
+  ensureNftStarterPack(user);
+
+  const reward = pickPepeCaseReward();
+  grantNftToUser(user, reward.itemId);
+  user.total_won = round2((user.total_won || 0) + reward.sell_price);
+  user.pendingPepeCaseReward = reward;
+  if (telegramPaymentChargeId) processedTopupCharges.add(telegramPaymentChargeId);
+
+  res.json({ ok: true, reward });
+});
+
+/* ---- Frontend Stars to'lovidan keyin shu yerdan natijani "oladi" (bir marta) ---- */
+app.post('/api/pepe_case/claim_result', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const reward = user.pendingPepeCaseReward || null;
+  if (!reward) return res.json({ ok: true, reward: null });
+  const meta = await getEmojiMeta(reward.custom_emoji_id);
+  reward.is_video = meta.is_video;
+  user.pendingPepeCaseReward = null;
+  res.json({ ok: true, reward });
 });
 
 /* ============================================================

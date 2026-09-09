@@ -453,6 +453,13 @@
   .case-item.tier-50{border-color:#5A4A2A;}
   .case-item.tier-100{border-color:var(--gold);}
   .case-item.tier-100 .val{color:var(--gold);}
+  .case-item.bg-onyx_black{border-color:#6B5CE0;}
+  .case-item.bg-onyx_black .val{color:#9C8CFF;}
+  .case-item.bg-black{border-color:#E0435C;}
+  .case-item.bg-black .val{color:#FF6B85;}
+  .case-item .bg-tag{font-size:9px; color:var(--text-dim); margin-top:2px; font-weight:700; text-transform:uppercase; letter-spacing:.02em;}
+  .pepe-case-buy-row{margin-bottom:10px;}
+  .pepe-case-old-price{font-size:11px; color:var(--text-dim); text-decoration:line-through; margin-left:4px;}
 
   .nft-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:10px;}
   .nft-card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:10px 6px; text-align:center;}
@@ -502,6 +509,10 @@
   .case-reel-item.tier-50{border-color:#5A4A2A;}
   .case-reel-item.tier-100{border-color:var(--gold);}
   .case-reel-item.tier-100 .rv{color:var(--gold);}
+  .case-reel-item.bg-onyx_black{border-color:#6B5CE0;}
+  .case-reel-item.bg-onyx_black .rv{color:#9C8CFF;}
+  .case-reel-item.bg-black{border-color:#E0435C;}
+  .case-reel-item.bg-black .rv{color:#FF6B85;}
   .case-reel-item.winning{
     background:rgba(232,185,35,.15); border-color:var(--gold);
     box-shadow:0 0 16px rgba(232,185,35,.5);
@@ -1780,6 +1791,39 @@
     <p class="case-odds-note">G'olib gift avtomatik sotiladi va <span class="coin-ico"></span> balansingizga tushadi</p>
   </section>
 
+  <section class="page" id="page-case-pepe">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('cases')">‹</button>
+      <div class="game-number-badge mono">PEPE Case</div>
+    </div>
+
+    <div class="case-result-banner" id="pepeCaseResultBanner"></div>
+
+    <div class="case-hero">
+      <div class="case-box-icon">🐸</div>
+      <p class="subtitle">Heart Locked va Plush Pepe — oddiy, Onyx Black yoki Black fon bilan chiqishi mumkin</p>
+    </div>
+
+    <div class="case-reel-wrap" id="pepeCaseReelWrap" style="display:none;">
+      <div class="case-reel-pointer"></div>
+      <div class="case-reel-viewport">
+        <div class="case-reel-track" id="pepeCaseReelTrack"></div>
+      </div>
+    </div>
+
+    <div class="case-items-grid" id="pepeCaseItemsGrid"></div>
+
+    <div class="pepe-case-buy-row">
+      <button class="btn" id="pepeCaseOpenCoinBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openPepeCaseWithCoin()">
+        🎁 <span id="pepeCaseCoinPriceLabel">15 000</span> <span class="coin-ico"></span> bilan ochish
+      </button>
+      <button class="btn secondary" id="pepeCaseOpenStarsBtn" style="width:100%; padding:14px; font-size:15px; margin-top:10px;" onclick="openPepeCaseWithStars()">
+        ⭐ <span id="pepeCaseStarsPriceLabel">9</span> Stars bilan ochish <span id="pepeCaseStarsOldPrice" class="pepe-case-old-price">10</span>
+      </button>
+    </div>
+    <p class="case-odds-note">G'olib gift inventoringizga tushadi — Profil bo'limidan sotishingiz mumkin</p>
+  </section>
+
   <section class="page" id="page-konkurs">
     <h1 class="title">Konkurs</h1>
     <p class="subtitle">NFT sovg'alar uchun konkurslarda qatnashing</p>
@@ -2907,7 +2951,7 @@ async function rewardReferrer(referrerId) {
 // bo'lsa, "locked: true" bilan belgilanadi.
 const CASES_CATALOG = [
   { id: 'daily', name: 'Kunlik Case', icon: '🏅', badge: 'FREE 24H', pageId: 'case' },
-  // { id: 'premium', name: 'Premium Case', icon: '💎', badge: 'NEW', pageId: 'case-premium' },
+  { id: 'pepe', name: 'PEPE Case', icon: '🐸', badge: 'YANGI', pageId: 'case-pepe' },
 ];
 
 function renderCasesList() {
@@ -3176,6 +3220,243 @@ async function openDailyCase() {
   }
 }
 
+// ==================== PEPE CASE (2-case) ====================
+// Kunlik case'dan farqi: cooldown yo'q, coin yoki Stars evaziga ochiladi.
+// Ichida faqat 2 ta baza NFT (heart_locked, plush_pepe), har biri 3 xil
+// fon (oddiy/Onyx Black/Black) bilan chiqishi mumkin.
+let PEPE_CASE_ITEMS = [];
+let PEPE_CASE_PRICE_COIN = 15000;
+let PEPE_CASE_PRICE_STARS = 10;
+let PEPE_CASE_DISCOUNTED_STARS = 9;
+let pepeCaseItemsLoaded = false;
+let pepeCaseBusy = false;
+
+async function loadPepeCaseItemsCatalog() {
+  if (pepeCaseItemsLoaded) return;
+  try {
+    const res = await fetch('/api/pepe_case_items');
+    const data = await res.json();
+    if (data.ok) {
+      PEPE_CASE_ITEMS = data.items;
+      PEPE_CASE_PRICE_COIN = data.priceCoin;
+      PEPE_CASE_PRICE_STARS = data.priceStars;
+      PEPE_CASE_DISCOUNTED_STARS = data.discountedStars;
+      pepeCaseItemsLoaded = true;
+    }
+  } catch (e) { console.error("PEPE case items yuklanmadi:", e); }
+}
+
+function pepeBgClass(item) { return item.bg ? `bg-${item.bg}` : ''; }
+
+function renderPepeCaseItems() {
+  const grid = document.getElementById('pepeCaseItemsGrid');
+  if (!grid) return;
+  grid.innerHTML = PEPE_CASE_ITEMS.map(item => `
+    <div class="case-item ${pepeBgClass(item)}">
+      <div class="emoji">${giftIconHTML(item, `pepeGridAnim_${item.id}`)}</div>
+      <div class="val">${fmtCoin(item.sell_price)} <span class="coin-ico"></span></div>
+      ${item.bgLabel ? `<div class="bg-tag">${item.bgLabel}</div>` : `<div class="bg-tag">Oddiy</div>`}
+    </div>
+  `).join('');
+  PEPE_CASE_ITEMS.forEach(item => {
+    mountAnimatedEmoji(document.getElementById(`pepeGridAnim_${item.id}`), item.custom_emoji_id, item.is_video, item.id);
+  });
+
+  document.getElementById('pepeCaseCoinPriceLabel').textContent = fmtCoin(PEPE_CASE_PRICE_COIN);
+  document.getElementById('pepeCaseStarsPriceLabel').textContent = PEPE_CASE_DISCOUNTED_STARS;
+  document.getElementById('pepeCaseStarsOldPrice').textContent = PEPE_CASE_PRICE_STARS;
+}
+
+function buildPepeReelFillerPool() {
+  return PEPE_CASE_ITEMS.map(item => ({
+    stars: item.sell_price, itemId: item.id, custom_emoji_id: item.custom_emoji_id,
+    is_video: item.is_video, isGift: true, bg: item.bg,
+  }));
+}
+
+function pepeReelItemHTML(item, extraClass, animId) {
+  const bgClass = item.isGift ? pepeBgClass(item) : '';
+  const iconHtml = item.isGift ? giftIconHTML(item, animId) : '<span class="coin-ico"></span>';
+  return `<div class="case-reel-item ${bgClass} ${extraClass || ''}"><div class="emoji">${iconHtml}</div><div class="rv">${fmtCoin(item.stars)} <span class="coin-ico"></span></div></div>`;
+}
+
+function runPepeCaseReelAnimation(reward) {
+  return new Promise(resolve => {
+    const wrap = document.getElementById('pepeCaseReelWrap');
+    const grid = document.getElementById('pepeCaseItemsGrid');
+    const track = document.getElementById('pepeCaseReelTrack');
+    if (!wrap || !track) { resolve(); return; }
+
+    const pool = buildPepeReelFillerPool();
+    const seq = [];
+    for (let i = 0; i < CASE_REEL_LENGTH; i++) {
+      seq.push(i === CASE_REEL_WIN_INDEX ? reward : pool[Math.floor(Math.random() * pool.length)]);
+    }
+
+    track.style.transition = 'none';
+    track.style.transform = 'translateX(0px)';
+    track.innerHTML = seq.map((it, i) => pepeReelItemHTML(it, i === CASE_REEL_WIN_INDEX ? 'win-slot' : '', `pepeReelAnim_${i}`)).join('');
+    seq.forEach((it, i) => {
+      if (it.isGift) mountAnimatedEmoji(document.getElementById(`pepeReelAnim_${i}`), it.custom_emoji_id, it.is_video, it.itemId || it.id);
+    });
+
+    if (grid) grid.style.display = 'none';
+    wrap.style.display = 'block';
+
+    const viewportWidth = wrap.querySelector('.case-reel-viewport').clientWidth;
+    const jitter = (Math.random() - 0.5) * CASE_REEL_ITEM_W * 0.5;
+    const target = CASE_REEL_WIN_INDEX * CASE_REEL_ITEM_W + CASE_REEL_ITEM_W / 2 - viewportWidth / 2 + jitter;
+    const DURATION_MS = 4200;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        track.style.transition = `transform ${DURATION_MS}ms cubic-bezier(0.1, 0.7, 0.15, 1)`;
+        track.style.transform = `translateX(-${target}px)`;
+      });
+    });
+
+    setTimeout(() => {
+      const winEl = track.querySelector('.win-slot');
+      if (winEl) winEl.classList.add('winning');
+      setTimeout(() => {
+        wrap.style.display = 'none';
+        if (grid) grid.style.display = 'grid';
+        resolve();
+      }, 700);
+    }, DURATION_MS + 100);
+  });
+}
+
+function showPepeCaseResult(reward) {
+  const banner = document.getElementById('pepeCaseResultBanner');
+  if (!banner) return;
+  banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'pepeCaseResultAnim')}</div><div>Siz <b>${reward.name || ''} (${fmtCoin(reward.stars ?? reward.sell_price)} <span class="coin-ico"></span>)</b> lik gift yutdingiz! Inventoringizga tushdi — Profil bo'limidan sotishingiz mumkin.</div>`;
+  mountAnimatedEmoji(document.getElementById('pepeCaseResultAnim'), reward.custom_emoji_id, reward.is_video, reward.itemId || reward.id);
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 5000);
+}
+
+function setPepeCaseButtonsDisabled(disabled) {
+  const coinBtn = document.getElementById('pepeCaseOpenCoinBtn');
+  const starsBtn = document.getElementById('pepeCaseOpenStarsBtn');
+  if (coinBtn) coinBtn.disabled = disabled;
+  if (starsBtn) starsBtn.disabled = disabled;
+}
+
+async function openPepeCaseWithCoin() {
+  if (pepeCaseBusy) return;
+
+  const subscribed = await checkChannelSubscription();
+  if (!subscribed) { caseSubscriptionVerified = false; showCaseSubOverlay(); return; }
+  caseSubscriptionVerified = true;
+
+  if (Number(currentUserData.balance) < PEPE_CASE_PRICE_COIN) {
+    alert("Balansingizda yetarli coin yo'q.");
+    return;
+  }
+
+  pepeCaseBusy = true;
+  setPepeCaseButtonsDisabled(true);
+
+  try {
+    const res = await fetch('/api/open_pepe_case', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (data.error === 'INSUFFICIENT_BALANCE') alert("Balansingizda yetarli coin yo'q.");
+      else if (data.error === 'not_subscribed') { caseSubscriptionVerified = false; showCaseSubOverlay(); }
+      else if (data.error === 'invalid_auth') alert("Sessiya tasdiqlanmadi. Ilovani qayta oching.");
+      else alert("Xatolik yuz berdi, qaytadan urinib ko'ring.");
+      return;
+    }
+
+    currentUserData.balance = data.balance;
+    syncBalanceDisplays(currentUserData.balance);
+    await runPepeCaseReelAnimation(data.reward);
+    currentUserData.total_won = (currentUserData.total_won || 0) + data.reward.sell_price;
+    showPepeCaseResult(data.reward);
+  } catch (e) {
+    console.error(e);
+    alert("Xatolik yuz berdi, qaytadan urinib ko'ring.");
+  } finally {
+    pepeCaseBusy = false;
+    setPepeCaseButtonsDisabled(false);
+  }
+}
+
+async function pollPepeCaseResult(maxTries = 10) {
+  for (let i = 0; i < maxTries; i++) {
+    try {
+      const res = await fetch('/api/pepe_case/claim_result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: tg?.initData || '' }),
+      });
+      const data = await res.json();
+      if (data.ok && data.reward) return data.reward;
+    } catch (e) { console.error(e); }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return null;
+}
+
+async function openPepeCaseWithStars() {
+  if (pepeCaseBusy) return;
+  if (!tg || typeof tg.openInvoice !== 'function') {
+    alert("To'lov faqat Telegram ilovasi ichida ishlaydi. Iltimos, botni Telegram orqali oching.");
+    return;
+  }
+
+  const subscribed = await checkChannelSubscription();
+  if (!subscribed) { caseSubscriptionVerified = false; showCaseSubOverlay(); return; }
+  caseSubscriptionVerified = true;
+
+  pepeCaseBusy = true;
+  setPepeCaseButtonsDisabled(true);
+
+  let data;
+  try {
+    const res = await fetch('/api/pepe_case/create_invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    data = await res.json();
+  } catch (e) { console.error("PEPE case invoysini olishda xatolik:", e); }
+
+  if (!data || !data.ok) {
+    alert("Invoys yaratishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
+    pepeCaseBusy = false;
+    setPepeCaseButtonsDisabled(false);
+    return;
+  }
+
+  tg.openInvoice(data.link, async (status) => {
+    if (status === 'paid') {
+      const reward = await pollPepeCaseResult();
+      if (reward) {
+        await runPepeCaseReelAnimation(reward);
+        currentUserData.total_won = (currentUserData.total_won || 0) + reward.sell_price;
+        showPepeCaseResult(reward);
+      } else {
+        alert("🎉 To'lov muvaffaqiyatli! Sovrin tez orada inventoringizga tushadi.");
+      }
+    } else if (status === 'failed') {
+      alert("To'lov amalga oshmadi. Qayta urinib ko'ring.");
+    }
+    pepeCaseBusy = false;
+    setPepeCaseButtonsDisabled(false);
+  });
+}
+
+function initPepeCasePage() {
+  loadPepeCaseItemsCatalog().then(renderPepeCaseItems);
+}
+
 // ==================== FIREBASE READ CACHE ====================
 // Sahifalar orasida tez-tez o'tib yurilganda Firestore'dan qayta-qayta
 // o'qish (read) sarflanmasligi uchun natijalar TTL muddatigacha keshda saqlanadi.
@@ -3209,6 +3490,7 @@ function goTo(pageName) {
   if (pageName === 'drum') initDrumPage();
   if (pageName === 'cases') renderCasesList();
   if (pageName === 'case') initCasePage();
+  if (pageName === 'case-pepe') initPepeCasePage();
   if (pageName === 'upgrade') initUpgradePage();
   if (pageName === 'crash') initCrashPage();
   else if (crashUnsubscribe) { crashUnsubscribe(); crashUnsubscribe = null; }

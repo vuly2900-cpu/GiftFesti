@@ -6118,7 +6118,7 @@ let crashSelectedAmount = 1;
 let crashCashoutBusy = false;
 let crashBetTab = 'ton';
 let crashGiftInventory = [];
-let crashGiftSelectedId = null;
+let crashGiftSelectedKey = null;
 
 let crashLocalTickInterval = null;
 function initCrashPage() {
@@ -6177,7 +6177,7 @@ function crashSwitchBetTab(tab) {
 
 async function loadCrashGiftGrid() {
   const grid = document.getElementById('crashGiftGrid');
-  crashGiftSelectedId = null;
+  crashGiftSelectedKey = null;
   grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>';
   try {
     const res = await fetch(`${INVENTORY_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`);
@@ -6196,28 +6196,30 @@ function renderCrashGiftGrid() {
     return;
   }
   grid.innerHTML = crashGiftInventory.map(it => `
-    <div class="crash-gift-item ${crashGiftSelectedId === it.id ? 'selected' : ''}" onclick="crashSelectGift('${it.id}')">
-      <div class="anim-slot" id="crashGiftAnim_${it.id}"></div>
+    <div class="crash-gift-item ${crashGiftSelectedKey === it.instanceKey ? 'selected' : ''}" onclick="crashSelectGift('${it.instanceKey}')">
+      <div class="anim-slot" id="crashGiftAnim_${it.instanceKey}"></div>
       <div class="n-name">${it.name}</div>
-      <div class="n-price"><span class="coin-ico"></span> ${it.sell_price} · x${it.count}</div>
+      <div class="n-price"><span class="coin-ico"></span> ${it.sell_price}</div>
     </div>
   `).join('');
-  crashGiftInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`crashGiftAnim_${it.id}`), it.custom_emoji_id, it.is_video, it.id));
+  crashGiftInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`crashGiftAnim_${it.instanceKey}`), it.custom_emoji_id, it.is_video, `crashgift_${it.instanceKey}`));
 }
-function crashSelectGift(itemId) {
-  crashGiftSelectedId = crashGiftSelectedId === itemId ? null : itemId;
+function crashSelectGift(instanceKey) {
+  crashGiftSelectedKey = crashGiftSelectedKey === instanceKey ? null : instanceKey;
   renderCrashGiftGrid();
 }
 
 async function crashPlaceBetNft() {
-  if (!crashGiftSelectedId) { alert('Bitta sovg\'a (NFT) tanlang!'); return; }
+  if (!crashGiftSelectedKey) { alert('Bitta sovg\'a (NFT) tanlang!'); return; }
+  const selectedItem = crashGiftInventory.find(i => i.instanceKey === crashGiftSelectedKey);
+  if (!selectedItem) { alert('Bitta sovg\'a (NFT) tanlang!'); return; }
   const btn = document.getElementById('crashGiftConfirmBtn');
   btn.disabled = true;
   try {
     const res = await fetch(CRASH_BET_NFT_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData: tg?.initData || '', itemIds: [crashGiftSelectedId] })
+      body: JSON.stringify({ initData: tg?.initData || '', itemIds: [selectedItem.id] })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -7682,7 +7684,7 @@ function renderUpgradePickerList() {
     <div class="nft-stake-item" onclick="pickUpgradeItem('${it.id}')" style="cursor:pointer;">
       <div class="anim-slot ${it.bg ? 'bg-' + it.bg : ''}" id="upgPick_${it.id}"></div>
       <div class="n-name">${it.name}</div>
-      <div class="n-price"><span class="coin-ico"></span> ${it.sell_price}${it.count ? ' · x' + it.count : ''}</div>
+      <div class="n-price"><span class="coin-ico"></span> ${it.sell_price}</div>
     </div>
   `).join('');
   items.forEach(it => mountAnimatedEmoji(document.getElementById(`upgPick_${it.id}`), it.custom_emoji_id, it.is_video, `upgpick_${it.id}`));
@@ -7774,32 +7776,31 @@ function startUpgradeSpinAnimation(result) {
 function finishUpgradeSpin(result) {
   upgState.spinning = false;
 
-  // Mahalliy inventar nusxasini yangilaymiz (sarflangan NFT)
-  const invItem = upgState.inventory.find(i => i.id === result.yourItemId);
-  if (invItem) {
-    invItem.count -= 1;
-    if (invItem.count <= 0) upgState.inventory = upgState.inventory.filter(i => i.id !== invItem.id);
-  }
+  // Mahalliy inventar nusxasini yangilaymiz (sarflangan NFT). Endi
+  // inventar HAR BIR DONANI alohida yozuv sifatida saqlaydi (count yo'q),
+  // shu sabab guruhli sanoq o'rniga aynan BITTA mos instansiyani ro'yxatdan
+  // olib tashlaymiz — aks holda sarflangan NFT hali ham ro'yxatda "osilib"
+  // qolar edi.
+  const spentIdx = upgState.inventory.findIndex(i => i.id === result.yourItemId);
+  if (spentIdx !== -1) upgState.inventory.splice(spentIdx, 1);
 
   // Yutgan bo'lsa — yangi NFT darhol mahalliy inventar ro'yxatiga ham
   // qo'shiladi (aks holda sahifadan chiqib qayta kirmaguncha "tanlash"
   // paneli va Profildagi Inventar bo'sh ko'rinib qolardi).
   if (result.win) {
-    const wonItem = upgState.inventory.find(i => i.id === result.targetItemId);
-    if (wonItem) {
-      wonItem.count += 1;
-    } else {
-      const catalogItem = upgState.catalog.find(i => i.id === result.targetItemId) || upgState.targetItem;
-      if (catalogItem) {
-        upgState.inventory.push({
-          id: catalogItem.id,
-          name: catalogItem.name,
-          custom_emoji_id: catalogItem.custom_emoji_id,
-          is_video: catalogItem.is_video,
-          sell_price: catalogItem.sell_price,
-          count: 1,
-        });
-      }
+    const catalogItem = upgState.catalog.find(i => i.id === result.targetItemId) || upgState.targetItem;
+    if (catalogItem) {
+      upgState.inventory.push({
+        id: catalogItem.id,
+        instanceKey: `${catalogItem.id}__local_${Date.now()}`,
+        baseId: catalogItem.baseId || catalogItem.id,
+        bg: catalogItem.bg || null,
+        bgLabel: catalogItem.bgLabel || null,
+        name: catalogItem.name,
+        custom_emoji_id: catalogItem.custom_emoji_id,
+        is_video: catalogItem.is_video,
+        sell_price: catalogItem.sell_price,
+      });
     }
   }
 

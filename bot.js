@@ -213,10 +213,20 @@ async function handleStart(msg) {
   if (startParam) url += (url.includes('?') ? '&' : '?') + `startapp=${encodeURIComponent(startParam)}`;
 
   await sendMessage(msg.chat.id,
-    "🎁 GIFT FESTI ga xush kelibsiz!\n\nKunlik case oching, xokkey/baraban o'ynang va yulduzlar (⭐) yig'ing.",
+    "🎉 Gift Festi-ga xush kelibsiz\n\n" +
+    "🆓 Har kuni Free24 case oching\n" +
+    "🚀 Raketka o'ynang va noyob sovg'alarni yutib oling\n" +
+    "⚔️ Pvpda jang qiling-g'olib hamma narsani oladi\n" +
+    "🎁 Caselarni oching va giflarni to'plang\n" +
+    "⬆️ Upgradedan foydalaning\n" +
+    "🏆 reytingga chiqing va sovrinlarni yutib oling\n\n" +
+    "👉 Hoziroq o'ynashni boshlang!",
     {
       reply_markup: {
-        inline_keyboard: [[{ text: "🎮 O'yinni ochish", web_app: { url } }]],
+        inline_keyboard: [
+          [{ text: "🎮 Ochish", web_app: { url } }],
+          [{ text: "📢 Rasmiy kanal", url: "https://t.me/GiftFesti" }],
+        ],
       },
     });
 }

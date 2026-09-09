@@ -4182,14 +4182,38 @@ async function loadDailyTasks(force = false) {
   } catch (e) { if (list) list.innerHTML = '<p class="empty">Yuklab bo\'lmadi</p>'; }
 }
 
-/* Do'stga yuborish: Telegramning o'z ulashish oynasini ochadi (do'stlarni
-   tanlab yuborish mumkin) va har bosishda progressni serverga yozadi. */
-function sendInviteTask() {
-  const refUrl = `https://t.me/${BOT_USERNAME}?start=${tgUser?.id || ''}`;
-  const shareText = "🎁 O'ynang, yutib sovg'alarni oling!";
-  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refUrl)}&text=${encodeURIComponent(shareText)}`;
-  if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
-  else window.open(shareUrl, '_blank');
+/* Do'stga yuborish: server rasm va xabar matnini tayyorlab,
+   savePreparedInlineMessage orqali id qaytaradi, keyin Telegram'ning
+   o'zi tg.shareMessage(id) bilan "chatni tanlang" oynasini ochadi va
+   tanlangan chatga rasm+matnli xabarni yuboradi. */
+const REFERRAL_PREPARE_SHARE_API_URL = '/api/referral/prepare_share';
+
+async function sendInviteTask() {
+  try {
+    const res = await fetch(REFERRAL_PREPARE_SHARE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert("Ulashishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
+      return;
+    }
+    if (tg && typeof tg.shareMessage === 'function') {
+      tg.shareMessage(data.id, () => {});
+    } else {
+      const refUrl = `https://t.me/${BOT_USERNAME}?start=${tgUser?.id || ''}`;
+      const shareText = "🎁 Gift Festi-da bepul case oching va NFT sovg'alaringizni to'plang!\n\nBu 100% bepul, har 24 soatda omadingizni sinab ko'rishingiz mumkin!";
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refUrl)}&text=${encodeURIComponent(shareText)}`;
+      if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
+      else window.open(shareUrl, '_blank');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Ulashishda xatolik yuz berdi!');
+    return;
+  }
 
   fetch(DAILY_TASK_INVITE_PROGRESS_URL, {
     method: 'POST',

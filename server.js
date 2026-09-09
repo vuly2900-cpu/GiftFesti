@@ -2040,6 +2040,55 @@ app.post('/api/contest/prepare_share', async (req, res) => {
   }
 });
 
+/* ---- Do'stga taklif: Telegram'ning savePreparedInlineMessage metodi orqali
+   rasm + matn tayyorlanadi, frontend esa qaytgan id bilan tg.shareMessage(id)
+   chaqirib, foydalanuvchiga chat tanlash oynasini ochadi. ---- */
+app.post('/api/referral/prepare_share', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  if (!WEBAPP_URL) return res.status(500).json({ error: 'WEBAPP_URL_MISSING' });
+
+  try {
+    const username = await getBotUsername();
+    if (!username) return res.status(500).json({ error: 'BOT_USERNAME_MISSING' });
+
+    const deepLink = `https://t.me/${username}?start=${user.id}`;
+    const photoUrl = `${WEBAPP_URL}/referral_share.png`;
+
+    const caption =
+      `🎁 Gift Festi-da bepul case oching va NFT sovg'alaringizni to'plang!\n\n` +
+      `Bu 100% bepul, har 24 soatda omadingizni sinab ko'rishingiz mumkin!`;
+
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/savePreparedInlineMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: Number(user.id),
+        result: {
+          type: 'photo',
+          id: `refshare_${user.id}_${Date.now()}`,
+          photo_url: photoUrl,
+          thumbnail_url: photoUrl,
+          photo_width: 640,
+          photo_height: 640,
+          caption,
+          reply_markup: { inline_keyboard: [[{ text: '🎮 O\'ynash', url: deepLink }]] },
+        },
+        allow_user_chats: true,
+        allow_bot_chats: false,
+        allow_group_chats: true,
+        allow_channel_chats: true,
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, id: data.result.id });
+  } catch (e) {
+    console.error('Referalni ulashishga tayyorlashda xatolik:', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 /* ---- bot.js uchun ichki API: Stars orqali bilet to'lovi muvaffaqiyatli bo'lgach ---- */
 app.post('/api/internal_contest_ticket_credit', (req, res) => {
   if (!requireInternal(req, res)) return;

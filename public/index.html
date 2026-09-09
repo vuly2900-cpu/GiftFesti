@@ -680,7 +680,7 @@
   .crash-bet-row{display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--text-dim); margin-bottom:8px;}
   .crash-bet-row b{color:var(--text); font-size:14px;}
   .crash-bet-amount-input{width:100%; margin-bottom:14px; font-size:15px; text-align:left;}
-  .crash-bet-quick{display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:14px;}
+  .crash-bet-quick{display:grid; grid-template-columns:repeat(6,1fr); gap:5px; margin-bottom:14px;}
   .crash-bet-confirm{width:100%; padding:14px; border-radius:14px; border:none; cursor:pointer;
     background:linear-gradient(180deg,var(--gold),#c99400); color:#1A1400; font-size:15px; font-weight:800;}
   .crash-bet-confirm:disabled{opacity:.5;}
@@ -898,7 +898,7 @@
   .hockey-amounts{display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:10px;}
   .amt-btn{
     background:var(--surface-2); border:1px solid var(--border); color:var(--text);
-    border-radius:8px; padding:8px 0; font-size:12px; font-weight:600; font-family:'JetBrains Mono',monospace;
+    border-radius:8px; padding:8px 0; font-size:11px; font-weight:600; font-family:'JetBrains Mono',monospace;
     cursor:pointer;
   }
   .amt-btn.active{background:var(--gold); color:#1A1400; border-color:var(--gold);}
@@ -1925,7 +1925,10 @@
     </div>
 
     <div class="card">
-      <p style="font-size:13px; font-weight:600; margin-bottom:8px;">🖼️ NFT Inventar</p>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:8px;">
+        <p style="font-size:13px; font-weight:600; margin:0;">🖼️ NFT Inventar</p>
+        <button class="btn secondary" style="padding:6px 12px; font-size:11px; width:auto;" onclick="openSellAllModal()">🗑️ Hammasini sotish</button>
+      </div>
       <div class="nft-grid" id="nftGrid">
         <p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>
       </div>
@@ -2134,10 +2137,11 @@
       <p class="hockey-bet-label" style="margin-bottom:6px;">Stavka summasi (minimum 0.1 <span class="coin-ico"></span>)</p>
       <input type="number" class="crash-bet-amount-input" id="gameCustomAmount" value="10" step="0.1" min="0.1" placeholder="Miqdor...">
       <div class="crash-bet-quick">
+        <button class="amt-btn" onclick="gameSetAmountMax(this)">MAX</button>
+        <button class="amt-btn" onclick="gameSetAmount(1, this)">1</button>
+        <button class="amt-btn" onclick="gameSetAmount(5, this)">5</button>
         <button class="amt-btn active" onclick="gameSetAmount(10, this)">10</button>
-        <button class="amt-btn" onclick="gameSetAmount(25, this)">25</button>
         <button class="amt-btn" onclick="gameSetAmount(50, this)">50</button>
-        <button class="amt-btn" onclick="gameSetAmount(75, this)">75</button>
         <button class="amt-btn" onclick="gameSetAmount(100, this)">100</button>
       </div>
       <button class="crash-bet-confirm" id="gameTonConfirmBtn" onclick="gamePlaceBetConfirm()">Stavka qo'yish 🚀</button>
@@ -2175,11 +2179,12 @@
       <p class="hockey-bet-label" style="margin-bottom:6px;">Stavka summasi</p>
       <input type="number" class="crash-bet-amount-input" id="crashCustomAmount" value="1" step="0.1" min="0.1" placeholder="Miqdor...">
       <div class="crash-bet-quick">
+        <button class="amt-btn" onclick="crashSetAmountMax(this)">MAX</button>
         <button class="amt-btn active" onclick="crashSetAmount(1, this)">1</button>
         <button class="amt-btn" onclick="crashSetAmount(5, this)">5</button>
         <button class="amt-btn" onclick="crashSetAmount(10, this)">10</button>
-        <button class="amt-btn" onclick="crashSetAmount(25, this)">25</button>
         <button class="amt-btn" onclick="crashSetAmount(50, this)">50</button>
+        <button class="amt-btn" onclick="crashSetAmount(100, this)">100</button>
       </div>
       <button class="crash-bet-confirm" id="crashTonConfirmBtn" onclick="crashPlaceBet()">Tikish 🚀</button>
     </div>
@@ -2214,6 +2219,18 @@
      WebView input maydonlariga fokus bera olmay qoladi (klaviatura
      chiqmaydi, <select> ochilmaydi). Shu sabab parol ham oddiy sahifa
      ichidagi <input> orqali so'raladi. -->
+<div class="modal-overlay" id="sellAllModal" onclick="if(event.target===this) closeSellAllModal()">
+  <div class="modal-window" style="text-align:center;">
+    <button class="modal-close" onclick="closeSellAllModal()">×</button>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">🗑️ Hammasini sotish</h2>
+    <p id="sellAllInfo" style="font-size:14px; margin-bottom:18px;">Yuklanmoqda...</p>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button class="btn danger" id="sellAllConfirmBtn" onclick="confirmSellAll()">✅ Tasdiqlash — sotish</button>
+      <button class="btn secondary" onclick="closeSellAllModal()">Bekor qilish</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="nftDetailModal" onclick="if(event.target===this) closeNftDetailModal()">
   <div class="modal-window">
     <button class="modal-close" onclick="closeNftDetailModal()">×</button>
@@ -5311,6 +5328,52 @@ async function sellNft(itemId, sellPrice) {
   }
 }
 
+function openSellAllModal() {
+  const info = document.getElementById('sellAllInfo');
+  const btn = document.getElementById('sellAllConfirmBtn');
+  if (!currentInventoryItems.length) {
+    info.textContent = "Inventoringizda sotiladigan NFT yo'q.";
+    btn.style.display = 'none';
+  } else {
+    const total = currentInventoryItems.reduce((s, it) => s + Number(it.sell_price || 0), 0);
+    info.innerHTML = `Inventoringizda <b>${currentInventoryItems.length} ta</b> NFT bor.<br>Hammasi <b>${fmtCoin(total)} <span class="coin-ico"></span></b> ga sotiladi.`;
+    btn.style.display = '';
+  }
+  document.getElementById('sellAllModal').classList.add('active');
+}
+
+function closeSellAllModal() {
+  document.getElementById('sellAllModal').classList.remove('active');
+}
+
+async function confirmSellAll() {
+  const btn = document.getElementById('sellAllConfirmBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/sell_all_nft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert(data.error === 'EMPTY_INVENTORY' ? "Sotiladigan NFT yo'q." : 'Xatolik yuz berdi!');
+      return;
+    }
+    currentUserData.balance = data.balance;
+    syncBalanceDisplays(currentUserData.balance);
+    document.getElementById('profBalance').textContent = fmtCoin(currentUserData.balance);
+    closeSellAllModal();
+    alert(`Sotildi! ${data.sold_count} ta NFT — jami +${fmtCoin(data.sold_for)} coin`);
+    loadInventory();
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function toggleAdminModal(show) {
   if (show) {
     ensureAdminPassword(() => goTo('admin'));
@@ -5438,6 +5501,12 @@ function gameSwitchBetTab(tab) {
 }
 function gameSetAmount(v, btn) {
   document.getElementById('gameCustomAmount').value = v;
+  document.querySelectorAll('#gameBetOverlay .crash-bet-quick .amt-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+function gameSetAmountMax(btn) {
+  const bal = Math.max(0, Number(currentUserData.balance) || 0);
+  document.getElementById('gameCustomAmount').value = bal;
   document.querySelectorAll('#gameBetOverlay .crash-bet-quick .amt-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 }
@@ -6075,6 +6144,13 @@ function initCrashPage() {
 function crashSetAmount(v, btn) {
   crashSelectedAmount = v;
   document.getElementById('crashCustomAmount').value = v;
+  document.querySelectorAll('#crashBetOverlay .amt-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+function crashSetAmountMax(btn) {
+  const bal = Math.max(0, Number(currentUserData.balance) || 0);
+  crashSelectedAmount = bal;
+  document.getElementById('crashCustomAmount').value = bal;
   document.querySelectorAll('#crashBetOverlay .amt-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 }

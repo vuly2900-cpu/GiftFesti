@@ -1624,6 +1624,34 @@ app.post('/api/sell_nft', (req, res) => {
   res.json({ ok: true, balance: user.balance, sold_for: sellPrice });
 });
 
+/* ---- Inventardagi BARCHA NFT'larni bir zumda sotish ---- */
+app.post('/api/sell_all_nft', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  ensureNftStarterPack(user);
+
+  let totalCoin = 0;
+  let totalCount = 0;
+  for (const key of Object.keys(user.nftInventory)) {
+    const have = user.nftInventory[key] || 0;
+    if (have <= 0) continue;
+    const item = getNftDef(key);
+    if (!item) continue;
+    const customPrices = (user.nftInstancePrices && user.nftInstancePrices[key]) || [];
+    for (let i = 0; i < have; i++) {
+      const price = (i < customPrices.length) ? customPrices[i] : item.sell_price;
+      totalCoin = round2(totalCoin + price);
+      totalCount += 1;
+    }
+    user.nftInventory[key] = 0;
+    if (user.nftInstancePrices) user.nftInstancePrices[key] = [];
+  }
+
+  if (totalCount === 0) return res.status(400).json({ error: 'EMPTY_INVENTORY' });
+
+  user.balance = round2(user.balance + totalCoin);
+  res.json({ ok: true, balance: user.balance, sold_count: totalCount, sold_for: totalCoin });
+});
+
 /* ============================================================
    GIFT UPGRADE — bitta NFT'ni qimmatroq NFT'ga "yuqoriga ko'tarish"
    ehtimoli o'z NFT narxi / maqsad NFT narxi nisbatiga qarab

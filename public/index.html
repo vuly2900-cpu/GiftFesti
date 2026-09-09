@@ -2253,7 +2253,7 @@
     <h2 style="font-size:16px; font-weight:700; margin-bottom:14px; color:var(--gold);">🔒 Admin paroli</h2>
     <input type="password" id="adminPasswordInput" placeholder="Parolni kiriting" autocomplete="off" onkeydown="if(event.key==='Enter') submitAdminPassword()">
     <p id="adminPasswordMsg" style="font-size:12px; margin-top:8px; color:var(--danger); display:none;">Parol noto'g'ri!</p>
-    <button class="btn" style="width:100%; margin-top:10px;" onclick="submitAdminPassword()">Kirish</button>
+    <button class="btn" id="adminPasswordSubmitBtn" style="width:100%; margin-top:10px;" onclick="submitAdminPassword()">Kirish</button>
   </div>
 </div>
 
@@ -2656,15 +2656,37 @@ function closeAdminPasswordModal() {
   pendingAdminModalOpen = null;
 }
 
-function submitAdminPassword() {
+async function submitAdminPassword() {
   const input = document.getElementById('adminPasswordInput');
+  const msg = document.getElementById('adminPasswordMsg');
+  const btn = document.getElementById('adminPasswordSubmitBtn');
   const val = (input && input.value || '').trim();
   if (!val) return;
-  adminPasswordCache = val;
-  document.getElementById('adminPasswordModal').classList.remove('active');
-  const cb = pendingAdminModalOpen;
-  pendingAdminModalOpen = null;
-  if (cb) cb();
+  if (msg) msg.style.display = 'none';
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const res = await fetch('/api/admin_verify_password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', adminPassword: val }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      if (msg) { msg.textContent = "Parol noto'g'ri!"; msg.style.display = 'block'; }
+      adminPasswordCache = '';
+      return;
+    }
+    adminPasswordCache = val;
+    document.getElementById('adminPasswordModal').classList.remove('active');
+    const cb = pendingAdminModalOpen;
+    pendingAdminModalOpen = null;
+    if (cb) cb();
+  } catch (e) {
+    console.error(e);
+    if (msg) { msg.textContent = "Xatolik yuz berdi, qayta urinib ko'ring."; msg.style.display = 'block'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Kirish'; }
+  }
 }
 const CLAIM_TASK_API_URL = '/api/claim_task';
 const DAILY_TASKS_API_URL = '/api/daily_tasks';

@@ -2202,6 +2202,23 @@ app.get('/api/internal_admin_audit', (req, res) => {
   res.json({ log: adminAuditLog.slice(-200).reverse() });
 });
 
+/* ---- Admin panelga kirishdan oldin parolni serverda tekshirish uchun
+   yengil endpoint (hech qanday amal bajarmaydi, faqat tasdiqlaydi). Shu
+   tekshiruvsiz avval frontend har qanday matn kiritilsa ham panelni
+   ochib yuborardi — parol faqat keyinroq, biror admin amali bajarilganda
+   solishtirilardi. ---- */
+app.post('/api/admin_verify_password', (req, res) => {
+  const tgUser = getTgUserFromInitData(req.body.initData);
+  if (!tgUser || !ADMIN_IDS.includes(String(tgUser.id))) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  if (ADMIN_PASSWORD && req.body.adminPassword !== ADMIN_PASSWORD) {
+    logAdminAction(tgUser.id, 'FORBIDDEN_WRONG_PASSWORD', { path: req.path });
+    return res.status(403).json({ error: 'wrong_password' });
+  }
+  res.json({ ok: true });
+});
+
 app.post('/api/admin_action', (req, res) => {
   if (!requireAdmin(req, res)) return;
   const { action, payload = {} } = req.body || {};

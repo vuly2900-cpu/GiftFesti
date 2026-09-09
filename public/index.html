@@ -3834,10 +3834,21 @@ function goTo(pageName, presetItemId) {
   const navBtn = document.querySelector(`.navbtn[data-page="${pageName}"]`);
   if (navBtn) navBtn.classList.add('active');
 
+  // MUHIM (telefonlarda "qotish" muammosi): sahifalar orasida qancha
+  // tez-tez o'tib yurilmasin, fonda FAQAT joriy sahifaga tegishli
+  // jarayon (socket tinglovchi, setInterval, fizika animatsiyasi va h.k.)
+  // ishlab turishi kerak. Ilgari har bir interval o'zining alohida
+  // shart-sharoiti bilan tozalanardi — bu oson unutilib, yangi sahifa
+  // qo'shilganda fonda "osilib qolgan" jarayonlar to'planib, kuchsiz
+  // telefonlarda vaqt o'tishi bilan qotib qolishga sabab bo'lardi. Endi
+  // BITTA markazlashgan funksiya har safar navigatsiyada barcha bo'lim
+  // jarayonlarini (joriy sahifadan tashqari) to'xtatadi.
+  stopAllBackgroundTimers(pageName);
+
   if (pageName === 'rating') loadLeaderboard();
   if (pageName === 'tasks') { loadTasks(); loadDailyTasks(); }
   if (pageName === 'konkurs') loadContests();
-  if (pageName !== 'konkurs-detail') { stopContestDetailPolling(); currentContestDetailId = null; }
+  if (pageName !== 'konkurs-detail') currentContestDetailId = null;
   if (pageName === 'profile') loadProfile();
   if (pageName === 'hockey') initHockeyPage();
   if (pageName === 'drum') initDrumPage();
@@ -3848,42 +3859,51 @@ function goTo(pageName, presetItemId) {
   if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
   if (pageName === 'upgrade') initUpgradePage(presetItemId);
   if (pageName === 'crash') initCrashPage();
-  else if (crashUnsubscribe) { crashUnsubscribe(); crashUnsubscribe = null; }
+}
 
-  // Xokkey/Baraban sahifasidan chiqilganda realtime listenerni
-  // to'xtatib, fonda keraksiz o'qishlarning oldini olamiz.
-  if (pageName !== 'hockey' && pageName !== 'drum' && currentUnsubscribe) {
+function stopAllBackgroundTimers(exceptPage) {
+  if (exceptPage !== 'hockey' && exceptPage !== 'drum' && currentUnsubscribe) {
     currentUnsubscribe();
     currentUnsubscribe = null;
   }
-  // BUG FIX: Xokkey toshining 60fps fizika animatsiyasi (physicsInterval)
-  // va yo'nalish o'qi animatsiyasi (hockeyArrowTimer) ilgari faqat o'z
-  // sahifasidagi holat orqali to'xtatilardi — agar foydalanuvchi raund
-  // davomida (~2-9s ichida) boshqa o'yinga (masalan, Raketa'ga) o'tib
-  // ketsa, bu interval fonda ishlashda davom etib, ikkinchi o'yin bilan
-  // birga CPU'ni band qilar va kuchsiz telefonlarda qotishga sabab
-  // bo'lardi. Endi sahifadan chiqishning o'zidayoq to'xtatiladi.
-  if (pageName !== 'hockey') {
+  if (exceptPage !== 'crash' && crashUnsubscribe) {
+    crashUnsubscribe();
+    crashUnsubscribe = null;
+  }
+  // Xokkey toshining 60fps fizika animatsiyasi (physicsInterval), yo'nalish
+  // o'qi animatsiyasi (hockeyArrowTimer) va tikish sanog'ichi shu sahifadan
+  // chiqishning o'zidayoq to'xtatiladi — aks holda fonda ishlashda davom
+  // etib, boshqa o'yin bilan birga CPU'ni band qilardi.
+  if (exceptPage !== 'hockey') {
     if (physicsInterval) { clearInterval(physicsInterval); physicsInterval = null; }
     if (hockeyArrowTimer) { clearInterval(hockeyArrowTimer); hockeyArrowTimer = null; }
+    if (typeof bettingCountdownInterval !== 'undefined' && bettingCountdownInterval) { clearInterval(bettingCountdownInterval); bettingCountdownInterval = null; }
     puckAnimationRunning = false;
   }
-  // BUG FIX: Baraban sahifasidan chiqilganda ham spin-tugash taymeri
-  // (drumSpinTimeout) to'xtatiladi — aks holda foydalanuvchi boshqa
-  // sahifada bo'lsa ham, g'olib banner/modal keyinroq to'satdan chiqib
-  // qolardi.
-  if (pageName !== 'drum' && typeof drumSpinTimeout !== 'undefined' && drumSpinTimeout) {
-    clearTimeout(drumSpinTimeout);
-    drumSpinTimeout = null;
+  // Baraban sahifasidan chiqilganda ham spin-tugash taymeri va tikish
+  // sanog'ichi to'xtatiladi — aks holda foydalanuvchi boshqa sahifada
+  // bo'lsa ham, g'olib banner/modal keyinroq to'satdan chiqib qolardi.
+  if (exceptPage !== 'drum') {
+    if (typeof drumSpinTimeout !== 'undefined' && drumSpinTimeout) { clearTimeout(drumSpinTimeout); drumSpinTimeout = null; }
+    if (typeof drumBettingCountdownInterval !== 'undefined' && drumBettingCountdownInterval) { clearInterval(drumBettingCountdownInterval); drumBettingCountdownInterval = null; }
   }
-  if (pageName !== 'case' && caseCountdownInterval) {
+  if (exceptPage !== 'case' && caseCountdownInterval) {
     clearInterval(caseCountdownInterval);
     caseCountdownInterval = null;
   }
-  if (pageName !== 'rating' && lbCountdownInterval) {
+  if (exceptPage !== 'rating' && lbCountdownInterval) {
     clearInterval(lbCountdownInterval);
     lbCountdownInterval = null;
   }
+  if (exceptPage !== 'tasks' && typeof dailyTasksCountdownInterval !== 'undefined' && dailyTasksCountdownInterval) {
+    clearInterval(dailyTasksCountdownInterval);
+    dailyTasksCountdownInterval = null;
+  }
+  if (exceptPage !== 'profile' && typeof vipCountdownTimer !== 'undefined' && vipCountdownTimer) {
+    clearInterval(vipCountdownTimer);
+    vipCountdownTimer = null;
+  }
+  if (exceptPage !== 'konkurs-detail') stopContestDetailPolling();
 }
 
 function fmtCoin(val) {

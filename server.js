@@ -1551,32 +1551,33 @@ app.get('/api/inventory', async (req, res) => {
   const user = requireUser(req, res); if (!user) return;
   ensureNftStarterPack(user);
 
+  // MUHIM: endi HAR BIR DONA alohida yozuv sifatida qaytariladi (guruhlab
+  // "xN" ko'rsatilmaydi) — frontend har bir nusxani alohida karta sifatida
+  // chizadi. `id` maydoni baza itemId (sotish/upgrade/tikish so'rovlarida
+   // ishlatiladi), `instanceKey` esa DOM/tanlash uchun har bir nusxaga xos
+  // noyob kalit.
   const items = [];
-  // Endi bazaviy NFT'lardan tashqari fon variantlari ham (composite kalit
-  // bilan "baseId::fon") inventoryda saqlanishi mumkin — shu sabab
-  // NFT_CATALOG emas, to'g'ridan-to'g'ri foydalanuvchi inventoridagi
-  // kalitlar bo'yicha aylanamiz.
   for (const key of Object.keys(user.nftInventory)) {
     const count = user.nftInventory[key] || 0;
     if (count <= 0) continue;
     const def = getNftDef(key);
     if (!def) continue;
     const meta = await getEmojiMeta(def.custom_emoji_id);
-    const customPrices = user.nftInstancePrices && user.nftInstancePrices[key];
-    // Sotilganda birinchi navbatda ishlatiladigan narx (raketa'dan yutilgan
-    // bo'lsa aynan shu maxsus narx, aks holda katalogdagi standart narx).
-    const nextSellPrice = (customPrices && customPrices.length) ? customPrices[0] : def.sell_price;
-    items.push({
-      id: def.id,
-      baseId: def.baseId,
-      bg: def.bg,
-      bgLabel: def.bgLabel,
-      name: def.name,
-      custom_emoji_id: def.custom_emoji_id,
-      sell_price: nextSellPrice,
-      count,
-      is_video: meta.is_video,
-    });
+    const customPrices = (user.nftInstancePrices && user.nftInstancePrices[key]) || [];
+    for (let i = 0; i < count; i++) {
+      const instancePrice = (i < customPrices.length) ? customPrices[i] : def.sell_price;
+      items.push({
+        id: def.id,
+        instanceKey: `${def.id}__${i}`,
+        baseId: def.baseId,
+        bg: def.bg,
+        bgLabel: def.bgLabel,
+        name: def.name,
+        custom_emoji_id: def.custom_emoji_id,
+        sell_price: instancePrice,
+        is_video: meta.is_video,
+      });
+    }
   }
   res.json({ ok: true, items });
 });

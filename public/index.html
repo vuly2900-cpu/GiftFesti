@@ -944,6 +944,20 @@
     color:var(--text); font-size:14px; line-height:1; cursor:pointer;
   }
   .nft-stake-item .n-stepper .n-qty{font-size:12px; font-weight:700; min-width:14px;}
+  .nft-stake-item{cursor:pointer; transition:border-color .15s, background .15s;}
+  .nft-stake-item.selected{border-color:var(--gold); background:rgba(250,204,21,.1);}
+  .nft-stake-item .n-check{position:absolute; top:6px; right:6px; width:18px; height:18px; border-radius:50%; background:var(--gold); color:#1A1400; font-size:12px; font-weight:900; display:none; align-items:center; justify-content:center;}
+  .nft-stake-item.selected .n-check{display:flex;}
+  .nft-card{cursor:pointer;}
+  .nft-card:active{opacity:.8;}
+  #nftDetailModal .modal-window{text-align:center; max-width:300px;}
+  .nft-detail-visual{width:150px; height:150px; margin:0 auto 14px; border-radius:18px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;}
+  .nft-detail-visual video, .nft-detail-visual .lottie-box{width:100%; height:100%; object-fit:contain;}
+  .nft-detail-visual.bg-onyx_black{background:radial-gradient(circle at 50% 35%, #4a4f57 0%, #23262c 55%, #0e0f12 100%);}
+  .nft-detail-visual.bg-black{background:radial-gradient(circle at 50% 35%, #2a2a2a 0%, #0a0a0a 60%, #000 100%); box-shadow:inset 0 0 18px rgba(0,0,0,.9);}
+  .nft-detail-name{font-size:17px; font-weight:800; margin-bottom:4px;}
+  .nft-detail-price{font-size:14px; color:var(--gold); font-weight:700; margin-bottom:16px;}
+  .nft-detail-actions{display:flex; flex-direction:column; gap:8px;}
   .nft-stake-footer{display:flex; gap:8px; align-items:center; position:sticky; bottom:0; background:var(--surface); padding-top:8px;}
   .nft-stake-footer .n-total{flex:1; font-size:12px; color:var(--text-dim);}
 
@@ -2200,6 +2214,19 @@
      WebView input maydonlariga fokus bera olmay qoladi (klaviatura
      chiqmaydi, <select> ochilmaydi). Shu sabab parol ham oddiy sahifa
      ichidagi <input> orqali so'raladi. -->
+<div class="modal-overlay" id="nftDetailModal" onclick="if(event.target===this) closeNftDetailModal()">
+  <div class="modal-window">
+    <button class="modal-close" onclick="closeNftDetailModal()">×</button>
+    <div class="nft-detail-visual" id="nftDetailVisual"></div>
+    <div class="nft-detail-name" id="nftDetailName"></div>
+    <div class="nft-detail-price"><span class="coin-ico"></span> <span id="nftDetailPrice"></span></div>
+    <div class="nft-detail-actions">
+      <button class="btn" onclick="goToUpgradeFromDetail()">⬆️ Upgrade</button>
+      <button class="btn secondary" onclick="sellFromDetail()">💰 Sotish</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="adminPasswordModal" onclick="if(event.target===this) closeAdminPasswordModal()">
   <div class="modal-window">
     <button class="modal-close" onclick="closeAdminPasswordModal()">×</button>
@@ -3783,7 +3810,7 @@ function isCacheFresh(key) {
   return dataCache[key].data !== null && (Date.now() - dataCache[key].ts) < CACHE_TTL[key];
 }
 
-function goTo(pageName) {
+function goTo(pageName, presetItemId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + pageName).classList.add('active');
@@ -3802,7 +3829,7 @@ function goTo(pageName) {
   if (pageName === 'case-pepe') initPepeCasePage();
   if (pageName === 'case-fortune') initFortuneCasePage();
   if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
-  if (pageName === 'upgrade') initUpgradePage();
+  if (pageName === 'upgrade') initUpgradePage(presetItemId);
   if (pageName === 'crash') initCrashPage();
   else if (crashUnsubscribe) { crashUnsubscribe(); crashUnsubscribe = null; }
 
@@ -4783,6 +4810,7 @@ async function loadInventory() {
     const res = await fetch(`${INVENTORY_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`);
     const data = await res.json();
     const items = data.items || [];
+    currentInventoryItems = items;
 
     if (!items.length) {
       grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Hozircha inventaringizda hech narsa yo\'q</p>';
@@ -4790,20 +4818,55 @@ async function loadInventory() {
     }
 
     grid.innerHTML = items.map(it => `
-      <div class="nft-card ${it.bg ? 'bg-' + it.bg : ''}">
+      <div class="nft-card ${it.bg ? 'bg-' + it.bg : ''}" onclick="openNftDetailModal('${it.instanceKey}')">
         ${it.bg ? `<span class="nft-bg-badge">${it.bgLabel}</span>` : ''}
-        <div class="nft-anim" id="nftAnim_${it.id}"></div>
+        <div class="nft-anim" id="nftAnim_${it.instanceKey}"></div>
         <div class="nft-name">${it.name}</div>
-        <div class="nft-count">x${it.count}</div>
-        <button class="nft-sell-btn" onclick="sellNft('${it.id}', ${it.sell_price})">💰 Sotish — ${fmtCoin(it.sell_price)} <span class="coin-ico"></span></button>
       </div>
     `).join('');
 
-    items.forEach(it => renderNftAnim(it));
+    items.forEach(it => renderNftAnim({ ...it, id: it.instanceKey, _realId: it.id }));
   } catch (e) {
     console.error(e);
     grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklab bo\'lmadi</p>';
   }
+}
+
+let currentInventoryItems = [];
+let nftDetailCurrentItem = null;
+
+function openNftDetailModal(instanceKey) {
+  const item = currentInventoryItems.find(i => i.instanceKey === instanceKey);
+  if (!item) return;
+  nftDetailCurrentItem = item;
+
+  const visual = document.getElementById('nftDetailVisual');
+  visual.className = `nft-detail-visual ${item.bg ? 'bg-' + item.bg : ''}`;
+  visual.innerHTML = '';
+  mountAnimatedEmoji(visual, item.custom_emoji_id, item.is_video, `nftDetail_${item.instanceKey}`);
+
+  document.getElementById('nftDetailName').textContent = item.name + (item.bgLabel ? ` (${item.bgLabel})` : '');
+  document.getElementById('nftDetailPrice').textContent = fmtCoin(item.sell_price);
+  document.getElementById('nftDetailModal').classList.add('active');
+}
+
+function closeNftDetailModal() {
+  document.getElementById('nftDetailModal').classList.remove('active');
+  nftDetailCurrentItem = null;
+}
+
+async function sellFromDetail() {
+  if (!nftDetailCurrentItem) return;
+  const item = nftDetailCurrentItem;
+  closeNftDetailModal();
+  await sellNft(item.id, item.sell_price);
+}
+
+function goToUpgradeFromDetail() {
+  if (!nftDetailCurrentItem) return;
+  const itemId = nftDetailCurrentItem.id;
+  closeNftDetailModal();
+  goTo('upgrade', itemId);
 }
 
 /* ===================== VIP👑 ===================== */
@@ -6551,12 +6614,12 @@ function shuffleArray(array) {
 
 // ==================== HOCKEY/DRUM — NFT TIKISH MODALI ====================
 let nftStakeGame = null;          // 'hockey' | 'drum'
-let nftStakeInventory = [];       // /api/inventory dan kelgan ro'yxat
-let nftStakeSelection = {};       // itemId -> tanlangan dona soni
+let nftStakeInventory = [];       // /api/inventory dan kelgan ro'yxat (har bir dona alohida)
+let nftStakeSelection = new Set(); // tanlangan instanceKey'lar to'plami
 
 async function openNftStakeModal(game) {
   nftStakeGame = game;
-  nftStakeSelection = {};
+  nftStakeSelection = new Set();
   const grid = document.getElementById('nftStakeGrid');
   grid.innerHTML = '<p class="empty" style="font-size:12px; grid-column:1/-1;">Yuklanmoqda...</p>';
   updateNftStakeTotal();
@@ -6583,47 +6646,41 @@ function renderNftStakeGrid() {
     return;
   }
   grid.innerHTML = nftStakeInventory.map(it => `
-    <div class="nft-stake-item">
-      <div class="anim-slot" id="stakeAnim_${it.id}"></div>
+    <div class="nft-stake-item ${nftStakeSelection.has(it.instanceKey) ? 'selected' : ''}" id="stakeCard_${it.instanceKey}" onclick="toggleNftStakeSelect('${it.instanceKey}')">
+      <span class="n-check">✓</span>
+      <div class="anim-slot ${it.bg ? 'bg-' + it.bg : ''}" id="stakeAnim_${it.instanceKey}"></div>
       <div class="n-name">${it.name}</div>
-      <div class="n-price"><span class="coin-ico"></span> ${it.sell_price} · x${it.count}</div>
-      <div class="n-stepper">
-        <button onclick="nftStakeAdjust('${it.id}', -1)">−</button>
-        <span class="n-qty" id="stakeQty_${it.id}">0</span>
-        <button onclick="nftStakeAdjust('${it.id}', 1)">+</button>
-      </div>
+      <div class="n-price"><span class="coin-ico"></span> ${it.sell_price}</div>
     </div>
   `).join('');
-  nftStakeInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`stakeAnim_${it.id}`), it.custom_emoji_id, it.is_video, it.id));
+  nftStakeInventory.forEach(it => mountAnimatedEmoji(document.getElementById(`stakeAnim_${it.instanceKey}`), it.custom_emoji_id, it.is_video, `stake_${it.instanceKey}`));
 }
 
-function nftStakeAdjust(itemId, delta) {
-  const item = nftStakeInventory.find(i => i.id === itemId);
-  if (!item) return;
-  const cur = nftStakeSelection[itemId] || 0;
-  const next = Math.max(0, Math.min(item.count, cur + delta));
-  nftStakeSelection[itemId] = next;
-  document.getElementById(`stakeQty_${itemId}`).textContent = next;
+function toggleNftStakeSelect(instanceKey) {
+  if (nftStakeSelection.has(instanceKey)) nftStakeSelection.delete(instanceKey);
+  else nftStakeSelection.add(instanceKey);
+  const card = document.getElementById(`stakeCard_${instanceKey}`);
+  if (card) card.classList.toggle('selected', nftStakeSelection.has(instanceKey));
   updateNftStakeTotal();
 }
 
 function updateNftStakeTotal() {
   const totalEl = document.getElementById('nftStakeTotal');
   let count = 0, value = 0;
-  Object.entries(nftStakeSelection).forEach(([id, qty]) => {
-    if (!qty) return;
-    const item = nftStakeInventory.find(i => i.id === id);
+  nftStakeSelection.forEach(instanceKey => {
+    const item = nftStakeInventory.find(i => i.instanceKey === instanceKey);
     if (!item) return;
-    count += qty;
-    value += qty * item.sell_price;
+    count += 1;
+    value += item.sell_price;
   });
   totalEl.textContent = count ? `${count} ta NFT · ${value.toFixed(2)}` : 'Tanlanmadi';
 }
 
 async function confirmNftStake() {
   const itemIds = [];
-  Object.entries(nftStakeSelection).forEach(([id, qty]) => {
-    for (let i = 0; i < qty; i++) itemIds.push(id);
+  nftStakeSelection.forEach(instanceKey => {
+    const item = nftStakeInventory.find(i => i.instanceKey === instanceKey);
+    if (item) itemIds.push(item.id);
   });
   if (!itemIds.length) { alert('Kamida 1 ta NFT tanlang!'); return; }
 
@@ -7420,7 +7477,7 @@ const upgState = {
   spinning: false,
 };
 
-async function initUpgradePage() {
+async function initUpgradePage(presetItemId) {
   if (upgState.spinning) return; // aylanish jarayonida qayta yuklamaymiz
   upgState.yourItem = null;
   upgState.targetItem = null;
@@ -7434,6 +7491,9 @@ async function initUpgradePage() {
     upgState.catalog = (await catRes.json()).items || [];
   } catch (e) {
     console.error("Upgrade ma'lumotlari yuklanmadi:", e.message);
+  }
+  if (presetItemId) {
+    pickUpgradeItem(presetItemId);
   }
 }
 

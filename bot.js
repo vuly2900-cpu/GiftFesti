@@ -338,6 +338,48 @@ async function handleSuccessfulPayment(msg) {
       { parse_mode: 'Markdown' });
   }
 
+  // Omad Case Stars orqali sotib olingan bo'lsa — alohida ichki API
+  if (payload.startsWith('fortunecase:')) {
+    let caseResult;
+    try {
+      caseResult = await internalApiPost('/api/internal_fortune_case_credit', {
+        payload,
+        telegramPaymentChargeId: sp.telegram_payment_charge_id,
+        totalAmount: sp.total_amount,
+      });
+    } catch (e) {
+      console.error("Omad Case kreditlashda xatolik:", e.message);
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin case ochishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (!caseResult || !caseResult.ok) {
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin case ochishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (caseResult.alreadyProcessed) return;
+    const r2 = caseResult.reward || {};
+    return sendMessage(chatId, `🍀 Omad Case ochildi! Sizga *${r2.name || ''}* tushdi. Inventoringizga tushdi — ilovadan tekshiring.`, { parse_mode: 'Markdown' });
+  }
+
+  // PEPE Case Stars orqali sotib olingan bo'lsa — alohida ichki API
+  if (payload.startsWith('pepecase:')) {
+    let caseResult;
+    try {
+      caseResult = await internalApiPost('/api/internal_pepe_case_credit', {
+        payload,
+        telegramPaymentChargeId: sp.telegram_payment_charge_id,
+        totalAmount: sp.total_amount,
+      });
+    } catch (e) {
+      console.error("PEPE Case kreditlashda xatolik:", e.message);
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin case ochishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (!caseResult || !caseResult.ok) {
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin case ochishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (caseResult.alreadyProcessed) return;
+    const r = caseResult.reward || {};
+    return sendMessage(chatId, `🐸 PEPE Case ochildi! Sizga *${r.name || ''}* tushdi. Inventoringizga tushdi — ilovadan tekshiring.`, { parse_mode: 'Markdown' });
+  }
+
   // VIP👑 Stars orqali sotib olingan bo'lsa — alohida ichki API
   if (payload.startsWith('vip:')) {
     let vipResult;

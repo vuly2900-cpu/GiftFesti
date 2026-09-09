@@ -55,10 +55,15 @@ const VIP_PRIZE_ID = 'vip_prize'; // Konkurs sovg'alari ro'yxatida ishlatiladiga
    ochish mumkin. Ichida faqat 2 ta baza NFT (heart_locked va plush_pepe),
    har biri 3 xil fon variantida (oddiy / Onyx Black / Black) chiqishi
    mumkin. Narxi: 15 000 coin YOKI 10 ta Stars (10% chegirma bilan 9 ta). ---- */
-const PEPE_CASE_PRICE_COIN = 15000;
-const PEPE_CASE_PRICE_STARS = 10;
+const PEPE_CASE_PRICE_COIN = 10000;
+const PEPE_CASE_PRICE_STARS = 40;
 const PEPE_CASE_DISCOUNT_PERCENT = 10;
-const PEPE_CASE_DISCOUNTED_STARS = Math.round(PEPE_CASE_PRICE_STARS * (1 - PEPE_CASE_DISCOUNT_PERCENT / 100)); // 9
+const PEPE_CASE_DISCOUNTED_STARS = Math.round(PEPE_CASE_PRICE_STARS * (1 - PEPE_CASE_DISCOUNT_PERCENT / 100)); // 36
+
+/* ---- Omad (Fortune) Case: 3-case. Coin yoki Telegram Stars (chegirmasiz,
+   1 ta Stars) evaziga ochiladi, cooldown yo'q. ---- */
+const FORTUNE_CASE_PRICE_COIN = 15;
+const FORTUNE_CASE_PRICE_STARS = 1;
 
 /* ============================================================
    MA'LUMOTLAR BAZASI (in-memory, db.json ga davriy saqlanadi)
@@ -96,6 +101,7 @@ function createUser(id, username) {
     nftInstancePrices: {}, // itemId -> [narx1, narx2, ...] (raketa o'yinidan yutilgan NFT'larning haqiqiy narxi)
     nftInitialized: false, // starter (tekin) NFT'lar berilganmi
     pendingPepeCaseReward: null, // PEPE Case Stars orqali sotib olinganda, to'lov tasdiqlangач frontend shu yerdan natijani oladi
+    pendingFortuneCaseReward: null, // Omad Case Stars orqali sotib olinganda, xuddi shu tarzda
     vip: { expiresAt: 0 }, // VIP👑: muddati tugagan vaqt (ms, epoch); 0 = hech qachon sotib olinmagan
     dailyTasks: {
       crash: 0,   // oxirgi marta "raketa o'ynash" vazifasi uchun coin olingan vaqt (ms)
@@ -1095,6 +1101,36 @@ function pickPepeCaseReward() {
   };
 }
 
+/* ---- Omad (Fortune) Case sovrinlari — 2 ta guruh (10 coindan past, 10-50
+   coin oralig'i) + 4 ta noyob dona (Peach, Durov's Cap, Heart Locked, Pepe).
+   Guruh ichidagi og'irlik guruh ulushiga (masalan 70) teng bo'linadi, shu
+   bilan "70% past narxlilardan birortasi tushadi" mantig'i saqlanadi. ---- */
+const FORTUNE_CASE_LOW_IDS = ['pool_float', 'lunar_snake', 'ice_cream', 'easter_egg', 'spiced_wine', 'mood_pack', 'clover_pin', 'bow_tie', 'light_sword', 'hanging_star'];
+const FORTUNE_CASE_MID_IDS = ['sakura_flower', 'top_hat', 'valentine_box', 'crystal_ball', 'love_potion', 'sky_stilettos', 'bling_binky', 'diamond_ring', 'genie_lamp', 'swiss_watch'];
+const FORTUNE_CASE_GROUP_WEIGHT = { low: 70, mid: 20 };
+const FORTUNE_CASE_ITEMS = [
+  ...FORTUNE_CASE_LOW_IDS.map(id => ({ baseId: id, weight: FORTUNE_CASE_GROUP_WEIGHT.low / FORTUNE_CASE_LOW_IDS.length })),
+  ...FORTUNE_CASE_MID_IDS.map(id => ({ baseId: id, weight: FORTUNE_CASE_GROUP_WEIGHT.mid / FORTUNE_CASE_MID_IDS.length })),
+  { baseId: 'precious_peach', weight: 5 },
+  { baseId: 'durovs_cap', weight: 4 },
+  { baseId: 'heart_locked', weight: 1 },
+  { baseId: 'plush_pepe', weight: 0.1 },
+];
+function pickFortuneCaseReward() {
+  const totalWeight = FORTUNE_CASE_ITEMS.reduce((s, o) => s + o.weight, 0);
+  let rand = Math.random() * totalWeight;
+  let picked = FORTUNE_CASE_ITEMS[FORTUNE_CASE_ITEMS.length - 1];
+  for (const o of FORTUNE_CASE_ITEMS) {
+    if (rand < o.weight) { picked = o; break; }
+    rand -= o.weight;
+  }
+  const item = NFT_BY_ID.get(picked.baseId);
+  return {
+    itemId: item.id, baseId: item.id, bg: null, bgLabel: null,
+    isGift: true, name: item.name, custom_emoji_id: item.custom_emoji_id, sell_price: item.sell_price, stars: item.sell_price,
+  };
+}
+
 /* ============================================================
    EXPRESS + SOCKET.IO SETUP
    ============================================================ */
@@ -1337,6 +1373,111 @@ app.post('/api/pepe_case/claim_result', async (req, res) => {
   const meta = await getEmojiMeta(reward.custom_emoji_id);
   reward.is_video = meta.is_video;
   user.pendingPepeCaseReward = null;
+  res.json({ ok: true, reward });
+});
+
+/* ============================================================
+   OMAD (FORTUNE) CASE (3-case) — coin yoki Stars evaziga, cooldownsiz
+   ============================================================ */
+app.get('/api/fortune_case_items', async (req, res) => {
+  const items = [];
+  for (const o of FORTUNE_CASE_ITEMS) {
+    const item = NFT_BY_ID.get(o.baseId);
+    const meta = await getEmojiMeta(item.custom_emoji_id);
+    items.push({
+      id: item.id, baseId: item.id, name: item.name, custom_emoji_id: item.custom_emoji_id,
+      sell_price: item.sell_price, weight: o.weight, is_video: meta.is_video,
+    });
+  }
+  res.json({ ok: true, items, priceCoin: FORTUNE_CASE_PRICE_COIN, priceStars: FORTUNE_CASE_PRICE_STARS });
+});
+
+app.post('/api/open_fortune_case', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const subscribed = await isSubscribed(user.id, MAIN_CHANNEL);
+  if (!subscribed) return res.status(403).json({ error: 'not_subscribed' });
+
+  ensureNftStarterPack(user);
+  if (Number(user.balance) < FORTUNE_CASE_PRICE_COIN) {
+    return res.status(400).json({ error: 'INSUFFICIENT_BALANCE', required: FORTUNE_CASE_PRICE_COIN });
+  }
+  user.balance = round2(user.balance - FORTUNE_CASE_PRICE_COIN);
+
+  const reward = pickFortuneCaseReward();
+  const meta = await getEmojiMeta(reward.custom_emoji_id);
+  reward.is_video = meta.is_video;
+  grantNftToUser(user, reward.itemId);
+  user.total_won = round2((user.total_won || 0) + reward.sell_price);
+
+  res.json({ ok: true, reward, balance: user.balance });
+});
+
+/* ---- Stars evaziga: PEPE case bilan bir xil oqim (invoice -> bot.js
+   webhook -> pendingFortuneCaseReward -> claim_result). ---- */
+app.post('/api/fortune_case/create_invoice', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  const subscribed = await isSubscribed(user.id, MAIN_CHANNEL);
+  if (!subscribed) return res.status(403).json({ error: 'not_subscribed' });
+
+  const payload = `fortunecase:${user.id}:${crypto.randomBytes(4).toString('hex')}`;
+  try {
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'GiftFesti — Omad Case',
+        description: "Omad Case'ni ochish",
+        payload,
+        currency: 'XTR',
+        prices: [{ label: 'Omad Case', amount: FORTUNE_CASE_PRICE_STARS }],
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, link: data.result, stars: FORTUNE_CASE_PRICE_STARS });
+  } catch (e) {
+    console.error('Omad case invoysi yaratishda xatolik:', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/internal_fortune_case_credit', (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const { payload, telegramPaymentChargeId, totalAmount } = req.body || {};
+
+  if (telegramPaymentChargeId && processedTopupCharges.has(telegramPaymentChargeId)) {
+    const m0 = /^fortunecase:(\d+):/.exec(String(payload || ''));
+    const existingUser = m0 ? users.get(m0[1]) : null;
+    return res.json({ ok: true, alreadyProcessed: true, reward: existingUser ? existingUser.pendingFortuneCaseReward : null });
+  }
+  const m = /^fortunecase:(\d+):/.exec(String(payload || ''));
+  if (!m) return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+  const userId = m[1];
+  if (Number(totalAmount) !== FORTUNE_CASE_PRICE_STARS) {
+    console.error(`Omad case: to'lov summasi mos kelmadi (kutilgan ${FORTUNE_CASE_PRICE_STARS}, kelgan ${totalAmount})`);
+  }
+
+  let user = users.get(userId);
+  if (!user) { user = createUser(userId, `user${userId}`); users.set(userId, user); }
+  ensureNftStarterPack(user);
+
+  const reward = pickFortuneCaseReward();
+  grantNftToUser(user, reward.itemId);
+  user.total_won = round2((user.total_won || 0) + reward.sell_price);
+  user.pendingFortuneCaseReward = reward;
+  if (telegramPaymentChargeId) processedTopupCharges.add(telegramPaymentChargeId);
+
+  res.json({ ok: true, reward });
+});
+
+app.post('/api/fortune_case/claim_result', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const reward = user.pendingFortuneCaseReward || null;
+  if (!reward) return res.json({ ok: true, reward: null });
+  const meta = await getEmojiMeta(reward.custom_emoji_id);
+  reward.is_video = meta.is_video;
+  user.pendingFortuneCaseReward = null;
   res.json({ ok: true, reward });
 });
 

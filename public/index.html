@@ -1556,9 +1556,9 @@
 
     <div class="mini-row">
       <div class="game-card case-mini" onclick="goTo('cases')">
-        <span class="mini-badge" data-i18n="badge_free24h">FREE 24H</span>
+        <span class="mini-badge" data-i18n="badge_free24h">2 TA</span>
         <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
-        <span class="game-name" data-i18n="game_case">Kunlik Case</span>
+        <span class="game-name" data-i18n="game_case">Case'lar</span>
       </div>
       <div class="game-card upgrade-mini" onclick="openGame('upgrade')">
         <span class="mini-badge" data-i18n="badge_new">NEW</span>
@@ -2160,11 +2160,28 @@
 </div>
 
 <!-- ... Admin boshqaruv paneli ... -->
-<div class="modal-overlay" id="adminModal">
+<!-- ADMIN PAROL MODAL — window.prompt() o'rniga, chunki Telegram in-app
+     brauzerining ba'zi versiyalarida native prompt() dialogidan keyin
+     WebView input maydonlariga fokus bera olmay qoladi (klaviatura
+     chiqmaydi, <select> ochilmaydi). Shu sabab parol ham oddiy sahifa
+     ichidagi <input> orqali so'raladi. -->
+<div class="modal-overlay" id="adminPasswordModal" onclick="if(event.target===this) closeAdminPasswordModal()">
   <div class="modal-window">
-    <button class="modal-close" onclick="toggleAdminModal(false)">×</button>
-    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px; color:var(--gold);">⚙️ Admin boshqaruv paneli</h2>
-    
+    <button class="modal-close" onclick="closeAdminPasswordModal()">×</button>
+    <h2 style="font-size:16px; font-weight:700; margin-bottom:14px; color:var(--gold);">🔒 Admin paroli</h2>
+    <input type="password" id="adminPasswordInput" placeholder="Parolni kiriting" autocomplete="off" onkeydown="if(event.key==='Enter') submitAdminPassword()">
+    <p id="adminPasswordMsg" style="font-size:12px; margin-top:8px; color:var(--danger); display:none;">Parol noto'g'ri!</p>
+    <button class="btn" style="width:100%; margin-top:10px;" onclick="submitAdminPassword()">Kirish</button>
+  </div>
+</div>
+
+<section class="page" id="page-admin">
+  <div class="hockey-topbar">
+    <button class="hockey-back" onclick="goTo('profile')">‹</button>
+    <div class="game-number-badge mono">Admin panel</div>
+    <span style="width:34px;"></span>
+  </div>
+  <div style="padding:2px 2px 20px;">
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
       <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--success);"><span class="coin-ico"></span> Foydalanuvchiga Coin berish</p>
       <input type="text" id="a_userTid" placeholder="Foydalanuvchi Telegram ID si">
@@ -2295,7 +2312,7 @@
       <button class="btn danger" style="width:100%;" onclick="adminResetEverything()">Hamma narsani 0 dan boshlash</button>
     </div>
   </div>
-</div>
+</section>
 
 <nav class="bottomnav">
   <button class="navbtn" data-page="rating" onclick="goTo('rating')"><span class="ic">🏆</span><span data-i18n="nav_rating">Reyting</span></button>
@@ -2404,8 +2421,8 @@ const LANG_CHOSEN_KEY = 'gf_lang_chosen';
 const I18N = {
   uz: {
     nav_rating: "Reyting", nav_tasks: "Vazifalar", nav_play: "O'ynash", nav_konkurs: "Konkurs", nav_profile: "Profil",
-    badge_hot: "Hot", badge_free24h: "FREE 24H", badge_new: "NEW", badge_physics: "Mukammal Fizika", badge_hit: "Hit",
-    game_rocket: "RAKETA", game_pvp: "Battle PvP", game_case: "Kunlik Case", game_upgrade: "UPGRADE", game_hockey: "Xokkey", game_drum: "Baraban",
+    badge_hot: "Hot", badge_free24h: "2 TA", badge_new: "NEW", badge_physics: "Mukammal Fizika", badge_hit: "Hit",
+    game_rocket: "RAKETA", game_pvp: "Battle PvP", game_case: "Case'lar", game_upgrade: "UPGRADE", game_hockey: "Xokkey", game_drum: "Baraban",
     topup_btn: "To'ldirish",
     settings_title: "Sozlamalar", settings_bg_label: "Fon", settings_lang_label: "Til",
     vip_card_sub_inactive: "Raketa, Hokkey va Barabanda maxsus imtiyozlar",
@@ -2425,8 +2442,8 @@ const I18N = {
   },
   ru: {
     nav_rating: "Рейтинг", nav_tasks: "Задания", nav_play: "Играть", nav_konkurs: "Конкурс", nav_profile: "Профиль",
-    badge_hot: "Хит", badge_free24h: "БЕСПЛ. 24Ч", badge_new: "НОВОЕ", badge_physics: "Идеальная физика", badge_hit: "Хит",
-    game_rocket: "РАКЕТА", game_pvp: "Battle PvP", game_case: "Ежедн. кейс", game_upgrade: "АПГРЕЙД", game_hockey: "Хоккей", game_drum: "Барабан",
+    badge_hot: "Хит", badge_free24h: "2 ШТ", badge_new: "НОВОЕ", badge_physics: "Идеальная физика", badge_hit: "Хит",
+    game_rocket: "РАКЕТА", game_pvp: "Battle PvP", game_case: "Кейсы", game_upgrade: "АПГРЕЙД", game_hockey: "Хоккей", game_drum: "Барабан",
     topup_btn: "Пополнить",
     settings_title: "Настройки", settings_bg_label: "Фон", settings_lang_label: "Язык",
     vip_card_sub_inactive: "Особые привилегии в Ракете, Хоккее и Барабане",
@@ -2446,8 +2463,8 @@ const I18N = {
   },
   en: {
     nav_rating: "Rating", nav_tasks: "Tasks", nav_play: "Play", nav_konkurs: "Contest", nav_profile: "Profile",
-    badge_hot: "Hot", badge_free24h: "FREE 24H", badge_new: "NEW", badge_physics: "Perfect Physics", badge_hit: "Hit",
-    game_rocket: "ROCKET", game_pvp: "Battle PvP", game_case: "Daily Case", game_upgrade: "UPGRADE", game_hockey: "Hockey", game_drum: "Drum",
+    badge_hot: "Hot", badge_free24h: "2 CASES", badge_new: "NEW", badge_physics: "Perfect Physics", badge_hit: "Hit",
+    game_rocket: "ROCKET", game_pvp: "Battle PvP", game_case: "Cases", game_upgrade: "UPGRADE", game_hockey: "Hockey", game_drum: "Drum",
     topup_btn: "Top up",
     settings_title: "Settings", settings_bg_label: "Background", settings_lang_label: "Language",
     vip_card_sub_inactive: "Special perks in Rocket, Hockey and Drum",
@@ -2532,11 +2549,40 @@ const SIMPLE_ADMIN_GIVE_VIP_API_URL = '/api/simple_admin_give_vip';
 // davomida eslab qolamiz. Bu parol serverdagi ADMIN_PASSWORD bilan solishtiriladi —
 // hatto Telegram ID soxtalashtirilsa ham, bu parolsiz admin amallari ishlamaydi.
 let adminPasswordCache = '';
-function ensureAdminPassword() {
-  if (!adminPasswordCache) {
-    adminPasswordCache = window.prompt('Admin parolini kiriting:') || '';
-  }
-  return adminPasswordCache;
+// window.prompt() ISHLATILMAYDI: Telegram in-app brauzerining ba'zi
+// versiyalarida (ayniqsa Android) native prompt()/alert() dialogidan keyin
+// WebView sahifadagi <input>/<select> elementlariga fokus bera olmay qoladi
+// — natijada admin panel ochiladi-yu, hech narsa yozib yoki tanlab bo'lmaydi.
+// Shuning uchun parol maxsus in-page modal (#adminPasswordModal) orqali
+// so'raladi, native dialog umuman chaqirilmaydi.
+let pendingAdminModalOpen = null; // parol kiritilgach qaysi funksiya chaqirilishi kerak
+
+function ensureAdminPassword(onReady) {
+  if (adminPasswordCache) { onReady(); return; }
+  pendingAdminModalOpen = onReady;
+  const modal = document.getElementById('adminPasswordModal');
+  const input = document.getElementById('adminPasswordInput');
+  const msg = document.getElementById('adminPasswordMsg');
+  if (msg) msg.style.display = 'none';
+  if (input) input.value = '';
+  modal.classList.add('active');
+  setTimeout(() => input && input.focus(), 100);
+}
+
+function closeAdminPasswordModal() {
+  document.getElementById('adminPasswordModal').classList.remove('active');
+  pendingAdminModalOpen = null;
+}
+
+function submitAdminPassword() {
+  const input = document.getElementById('adminPasswordInput');
+  const val = (input && input.value || '').trim();
+  if (!val) return;
+  adminPasswordCache = val;
+  document.getElementById('adminPasswordModal').classList.remove('active');
+  const cb = pendingAdminModalOpen;
+  pendingAdminModalOpen = null;
+  if (cb) cb();
 }
 const CLAIM_TASK_API_URL = '/api/claim_task';
 const DAILY_TASKS_API_URL = '/api/daily_tasks';
@@ -3491,6 +3537,7 @@ function goTo(pageName) {
   if (pageName === 'cases') renderCasesList();
   if (pageName === 'case') initCasePage();
   if (pageName === 'case-pepe') initPepeCasePage();
+  if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
   if (pageName === 'upgrade') initUpgradePage();
   if (pageName === 'crash') initCrashPage();
   else if (crashUnsubscribe) { crashUnsubscribe(); crashUnsubscribe = null; }
@@ -4938,9 +4985,11 @@ async function sellNft(itemId, sellPrice) {
 }
 
 function toggleAdminModal(show) {
-  const modal = document.getElementById('adminModal');
-  if(show) { ensureAdminPassword(); modal.classList.add('active'); loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
-  else modal.classList.remove('active');
+  if (show) {
+    ensureAdminPassword(() => goTo('admin'));
+  } else {
+    goTo('profile');
+  }
 }
 
 async function loadAdminLeaderboardEndDisplay() {
@@ -5120,7 +5169,13 @@ async function callAdminAction(action, payload = {}) {
   });
   const data = await res.json();
   if (!res.ok) {
-    if (data.error === 'wrong_password') { adminPasswordCache = ''; alert("Admin paroli noto'g'ri!"); }
+    if (data.error === 'wrong_password') {
+      adminPasswordCache = '';
+      const msg = document.getElementById('adminPasswordMsg');
+      if (msg) msg.style.display = 'block';
+      document.getElementById('adminPasswordModal').classList.add('active');
+      setTimeout(() => document.getElementById('adminPasswordInput')?.focus(), 100);
+    }
     throw new Error(data.error || 'server_error');
   }
   return data;
@@ -5139,8 +5194,11 @@ async function adminGiveStars() {
 /* ==================== ODDIY ADMIN: faqat ID orqali coin berish ==================== */
 function toggleSimpleAdminModal(show) {
   const modal = document.getElementById('simpleAdminModal');
-  if (show) { ensureAdminPassword(); modal.classList.add('active'); }
-  else { modal.classList.remove('active'); }
+  if (show) {
+    ensureAdminPassword(() => modal.classList.add('active'));
+  } else {
+    modal.classList.remove('active');
+  }
 }
 async function simpleAdminGiveCoin() {
   const msg = document.getElementById('sa_msg');

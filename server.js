@@ -3404,6 +3404,7 @@ server.listen(PORT, () => {
   console.log(`GIFT FESTI APP server ${PORT}-portda ishga tushdi`);
   console.log(`Admin ID'lar: ${ADMIN_IDS.length ? ADMIN_IDS.join(', ') : "(hech biri belgilanmagan — .env dagi ADMIN_IDS ni to'ldiring)"}`);
   if (!BOT_TOKEN) console.warn("OGOHLANTIRISH: BOT_TOKEN sozlanmagan — initData tekshirilmaydi (faqat dev/test uchun xavfsiz)!");
+  if (!ADMIN_PASSWORD) console.warn("OGOHLANTIRISH: ADMIN_PASSWORD sozlanmagan — admin panelda parol qatlami O'CHIQ! Railway > Variables dan uzun tasodifiy parol qo'ying.");
   // Raketa (Crash) — barcha foydalanuvchilar uchun umumiy raund tsikli
   // server ishga tushgan zahoti avtomatik boshlanadi (haqiqiy kazino
   // o'yinlariga o'xshab, o'yinchi kutib o'tirmasdan ham raundlar davom etadi).

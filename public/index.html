@@ -1777,6 +1777,9 @@
       <p class="subtitle">Har 24 soatda 1 marta bepul case oching</p>
     </div>
 
+    <div class="case-timer" id="caseTimer" style="display:none;"></div>
+    <button class="btn" id="caseOpenBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openDailyCase()">🎁 Caseni ochish</button>
+
     <div class="case-reel-wrap" id="caseReelWrap" style="display:none;">
       <div class="case-reel-pointer"></div>
       <div class="case-reel-viewport">
@@ -1786,8 +1789,6 @@
 
     <div class="case-items-grid" id="caseItemsGrid"></div>
 
-    <div class="case-timer" id="caseTimer" style="display:none;"></div>
-    <button class="btn" id="caseOpenBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openDailyCase()">🎁 Caseni ochish</button>
     <p class="case-odds-note">G'olib gift avtomatik sotiladi va <span class="coin-ico"></span> balansingizga tushadi</p>
   </section>
 
@@ -1804,6 +1805,15 @@
       <p class="subtitle">Heart Locked va Plush Pepe — oddiy, Onyx Black yoki Black fon bilan chiqishi mumkin</p>
     </div>
 
+    <div class="pepe-case-buy-row">
+      <button class="btn" id="pepeCaseOpenCoinBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openPepeCaseWithCoin()">
+        🎁 <span id="pepeCaseCoinPriceLabel">10 000</span> <span class="coin-ico"></span> bilan ochish
+      </button>
+      <button class="btn secondary" id="pepeCaseOpenStarsBtn" style="width:100%; padding:14px; font-size:15px; margin-top:10px;" onclick="openPepeCaseWithStars()">
+        ⭐ <span id="pepeCaseStarsPriceLabel">36</span> Stars bilan ochish <span id="pepeCaseStarsOldPrice" class="pepe-case-old-price">40</span>
+      </button>
+    </div>
+
     <div class="case-reel-wrap" id="pepeCaseReelWrap" style="display:none;">
       <div class="case-reel-pointer"></div>
       <div class="case-reel-viewport">
@@ -1813,14 +1823,6 @@
 
     <div class="case-items-grid" id="pepeCaseItemsGrid"></div>
 
-    <div class="pepe-case-buy-row">
-      <button class="btn" id="pepeCaseOpenCoinBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openPepeCaseWithCoin()">
-        🎁 <span id="pepeCaseCoinPriceLabel">15 000</span> <span class="coin-ico"></span> bilan ochish
-      </button>
-      <button class="btn secondary" id="pepeCaseOpenStarsBtn" style="width:100%; padding:14px; font-size:15px; margin-top:10px;" onclick="openPepeCaseWithStars()">
-        ⭐ <span id="pepeCaseStarsPriceLabel">9</span> Stars bilan ochish <span id="pepeCaseStarsOldPrice" class="pepe-case-old-price">10</span>
-      </button>
-    </div>
     <p class="case-odds-note">G'olib gift inventoringizga tushadi — Profil bo'limidan sotishingiz mumkin</p>
   </section>
 
@@ -1837,15 +1839,6 @@
       <p class="subtitle">Kichik gift'lardan tortib Peach, Durov's Cap, Heart Locked va Pepe'gacha — hammasi bitta case'da</p>
     </div>
 
-    <div class="case-reel-wrap" id="fortuneCaseReelWrap" style="display:none;">
-      <div class="case-reel-pointer"></div>
-      <div class="case-reel-viewport">
-        <div class="case-reel-track" id="fortuneCaseReelTrack"></div>
-      </div>
-    </div>
-
-    <div class="case-items-grid" id="fortuneCaseItemsGrid"></div>
-
     <div class="pepe-case-buy-row">
       <button class="btn" id="fortuneCaseOpenBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openFortuneCaseWithCoin()">
         🎁 <span id="fortuneCaseCoinPriceLabel">15</span> <span class="coin-ico"></span> bilan ochish
@@ -1854,6 +1847,15 @@
         ⭐ <span id="fortuneCaseStarsPriceLabel">1</span> Stars bilan ochish
       </button>
     </div>
+
+    <div class="case-reel-wrap" id="fortuneCaseReelWrap" style="display:none;">
+      <div class="case-reel-pointer"></div>
+      <div class="case-reel-viewport">
+        <div class="case-reel-track" id="fortuneCaseReelTrack"></div>
+      </div>
+    </div>
+
+    <div class="case-items-grid" id="fortuneCaseItemsGrid"></div>
     <p class="case-odds-note">G'olib gift inventoringizga tushadi — Profil bo'limidan sotishingiz mumkin</p>
   </section>
 

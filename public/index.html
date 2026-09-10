@@ -741,6 +741,21 @@
   .pvp-dot.pink{background:#EC4899;}
   .pvp-dot.green{background:#22C55E;}
 
+  /* ---- CASE'LAR kartasi (bosh sahifa) — yangi banner dizayn ---- */
+  .game-card.case-home-banner{
+    padding:0; background:#1F1706; overflow:hidden;
+    min-height:0; height:auto; aspect-ratio:1455/1081;
+    display:block;
+  }
+  .game-card.case-home-banner .gc-banner-img{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:cover; object-position:center; display:block;
+  }
+  /* Banner rasmning o'zida matn/belgilar bor — eski overlay elementlar yashiriladi */
+  .game-card.case-home-banner .mini-badge,
+  .game-card.case-home-banner .mini-icon-visual,
+  .game-card.case-home-banner .game-name{display:none;}
+
   /* ---- FREE 24H / FREE kichik kartalar qatori ---- */
   .mini-row{display:flex; gap:12px;}
   .mini-row .game-card{flex:1; align-items:flex-start; text-align:left;}
@@ -1567,12 +1582,14 @@
       </div>
     </div>
 
+    <div class="game-card case-mini case-home-banner" onclick="goTo('cases')">
+      <img class="gc-banner-img" src="banners/case_banner.webp" alt="Case'lar">
+      <span class="mini-badge" data-i18n="badge_free24h">2 TA</span>
+      <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
+      <span class="game-name" data-i18n="game_case">Case'lar</span>
+    </div>
+
     <div class="mini-row">
-      <div class="game-card case-mini" onclick="goTo('cases')">
-        <span class="mini-badge" data-i18n="badge_free24h">2 TA</span>
-        <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
-        <span class="game-name" data-i18n="game_case">Case'lar</span>
-      </div>
       <div class="game-card upgrade-mini" onclick="openGame('upgrade')">
         <span class="mini-badge" data-i18n="badge_new">NEW</span>
         <div class="mini-icon-visual upg-duo-visual" id="gcVisualUpgrade">

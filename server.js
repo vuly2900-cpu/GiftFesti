@@ -2170,7 +2170,7 @@ function requireSimpleAdmin(req, res) {
 function resetGameState(game) {
   if (game === 'hockey') { clearTimeout(gameTimers.hockey); hockeyState = defaultHockeyState(); emitState('hockey'); }
   else if (game === 'drum') { clearTimeout(gameTimers.drum); drumState = defaultDrumState(); emitState('drum'); }
-  else if (game === 'wheel') { clearTimeout(wheelTimer); wheelState = defaultWheelState(); emitWheelState(); }
+  else if (game === 'wheel') { clearTimeout(wheelTimer); wheelState = defaultWheelState(); startWheelRound(); }
   gameHistory[game] = [];
 }
 
@@ -3044,7 +3044,9 @@ const WHEEL_OUTCOMES = [
   { mult: 0, weight: 11, color: '#6B7280' },  // kulrang — bo'sh (hech kim yutmaydi)
 ];
 const WHEEL_BETTABLE_MULTS = WHEEL_OUTCOMES.filter(o => o.mult > 0).map(o => o.mult);
-const WHEEL_WAIT_SECONDS = 15;
+// Endi raund odam tikkanda emas, doim FIKS jadval bo'yicha (har 20 soniyada)
+// avtomatik boshlanadi va hal qilinadi — odam tiksa ham, tikmasa ham.
+const WHEEL_WAIT_SECONDS = 20;
 const WHEEL_SPIN_MS = 6150;
 const WHEEL_COOLDOWN_MS = 5000;
 let wheelTimer = null;
@@ -3055,12 +3057,16 @@ function defaultWheelState() {
 let wheelState = defaultWheelState();
 function emitWheelState() { io.emit('wheel:state', wheelState); }
 
-function startWheelBettingTimer() {
+// Doimiy avtomatik sikl: tikish oynasini ochadi va WHEEL_WAIT_SECONDS
+// o'tgach — kamida bitta tikish bo'lsa ham, bo'lmasa ham — raundni hal qiladi.
+function startWheelRound() {
   clearTimeout(wheelTimer);
+  wheelState.status = 'betting';
+  wheelState.bettingStartedAt = Date.now();
+  emitWheelState();
   wheelTimer = setTimeout(onWheelBettingTimeout, WHEEL_WAIT_SECONDS * 1000);
 }
 function onWheelBettingTimeout() {
-  if (wheelState.bets.length < 1) return;
   resolveWheelRound();
 }
 
@@ -3123,9 +3129,14 @@ function finalizeWheelRound() {
   setTimeout(() => {
     const gnum = wheelState.game_number + 1;
     wheelState = { ...defaultWheelState(), game_number: gnum };
-    emitWheelState();
+    startWheelRound(); // keyingi raund avtomatik, odam tikishini kutmasdan boshlanadi
   }, WHEEL_COOLDOWN_MS);
 }
+
+// Server ishga tushganda baraban aylanish siklini darhol boshlaymiz —
+// shu paytdan boshlab u to'xtovsiz, har WHEEL_WAIT_SECONDS soniyada bir marta
+// hal qilinib, avtomatik davom etaveradi.
+startWheelRound();
 
 /* ---- Tikish (wheel) — multiplikator tanlab tikish ---- */
 app.post('/api/wheel/bet', (req, res) => {
@@ -3138,7 +3149,7 @@ app.post('/api/wheel/bet', (req, res) => {
   if (!amt || amt < 0.1) return res.status(400).json({ error: 'invalid_amount' });
   if (amt > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
 
-  if (wheelState.status === 'spinning_visual' || wheelState.status === 'cooldown') {
+  if (wheelState.status !== 'betting') {
     return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
   }
 
@@ -3153,11 +3164,9 @@ app.post('/api/wheel/bet', (req, res) => {
   }
   wheelState.pot = round2(wheelState.pot + amt);
 
-  if (wheelState.status === 'idle') {
-    wheelState.status = 'betting';
-    wheelState.bettingStartedAt = Date.now();
-    startWheelBettingTimer();
-  }
+  // Diqqat: raund holati/taymeri endi bu yerda boshqarilmaydi — baraban
+  // odam tikkanidan qat'iy nazar o'zining FIKS jadvali (har 20 soniyada)
+  // bo'yicha avtomatik aylanaveradi (pastdagi startWheelRound siklga qarang).
   maybeGrantDailyGameTask(user, 'wheel');
   emitWheelState();
   res.json({ ok: true, balance: user.balance });

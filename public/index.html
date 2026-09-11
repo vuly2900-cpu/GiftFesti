@@ -1012,6 +1012,40 @@
     text-align:center; color:var(--text-dim); font-size:13px; padding:0 30px; z-index:2;
   }
 
+  /* WHEEL (SOLO) — ko'p bo'lakli halqa baraban, 2-rasmdagidek */
+  .mwheel-wrap{ position:relative; width:270px; height:270px; }
+  .mwheel-ring{
+    position:absolute; inset:0;
+    transform:rotate(0deg);
+    transition: transform 6s cubic-bezier(.15,.65,.1,1);
+  }
+  .mwheel-track{
+    position:absolute; inset:30px; border-radius:50%;
+    background:#0E1116;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), 0 8px 22px rgba(0,0,0,.45);
+  }
+  .mwheel-pockets{ position:absolute; inset:0; }
+  .mwheel-pocket{
+    position:absolute; left:50%; top:50%;
+    border-radius:999px;
+    box-shadow:0 1px 2px rgba(0,0,0,.45);
+  }
+  .mwheel-center{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:54px; height:54px; border-radius:50%; background:var(--surface);
+    border:2px solid var(--gold); z-index:6;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:15px; color:var(--gold);
+    box-shadow:0 4px 12px rgba(0,0,0,.4);
+  }
+  .mwheel-pointer{
+    position:absolute; top:-4px; left:50%; transform:translateX(-50%);
+    width:0; height:0; z-index:8;
+    border-left:12px solid transparent; border-right:12px solid transparent;
+    border-top:20px solid var(--gold);
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));
+  }
+
   /* GIFT UPGRADE O'YINI */
   .upg-card{
     background:linear-gradient(180deg, var(--surface-2), var(--surface));
@@ -1752,12 +1786,13 @@
 
     <div class="drum-arena" id="wheelArena">
       <div class="arena-loader" id="wheelLoader"><div class="spin"></div><span>Yuklanmoqda...</span></div>
-      <div class="drum-wheel-wrap">
-        <div class="drum-pointer"></div>
-        <div class="drum-wheel" id="wheelWheel">
-          <div id="wheelSegments" class="drum-segments"></div>
+      <div class="mwheel-wrap">
+        <div class="mwheel-pointer"></div>
+        <div class="mwheel-ring" id="wheelWheel">
+          <div class="mwheel-track"></div>
+          <div id="wheelSegments" class="mwheel-pockets"></div>
         </div>
-        <div class="drum-center-dot" id="wheelCenterDot">?</div>
+        <div class="mwheel-center" id="wheelCenterDot">?</div>
       </div>
     </div>
 
@@ -7748,8 +7783,15 @@ let wheelSelectedMult = 2;
 let wheelSpinTimeout = null;
 let wheelBettingCountdownInterval = null;
 let wheelUnsubscribe = null;
-const WHEEL_BETTING_WAIT_SECONDS = 15;
+const WHEEL_BETTING_WAIT_SECONDS = 20;
 const WHEEL_SPIN_DURATION_MS = 6000;
+
+// Halqadagi vizual "cho'ntak"lar soni (2-rasmdagi ko'p bo'lakli ko'rinish
+// uchun) — har bir rang ulushiga mutanosib takrorlanadi, keyin bir-biriga
+// yopishib qolmasligi uchun aralashtirib chiqiladi.
+const WHEEL_RING_SIZE = 28;
+const WHEEL_RING_RADIUS = 118; // px, markazdan cho'ntak markazigacha
+let wheelRingPattern = [];
 
 function initWheelPage() {
   if (wheelUnsubscribe) wheelUnsubscribe();
@@ -7788,7 +7830,7 @@ function initWheelPage() {
     } else if (wheelState.status === 'spinning_visual') {
       if (wheelBettingCountdownInterval) { clearInterval(wheelBettingCountdownInterval); wheelBettingCountdownInterval = null; }
       if (prevStatus !== 'spinning_visual') {
-        startWheelSpinAnimation(wheelState.wheelSeed);
+        startWheelSpinAnimation();
       }
     } else if (wheelState.status === 'cooldown') {
       if (wheelBettingCountdownInterval) { clearInterval(wheelBettingCountdownInterval); wheelBettingCountdownInterval = null; }
@@ -7817,40 +7859,72 @@ function resetWheelVisual() {
   if (banner) banner.classList.remove('show');
 }
 
-function computeWheelSegments() {
-  const total = WHEEL_OUTCOMES_CLIENT.reduce((s, o) => s + o.weight, 0);
-  let cursor = 0;
-  return WHEEL_OUTCOMES_CLIENT.map(o => {
-    const size = o.weight / total * 360;
-    const seg = { outcome: o, startDeg: cursor, endDeg: cursor + size };
-    cursor += size;
-    return seg;
-  });
+// Har bir rangni o'z ulushiga mutanosib sonda, lekin bir-biriga yopishib
+// qolmaydigan tartibda taqsimlaydi (masalan A,B,A,C,A,B,A,D,A,B,A,C... kabi
+// tekis aralashgan holda) — 2-rasmdagi ko'p bo'lakli halqaga o'xshash bo'lishi
+// uchun. Bu faqat VIZUAL taqsimot; g'olib multiplikatorni server belgilaydi,
+// ehtimollikka ta'sir qilmaydi.
+function fairInterleaveWheel(items, counts) {
+  const total = counts.reduce((a, b) => a + b, 0);
+  const acc = counts.map(() => 0);
+  const order = [];
+  for (let slot = 0; slot < total; slot++) {
+    let bestIdx = 0, bestVal = -Infinity;
+    for (let i = 0; i < counts.length; i++) {
+      acc[i] += counts[i];
+      if (acc[i] > bestVal) { bestVal = acc[i]; bestIdx = i; }
+    }
+    acc[bestIdx] -= total;
+    order.push(items[bestIdx]);
+  }
+  return order;
+}
+
+function buildWheelRingPattern() {
+  const N = WHEEL_RING_SIZE;
+  const totalW = WHEEL_OUTCOMES_CLIENT.reduce((s, o) => s + o.weight, 0);
+  let counts = WHEEL_OUTCOMES_CLIENT.map(o => Math.max(1, Math.round(o.weight / totalW * N)));
+  let diff = N - counts.reduce((a, b) => a + b, 0);
+  while (diff !== 0) {
+    const idx = counts.indexOf(Math.max(...counts));
+    if (diff > 0) { counts[idx]++; diff--; }
+    else { counts[idx] = Math.max(1, counts[idx] - 1); diff++; }
+  }
+  return fairInterleaveWheel(WHEEL_OUTCOMES_CLIENT, counts);
 }
 
 function renderWheelSegmentsStatic() {
   const segEl = document.getElementById('wheelSegments');
   if (!segEl) return;
-  const segments = computeWheelSegments();
-  const gradientParts = segments.map(s => `${s.outcome.color} ${s.startDeg}deg ${s.outcome.mult === 0 ? s.endDeg : s.endDeg}deg`).join(', ');
-  segEl.style.background = `conic-gradient(${gradientParts})`;
-  segEl.innerHTML = '';
+  wheelRingPattern = buildWheelRingPattern();
+  const N = wheelRingPattern.length;
+  const segAngle = 360 / N;
+  const circumference = 2 * Math.PI * WHEEL_RING_RADIUS;
+  const pillLen = Math.max(10, circumference / N - 5);
+  const pillThickness = 15;
+  segEl.innerHTML = wheelRingPattern.map((o, i) => {
+    const ang = i * segAngle;
+    return `<div class="mwheel-pocket" style="width:${pillLen}px; height:${pillThickness}px; background:${o.color}; transform:translate(-50%,-50%) rotate(${ang}deg) translateY(-${WHEEL_RING_RADIUS}px);"></div>`;
+  }).join('');
 }
 
-function startWheelSpinAnimation(seed) {
+function startWheelSpinAnimation() {
   if (wheelSpinTimeout) clearTimeout(wheelSpinTimeout);
 
   const wheel = document.getElementById('wheelWheel');
   const cd = document.getElementById('wheelCountdown');
-  const angle = seed ? seed.angle : Math.random() * 360;
+  const outcome = (wheelState.result) || { multiplier: 0, color: '#6B7280' };
 
-  const segments = computeWheelSegments();
-  let winSeg = segments[segments.length - 1];
-  const hit = segments.find(s => angle >= s.startDeg && angle < s.endDeg);
-  if (hit) winSeg = hit;
+  // G'olib multiplikatorga mos keluvchi cho'ntaklardan tasodifiy bittasini
+  // tanlaymiz va halqani aynan o'sha cho'ntak ko'rsatgich ostiga kelguncha
+  // aylantiramiz.
+  const N = wheelRingPattern.length || WHEEL_RING_SIZE;
+  const segAngle = 360 / N;
+  const matches = wheelRingPattern.map((o, i) => ({ o, i })).filter(x => x.o.mult === outcome.multiplier);
+  const pick = matches.length ? matches[Math.floor(Math.random() * matches.length)] : { i: 0 };
+  const jitter = (Math.random() - 0.5) * segAngle * 0.5;
+  const angle = ((pick.i * segAngle + jitter) % 360 + 360) % 360;
 
-  // Ko'rsatgich tepada (0deg) qotib turadi, g'olib segment aynan yuqoriga
-  // kelib to'xtashi uchun kerakli burchakka SPINS marta aylantiriladi.
   const SPINS = 6;
   const targetRotation = SPINS * 360 + (360 - angle);
 
@@ -7864,7 +7938,7 @@ function startWheelSpinAnimation(seed) {
   });
 
   wheelSpinTimeout = setTimeout(() => {
-    finishWheelRound(winSeg.outcome);
+    finishWheelRound(outcome);
   }, WHEEL_SPIN_DURATION_MS + 150);
 }
 

@@ -809,11 +809,10 @@ const ROCKET_CUSTOM_EMOJI_IDS = ['5188481279963715781', '5463424023734014980'];
 /* ---- "O'ynash" sahifasidagi o'yin kartalari uchun premium animatsiyali emojilar
    (kartaning o'ng tomonidagi vizual) ---- */
 const GAME_CARD_EMOJI_IDS = {
-  crash: '5341655069462910390',
+  // crash va pvp — endi statik rasm (public/game-icons/) ishlatiladi, shuning uchun bu yerdan olib tashlandi
   case: '5203919539909182007',
   hockey: '5415590569231532234',
   drum: '5994377540246966428',
-  pvp: '5391267224541474941',
   upgradeDown: '5231055126105439276',
   upgradeUp: '5228940017920917247',
 };

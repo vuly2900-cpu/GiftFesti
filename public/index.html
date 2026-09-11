@@ -541,15 +541,6 @@
   .game-card.upgrade{background:linear-gradient(135deg,#123524,#0d211a);}
   .game-card.wheel{background:linear-gradient(135deg,#2A1B3A,#180f21);}
 
-  /* ---- Rasm-asosidagi banner kartalar (Raketa/PVP) ---- */
-  .game-card-banner{
-    display:block; width:100%; border-radius:16px; overflow:hidden;
-    margin-bottom:12px; cursor:pointer; line-height:0;
-    transition:transform .15s ease;
-  }
-  .game-card-banner:active{transform:scale(.98);}
-  .game-card-banner img{width:100%; height:auto; display:block;}
-
   /* ---- RAKETA kartasi — cosmic dizayn ---- */
   .game-card.crash{
     padding-right:112px;
@@ -1721,12 +1712,22 @@
       <button class="play-topup-btn" onclick="openTopupOverlay()">💳 <span data-i18n="topup_btn">To'ldirish</span></button>
     </div>
 
-    <div class="game-card-banner" onclick="openGame('crash')">
-      <img src="/banners/raketa_banner.png" alt="RAKETA">
+    <div class="game-card crash" onclick="openGame('crash')">
+      <span class="game-badge hot">⚡ <span data-i18n="badge_hot">Hot</span></span>
+      <span class="game-name">🚀 <span data-i18n="game_rocket">RAKETA</span></span>
+      <div class="game-card-visual" id="gcVisualCrash"><span class="fallback-emoji">🚀</span></div>
     </div>
 
-    <div class="game-card-banner" onclick="goTo('pvp')">
-      <img src="/banners/pvp_banner.png" alt="PVP">
+    <div class="game-card pvp" onclick="goTo('pvp')">
+      <div class="pvp-left">
+        <div class="mini-icon-visual" id="gcVisualPvp" style="width:26px;height:26px;margin-top:0;"><span class="fallback-emoji" style="font-size:22px;">⚔️</span></div>
+        <span class="game-name" data-i18n="game_pvp">Battle PvP</span>
+      </div>
+      <div class="pvp-avatars">
+        <span class="pvp-dot purple"></span>
+        <span class="pvp-dot pink"></span>
+        <span class="pvp-dot green"></span>
+      </div>
     </div>
 
     <div class="mini-row">

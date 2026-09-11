@@ -584,6 +584,9 @@
   .mini-icon-visual.gc-static.pvp-visual{
     width:56px; height:50px;
   }
+  .mini-icon-visual.gc-static.dice-visual{
+    width:52px; height:52px; margin-top:6px;
+  }
 
   /* ---- RAKETA (CRASH) ---- */
   .crash-arena{position:relative; height:230px; border-radius:16px; overflow:hidden; margin-bottom:14px;
@@ -1743,7 +1746,7 @@
     <div class="mini-row">
       <div class="game-card dice-mini" onclick="goTo('dice')">
         <span class="mini-badge" data-i18n="badge_new">NEW</span>
-        <div class="mini-icon-visual" id="gcVisualDice"><span class="fallback-emoji">🎲</span></div>
+        <div class="mini-icon-visual gc-static dice-visual" id="gcVisualDice"><img class="gc-static-img" src="game-icons/dice.png" alt="Dice"></div>
         <span class="game-name" data-i18n="game_dice">DICE</span>
       </div>
       <div class="game-card upgrade-mini" onclick="goTo('solo')">

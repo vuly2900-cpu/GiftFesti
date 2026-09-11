@@ -79,7 +79,7 @@ let leaderboardEndAt = null; // Reyting tugash vaqti (ms, epoch) — admin panel
 //   requireChannel, status:'active'|'finished', participants:[{userId,tickets}],
 //   winners: [{userId,username,itemId,itemName}]|null, createdAt, endedAt }
 let contests = [];
-const gameHistory = { hockey: [], drum: [], crash: [], wheel: [] };
+const gameHistory = { hockey: [], drum: [], crash: [], wheel: [], dice: [] };
 // Telegram Stars orqali balans to'ldirishda bir xil to'lovni ikki marta
 // kreditlab qo'ymaslik uchun qayta ishlangan telegram_payment_charge_id'lar:
 const processedTopupCharges = new Set();
@@ -3533,6 +3533,183 @@ function getSocketUser(initData) {
 }
 
 /* ============================================================
+   YANGI O'YIN: DICE — xona (room) asosidagi ko'p o'yinchili tosh o'yini.
+   Xona yaratuvchi nechta odam ishtirok etishini (2-8) va stavka
+   miqdorini (har bir o'yinchi shuncha coin to'laydi) tanlaydi. Xona
+   to'lgach 15 soniyalik taймер boshlanadi, so'ng o'yinchilar navbat
+   bilan tosh otadi (1-6). Eng ko'p son tushirgan yutadi; barobar
+   tushganlar orasida faqat ular yana tosh otadi — toki 1 kishi qolguncha.
+   G'olib butun pot (barcha stavkalar yig'indisi)ni yutib oladi.
+   ============================================================ */
+const DICE_MIN_PLAYERS = 2;
+const DICE_MAX_PLAYERS = 8;
+const DICE_WAIT_SECONDS = 15;      // xona to'lgandan keyingi kutish taймeri
+const DICE_ROLL_ANIM_MS = 2200;    // har bir o'yinchi tosh otayotgan animatsiya davomiyligi
+const DICE_TURN_GAP_MS = 900;      // navbatdagi o'yinchiga o'tishdan oldingi pauza
+const DICE_TIE_GAP_MS = 1800;      // barobar bo'lgach keyingi raund boshlanishidan oldingi pauza
+const DICE_FINISH_DISPLAY_MS = 7000; // g'olib e'lon qilingandan keyin xona qancha vaqt ko'rinib turadi
+
+let diceRooms = [];
+let diceRoomSeq = 1;
+
+function emitDiceState() { io.emit('dice:state', diceRooms); }
+
+function findDiceRoomByPlayer(userId) {
+  return diceRooms.find(r => (r.status === 'waiting' || r.status === 'starting') && r.players.some(p => p.id === userId));
+}
+
+app.post('/api/dice/create_room', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const maxPlayers = Math.round(Number(req.body.maxPlayers));
+  const stake = round2(Number(req.body.stake));
+  if (!Number.isInteger(maxPlayers) || maxPlayers < DICE_MIN_PLAYERS || maxPlayers > DICE_MAX_PLAYERS) {
+    return res.status(400).json({ error: 'invalid_max_players' });
+  }
+  if (!stake || stake < 1) return res.status(400).json({ error: 'invalid_stake' });
+  if (stake > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
+  if (findDiceRoomByPlayer(Number(user.id))) return res.status(400).json({ error: 'ALREADY_IN_ROOM' });
+
+  user.balance = round2(user.balance - stake);
+  const room = {
+    id: 'dice_' + (diceRoomSeq++) + '_' + Date.now(),
+    creatorId: Number(user.id),
+    maxPlayers, stake, pot: round2(stake),
+    players: [{ id: Number(user.id), username: user.username, photo: user.photo_url, roll: null, eliminated: false }],
+    status: 'waiting', countdownEndsAt: null, round: 1, winner: null, currentTurnId: null, createdAt: Date.now(),
+  };
+  diceRooms.push(room);
+  emitDiceState();
+  res.json({ ok: true, roomId: room.id, balance: user.balance });
+});
+
+app.post('/api/dice/join_room', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { roomId } = req.body || {};
+  const room = diceRooms.find(r => r.id === roomId);
+  if (!room) return res.status(404).json({ error: 'ROOM_NOT_FOUND' });
+  if (room.status !== 'waiting') return res.status(400).json({ error: 'ROOM_NOT_JOINABLE' });
+  if (room.players.length >= room.maxPlayers) return res.status(400).json({ error: 'ROOM_FULL' });
+  if (room.players.some(p => p.id === Number(user.id))) return res.status(400).json({ error: 'ALREADY_IN_ROOM' });
+  if (findDiceRoomByPlayer(Number(user.id))) return res.status(400).json({ error: 'ALREADY_IN_ROOM' });
+  if (room.stake > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
+
+  user.balance = round2(user.balance - room.stake);
+  room.players.push({ id: Number(user.id), username: user.username, photo: user.photo_url, roll: null, eliminated: false });
+  room.pot = round2(room.pot + room.stake);
+  emitDiceState();
+
+  if (room.players.length === room.maxPlayers) startDiceCountdown(room);
+  res.json({ ok: true, balance: user.balance });
+});
+
+app.post('/api/dice/leave_room', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { roomId } = req.body || {};
+  const room = diceRooms.find(r => r.id === roomId);
+  if (!room) return res.status(404).json({ error: 'ROOM_NOT_FOUND' });
+  if (room.status !== 'waiting') return res.status(400).json({ error: 'CANNOT_LEAVE' });
+  const idx = room.players.findIndex(p => p.id === Number(user.id));
+  if (idx === -1) return res.status(400).json({ error: 'NOT_IN_ROOM' });
+
+  user.balance = round2(user.balance + room.stake);
+  const wasCreator = room.creatorId === Number(user.id);
+  room.players.splice(idx, 1);
+  room.pot = round2(room.pot - room.stake);
+
+  if (room.players.length === 0 || wasCreator) {
+    // Xona yaratuvchi chiqib ketsa yoki xona bo'shab qolsa — qolgan
+    // hamma o'yinchiga stavkasi qaytariladi va xona bekor qilinadi.
+    room.players.forEach(p => {
+      const u = users.get(String(p.id));
+      if (u) u.balance = round2(u.balance + room.stake);
+    });
+    diceRooms = diceRooms.filter(r => r.id !== room.id);
+  }
+  emitDiceState();
+  res.json({ ok: true, balance: user.balance });
+});
+
+function startDiceCountdown(room) {
+  room.status = 'starting';
+  room.countdownEndsAt = Date.now() + DICE_WAIT_SECONDS * 1000;
+  emitDiceState();
+  setTimeout(() => startDiceRollingRound(room.id), DICE_WAIT_SECONDS * 1000);
+}
+
+function startDiceRollingRound(roomId) {
+  const room = diceRooms.find(r => r.id === roomId);
+  if (!room) return;
+  room.status = 'rolling';
+  room.players.forEach(p => { if (!p.eliminated) p.roll = null; });
+  const activeIds = room.players.filter(p => !p.eliminated).map(p => p.id);
+  room.currentTurnId = activeIds[0] || null;
+  emitDiceState();
+  diceProcessTurn(roomId, activeIds, 0);
+}
+
+function diceProcessTurn(roomId, activeIds, idx) {
+  const room = diceRooms.find(r => r.id === roomId);
+  if (!room) return;
+  if (idx >= activeIds.length) return diceEvaluateRound(roomId);
+
+  const pid = activeIds[idx];
+  room.currentTurnId = pid;
+  emitDiceState(); // shu o'yinchi uchun tosh aylana boshlaydi (roll hali null)
+
+  setTimeout(() => {
+    const r2 = diceRooms.find(r => r.id === roomId);
+    if (!r2) return;
+    const player = r2.players.find(p => p.id === pid);
+    if (player) player.roll = 1 + Math.floor(Math.random() * 6);
+    emitDiceState();
+    setTimeout(() => diceProcessTurn(roomId, activeIds, idx + 1), DICE_TURN_GAP_MS);
+  }, DICE_ROLL_ANIM_MS);
+}
+
+function diceEvaluateRound(roomId) {
+  const room = diceRooms.find(r => r.id === roomId);
+  if (!room) return;
+  room.currentTurnId = null;
+
+  const active = room.players.filter(p => !p.eliminated);
+  const maxRoll = Math.max(...active.map(p => p.roll || 0));
+  active.forEach(p => { if ((p.roll || 0) < maxRoll) p.eliminated = true; });
+  const remaining = room.players.filter(p => !p.eliminated);
+
+  if (remaining.length <= 1) {
+    const winner = remaining[0] || active[0] || null;
+    room.status = 'finished';
+    room.winner = winner ? { id: winner.id, username: winner.username, photo: winner.photo } : null;
+
+    if (winner) {
+      const wUser = users.get(String(winner.id));
+      if (wUser) {
+        wUser.balance = round2(wUser.balance + room.pot);
+        wUser.total_won = round2((wUser.total_won || 0) + room.pot);
+        wUser.wins = (wUser.wins || 0) + 1;
+      }
+    }
+
+    gameHistory.dice.unshift({
+      roomId: room.id, pot: room.pot, winner_id: winner ? winner.id : null,
+      players: room.players.map(p => ({ id: p.id, username: p.username, photo: p.photo, roll: p.roll })),
+      createdAt: Date.now(),
+    });
+    if (gameHistory.dice.length > 20) gameHistory.dice.length = 20;
+
+    emitDiceState();
+    setTimeout(() => {
+      diceRooms = diceRooms.filter(r => r.id !== room.id);
+      emitDiceState();
+    }, DICE_FINISH_DISPLAY_MS);
+  } else {
+    room.round += 1;
+    emitDiceState();
+    setTimeout(() => startDiceRollingRound(room.id), DICE_TIE_GAP_MS);
+  }
+}
+
+/* ============================================================
    SOCKET.IO — ulanganda joriy holatni bir marta yuboramiz
    ============================================================ */
 io.on('connection', (socket) => {
@@ -3540,6 +3717,7 @@ io.on('connection', (socket) => {
   socket.emit('drum:state', drumState);
   socket.emit('crash:state', sanitizeCrashState());
   socket.emit('wheel:state', wheelState);
+  socket.emit('dice:state', diceRooms);
 
   // MUHIM (bug fix): yuqoridagi emit faqat socket ULANGAN paytda bir marta
   // yuboriladi. Agar foydalanuvchi keyinroq (masalan, boshqa sahifada bir oz
@@ -3553,6 +3731,7 @@ io.on('connection', (socket) => {
     else if (game === 'drum') socket.emit('drum:state', drumState);
     else if (game === 'crash') socket.emit('crash:state', sanitizeCrashState());
     else if (game === 'wheel') socket.emit('wheel:state', wheelState);
+    else if (game === 'dice') socket.emit('dice:state', diceRooms);
   });
 
   /* -------- RAKETA (CRASH) — "OLISH" real vaqtda, socket orqali -------- */

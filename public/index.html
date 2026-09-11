@@ -765,6 +765,105 @@
   .game-card.case-mini{background:linear-gradient(135deg,#3A2E12,#1F1706);}
   .game-card.upgrade-mini{background:linear-gradient(135deg,#123524,#0d211a);}
   .game-card.upgrade-mini .mini-badge{color:#22C55E;}
+  .game-card.dice-mini{background:linear-gradient(135deg,#3B1730,#1B0A18);}
+  .game-card.dice-mini .mini-badge{color:#F472B6;}
+
+  /* ============================================================
+     DICE (tosh) o'yini — xona asosida ko'p o'yinchili
+     ============================================================ */
+  .dice-lobby-toolbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px;}
+  .dice-create-btn{
+    flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
+    background:linear-gradient(135deg,#EC4899,#8B2FC9); color:#fff; font-weight:700; font-size:14px;
+    border:none; border-radius:14px; padding:14px 16px; cursor:pointer;
+    box-shadow:0 8px 20px rgba(236,72,153,.3);
+  }
+  .dice-section-label{font-size:13px; font-weight:600; color:var(--text-dim); margin:16px 0 8px;}
+  .dice-rooms-list{display:flex; flex-direction:column; gap:10px;}
+  .dice-room-card{
+    display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:12px 14px;
+  }
+  .dice-room-card .dice-room-avatars{display:flex; align-items:center; flex-shrink:0;}
+  .dice-room-card .dice-room-avatars img{
+    width:34px; height:34px; border-radius:50%; object-fit:cover; margin-left:-10px; border:2px solid var(--bg,#14151A);
+  }
+  .dice-room-card .dice-room-avatars img:first-child{margin-left:0;}
+  .dice-room-card .dice-room-info{flex:1; min-width:0;}
+  .dice-room-card .dice-room-title{font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .dice-room-card .dice-room-meta{font-size:11.5px; color:var(--text-dim); margin-top:2px;}
+  .dice-room-card .dice-room-join-btn{
+    flex-shrink:0; background:linear-gradient(135deg,#EC4899,#8B2FC9); color:#fff; font-weight:700; font-size:12.5px;
+    border:none; border-radius:10px; padding:9px 14px; cursor:pointer;
+  }
+  .dice-empty-state{text-align:center; color:var(--text-dim); font-size:13px; padding:26px 10px;}
+
+  /* ---- Xona yaratish modali ---- */
+  .dice-stepper{display:flex; align-items:center; justify-content:center; gap:18px; margin:10px 0 4px;}
+  .dice-stepper-btn{
+    width:42px; height:42px; border-radius:50%; border:1px solid var(--border); background:var(--surface);
+    color:#fff; font-size:20px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .dice-stepper-val{font-size:26px; font-weight:800; min-width:34px; text-align:center;}
+  .dice-stepper-hint{text-align:center; font-size:11.5px; color:var(--text-dim); margin-bottom:14px;}
+
+  /* ---- Xona ichi ---- */
+  .dice-room-topbar-info{display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .dice-room-pot-label{font-size:11px; color:var(--text-dim);}
+  .dice-room-pot-val{font-size:15px; font-weight:800; color:var(--gold);}
+  .dice-players-grid{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:14px 0;
+  }
+  .dice-player-slot{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:10px 6px; text-align:center; position:relative; transition:opacity .3s, border-color .3s;
+  }
+  .dice-player-slot.empty{opacity:.4; border-style:dashed;}
+  .dice-player-slot.eliminated{opacity:.4;}
+  .dice-player-slot.turn{border-color:#EC4899; box-shadow:0 0 0 2px rgba(236,72,153,.35);}
+  .dice-player-slot.winner{border-color:var(--gold); box-shadow:0 0 0 2px rgba(232,185,35,.45);}
+  .dice-player-slot img{width:44px; height:44px; border-radius:50%; object-fit:cover; margin:0 auto 6px;}
+  .dice-player-slot .dice-player-name{font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .dice-player-slot .dice-player-roll{
+    margin-top:6px; font-size:12px; font-weight:800; color:#fff; background:rgba(255,255,255,.08);
+    border-radius:999px; padding:2px 0; display:block;
+  }
+  .dice-player-slot.eliminated .dice-player-roll{color:var(--text-dim); background:rgba(255,255,255,.04);}
+
+  .dice-center-stage{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:10px 0 18px;}
+  .dice-countdown-num{font-size:52px; font-weight:800; color:#EC4899; font-family:'JetBrains Mono',monospace;}
+  .dice-countdown-label{font-size:12.5px; color:var(--text-dim);}
+  .dice-turn-label{font-size:13px; font-weight:700; color:#fff; text-align:center;}
+
+  .dice-cube{
+    width:78px; height:78px; border-radius:18px; margin:0 auto;
+    background:linear-gradient(145deg,#ffffff,#dcdfe6);
+    box-shadow:0 10px 22px rgba(0,0,0,.4), inset 0 -3px 6px rgba(0,0,0,.08);
+    display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+    padding:11px; gap:4px;
+  }
+  .dice-cube.rolling{animation:diceCubeRoll .5s linear infinite;}
+  @keyframes diceCubeRoll{
+    0%{transform:rotate(0deg) scale(1);}
+    25%{transform:rotate(95deg) scale(1.08);}
+    50%{transform:rotate(190deg) scale(1);}
+    75%{transform:rotate(280deg) scale(1.08);}
+    100%{transform:rotate(360deg) scale(1);}
+  }
+  .dice-cube.settle{animation:diceCubeSettle .28s ease-out;}
+  @keyframes diceCubeSettle{0%{transform:scale(1.2);} 100%{transform:scale(1);}}
+  .dice-pip{border-radius:50%; background:transparent;}
+  .dice-pip.on{background:#1B1F27;}
+
+  .dice-winner-banner{
+    text-align:center; padding:20px 14px; border-radius:16px; margin:10px 0;
+    background:linear-gradient(135deg,rgba(232,185,35,.16),rgba(236,72,153,.12));
+    border:1px solid rgba(232,185,35,.4);
+  }
+  .dice-winner-banner img{width:62px; height:62px; border-radius:50%; object-fit:cover; margin-bottom:8px; box-shadow:0 0 0 3px var(--gold);}
+  .dice-winner-banner .dice-winner-title{font-size:14px; color:var(--text-dim); margin-bottom:4px;}
+  .dice-winner-banner .dice-winner-name{font-size:16px; font-weight:800; margin-bottom:4px;}
+  .dice-winner-banner .dice-winner-amount{font-size:19px; font-weight:800; color:var(--gold);}
 
   /* ---- Case'lar ro'yxati sahifasi (kunlik case + kelajakda qo'shiladigan boshqa case'lar) ---- */
   .cases-list{display:flex; flex-direction:column; gap:12px;}
@@ -1632,10 +1731,10 @@
     </div>
 
     <div class="mini-row">
-      <div class="game-card case-mini" onclick="goTo('cases')">
-        <span class="mini-badge" data-i18n="badge_free24h">2 TA</span>
-        <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
-        <span class="game-name" data-i18n="game_case">Case'lar</span>
+      <div class="game-card dice-mini" onclick="goTo('dice')">
+        <span class="mini-badge" data-i18n="badge_new">NEW</span>
+        <div class="mini-icon-visual" id="gcVisualDice"><span class="fallback-emoji">🎲</span></div>
+        <span class="game-name" data-i18n="game_dice">DICE</span>
       </div>
       <div class="game-card upgrade-mini" onclick="goTo('solo')">
         <span class="mini-badge" data-i18n="badge_new">NEW</span>
@@ -1644,6 +1743,14 @@
           <div class="upg-duo-icon" id="gcVisualUpgradeUp"><span class="fallback-emoji">🔺</span></div>
         </div>
         <span class="game-name" data-i18n="game_solo">SOLO</span>
+      </div>
+    </div>
+
+    <div class="mini-row">
+      <div class="game-card case-mini" onclick="goTo('cases')">
+        <span class="mini-badge" data-i18n="badge_free24h">2 TA</span>
+        <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
+        <span class="game-name" data-i18n="game_case">Case'lar</span>
       </div>
     </div>
   </section>
@@ -1687,6 +1794,61 @@
       <div class="game-card-visual" id="gcVisualWheel"><span class="fallback-emoji">🎡</span></div>
     </div>
   </section>
+
+  <!-- DICE — xona asosida ko'p o'yinchili tosh o'yini -->
+  <section class="page" id="page-dice">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="diceLeaveIfNeededAndGoBack()">‹</button>
+      <div class="game-number-badge mono" data-i18n="game_dice">DICE</div>
+      <span style="width:34px;"></span>
+    </div>
+
+    <!-- LOBBY: xona yaratish + ochiq xonalar -->
+    <div id="diceLobbyView">
+      <div class="dice-lobby-toolbar">
+        <button class="dice-create-btn" onclick="openDiceCreateModal()">➕ <span data-i18n="dice_create_room">Xona yaratish</span></button>
+      </div>
+      <p class="dice-section-label"><span data-i18n="dice_open_rooms">Ochiq xonalar</span></p>
+      <div class="dice-rooms-list" id="diceRoomsList"></div>
+    </div>
+
+    <!-- XONA ICHI -->
+    <div id="diceRoomView" style="display:none;">
+      <div class="dice-room-topbar-info">
+        <span class="dice-room-pot-label" data-i18n="dice_pot">Umumiy pot</span>
+        <span class="dice-room-pot-val mono" id="diceRoomPotVal">0</span>
+      </div>
+
+      <div class="dice-players-grid" id="dicePlayersGrid"></div>
+
+      <div class="dice-center-stage" id="diceCenterStage"></div>
+
+      <button class="btn" id="diceLeaveRoomBtn" onclick="diceLeaveRoom()" style="display:none;" data-i18n="dice_leave_room">Xonadan chiqish</button>
+    </div>
+  </section>
+
+  <!-- DICE — xona yaratish modali -->
+  <div class="modal-overlay" id="diceCreateOverlay" onclick="if(event.target===this) closeDiceCreateModal()">
+    <div class="modal-window">
+      <button class="modal-close" onclick="closeDiceCreateModal()">×</button>
+      <h3 data-i18n="dice_create_room" style="margin-bottom:10px;">Xona yaratish</h3>
+
+      <p class="dice-section-label" style="margin-top:2px;" data-i18n="dice_players_count">Nechta o'yinchi</p>
+      <div class="dice-stepper">
+        <button class="dice-stepper-btn" onclick="diceAdjustPlayers(-1)">−</button>
+        <span class="dice-stepper-val" id="diceCreatePlayersVal">2</span>
+        <button class="dice-stepper-btn" onclick="diceAdjustPlayers(1)">+</button>
+      </div>
+      <p class="dice-stepper-hint" data-i18n="dice_players_hint">Minimal 2, maksimal 8 o'yinchi</p>
+
+      <p class="dice-section-label" data-i18n="dice_stake_amount">Stavka (coin, har bir o'yinchi uchun)</p>
+      <input type="number" min="1" step="1" id="diceCreateStakeInput" class="crash-bet-amount-input" placeholder="100" oninput="diceUpdateCreateSummary()">
+
+      <p class="dice-stepper-hint" id="diceCreateSummary"></p>
+
+      <button class="btn" id="diceCreateConfirmBtn" onclick="diceSubmitCreateRoom()" data-i18n="dice_create_room">Xona yaratish</button>
+    </div>
+  </div>
 
   <section class="page" id="page-crash">
     <div class="hockey-topbar">
@@ -2645,7 +2807,9 @@ const I18N = {
   uz: {
     nav_rating: "Reyting", nav_tasks: "Vazifalar", nav_play: "O'ynash", nav_konkurs: "Konkurs", nav_profile: "Profil",
     badge_hot: "Hot", badge_free24h: "2 TA", badge_new: "NEW", badge_physics: "Mukammal Fizika", badge_hit: "Hit",
-    game_rocket: "RAKETA", game_pvp: "Battle PvP", game_case: "Case'lar", game_upgrade: "UPGRADE", game_hockey: "Xokkey", game_drum: "Baraban", game_solo: "SOLO", game_wheel: "WHEEL",
+    game_rocket: "RAKETA", game_pvp: "Battle PvP", game_case: "Case'lar", game_upgrade: "UPGRADE", game_hockey: "Xokkey", game_drum: "Baraban", game_solo: "SOLO", game_wheel: "WHEEL", game_dice: "DICE",
+    dice_create_room: "Xona yaratish", dice_open_rooms: "Ochiq xonalar", dice_pot: "Umumiy pot", dice_leave_room: "Xonadan chiqish",
+    dice_players_count: "Nechta o'yinchi", dice_players_hint: "Minimal 2, maksimal 8 o'yinchi", dice_stake_amount: "Stavka (coin, har bir o'yinchi uchun)",
     topup_btn: "To'ldirish",
     settings_title: "Sozlamalar", settings_bg_label: "Fon", settings_lang_label: "Til",
     vip_card_sub_inactive: "Raketa, Hokkey va Barabanda maxsus imtiyozlar",
@@ -2666,7 +2830,9 @@ const I18N = {
   ru: {
     nav_rating: "Рейтинг", nav_tasks: "Задания", nav_play: "Играть", nav_konkurs: "Конкурс", nav_profile: "Профиль",
     badge_hot: "Хит", badge_free24h: "2 ШТ", badge_new: "НОВОЕ", badge_physics: "Идеальная физика", badge_hit: "Хит",
-    game_rocket: "РАКЕТА", game_pvp: "Battle PvP", game_case: "Кейсы", game_upgrade: "АПГРЕЙД", game_hockey: "Хоккей", game_drum: "Барабан", game_solo: "СОЛО", game_wheel: "WHEEL",
+    game_rocket: "РАКЕТА", game_pvp: "Battle PvP", game_case: "Кейсы", game_upgrade: "АПГРЕЙД", game_hockey: "Хоккей", game_drum: "Барабан", game_solo: "СОЛО", game_wheel: "WHEEL", game_dice: "DICE",
+    dice_create_room: "Создать комнату", dice_open_rooms: "Открытые комнаты", dice_pot: "Общий банк", dice_leave_room: "Покинуть комнату",
+    dice_players_count: "Количество игроков", dice_players_hint: "Минимум 2, максимум 8 игроков", dice_stake_amount: "Ставка (коин, с каждого игрока)",
     topup_btn: "Пополнить",
     settings_title: "Настройки", settings_bg_label: "Фон", settings_lang_label: "Язык",
     vip_card_sub_inactive: "Особые привилегии в Ракете, Хоккее и Барабане",
@@ -2687,7 +2853,9 @@ const I18N = {
   en: {
     nav_rating: "Rating", nav_tasks: "Tasks", nav_play: "Play", nav_konkurs: "Contest", nav_profile: "Profile",
     badge_hot: "Hot", badge_free24h: "2 CASES", badge_new: "NEW", badge_physics: "Perfect Physics", badge_hit: "Hit",
-    game_rocket: "ROCKET", game_pvp: "Battle PvP", game_case: "Cases", game_upgrade: "UPGRADE", game_hockey: "Hockey", game_drum: "Drum", game_solo: "SOLO", game_wheel: "WHEEL",
+    game_rocket: "ROCKET", game_pvp: "Battle PvP", game_case: "Cases", game_upgrade: "UPGRADE", game_hockey: "Hockey", game_drum: "Drum", game_solo: "SOLO", game_wheel: "WHEEL", game_dice: "DICE",
+    dice_create_room: "Create room", dice_open_rooms: "Open rooms", dice_pot: "Total pot", dice_leave_room: "Leave room",
+    dice_players_count: "Number of players", dice_players_hint: "Minimum 2, maximum 8 players", dice_stake_amount: "Stake (coin, per player)",
     topup_btn: "Top up",
     settings_title: "Settings", settings_bg_label: "Background", settings_lang_label: "Language",
     vip_card_sub_inactive: "Special perks in Rocket, Hockey and Drum",
@@ -4026,6 +4194,7 @@ function goTo(pageName, presetItemId) {
   if (pageName === 'upgrade') initUpgradePage(presetItemId);
   if (pageName === 'crash') initCrashPage();
   if (pageName === 'wheel') initWheelPage();
+  if (pageName === 'dice') initDicePage();
 }
 
 function stopAllBackgroundTimers(exceptPage) {
@@ -4077,6 +4246,13 @@ function stopAllBackgroundTimers(exceptPage) {
     if (typeof wheelSpinTimeout !== 'undefined' && wheelSpinTimeout) { clearTimeout(wheelSpinTimeout); wheelSpinTimeout = null; }
     if (typeof wheelBettingCountdownInterval !== 'undefined' && wheelBettingCountdownInterval) { clearInterval(wheelBettingCountdownInterval); wheelBettingCountdownInterval = null; }
     if (typeof wheelUnsubscribe !== 'undefined' && wheelUnsubscribe) { wheelUnsubscribe(); wheelUnsubscribe = null; }
+  }
+  // DICE sahifasidan chiqilganda socket tinglovchisi va mahalliy
+  // taймer (countdown/dice aylanish) to'xtatiladi.
+  if (exceptPage !== 'dice') {
+    if (typeof diceUnsubscribe !== 'undefined' && diceUnsubscribe) { diceUnsubscribe(); diceUnsubscribe = null; }
+    if (typeof diceLocalTickInterval !== 'undefined' && diceLocalTickInterval) { clearInterval(diceLocalTickInterval); diceLocalTickInterval = null; }
+    if (typeof diceSpinInterval !== 'undefined' && diceSpinInterval) { clearInterval(diceSpinInterval); diceSpinInterval = null; }
   }
 }
 
@@ -6273,6 +6449,7 @@ function openGame(name) {
   else if (name === 'drum') goTo('drum');
   else if (name === 'upgrade') goTo('upgrade');
   else if (name === 'wheel') goTo('wheel');
+  else if (name === 'dice') goTo('dice');
   else alert("Tez orada...");
 }
 
@@ -8514,6 +8691,260 @@ function closeUpgLoseModal() {
   document.addEventListener('scroll', onScroll, { passive: true, capture: true });
   applyParallax();
 })();
+
+// ==================== DICE — xona asosida ko'p o'yinchili tosh o'yini ====================
+let diceRooms = [];
+let diceMyRoomId = null;
+let diceUnsubscribe = null;
+let diceLocalTickInterval = null;
+let diceCreatePlayers = 2;
+
+function diceMyId() {
+  return Number(currentUserData?.telegram_id || currentUserData?.id || tgUser?.id || 0);
+}
+
+function diceEscapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function initDicePage() {
+  if (diceUnsubscribe) diceUnsubscribe();
+  const handler = (rooms) => { diceRooms = rooms || []; renderDiceState(); };
+  socket.on('dice:state', handler);
+  diceUnsubscribe = () => { socket.off('dice:state', handler); };
+  socket.emit('get_state', 'dice');
+  if (diceLocalTickInterval) clearInterval(diceLocalTickInterval);
+  diceLocalTickInterval = setInterval(diceTickCountdown, 500);
+  renderDiceState();
+}
+
+function renderDiceState() {
+  const myId = diceMyId();
+  const myRoom = diceRooms.find(r => r.players.some(p => p.id === myId));
+  const lobbyView = document.getElementById('diceLobbyView');
+  const roomView = document.getElementById('diceRoomView');
+  if (!lobbyView || !roomView) return;
+
+  if (myRoom) {
+    diceMyRoomId = myRoom.id;
+    lobbyView.style.display = 'none';
+    roomView.style.display = '';
+    renderDiceRoom(myRoom);
+  } else {
+    diceMyRoomId = null;
+    lobbyView.style.display = '';
+    roomView.style.display = 'none';
+    renderDiceLobby();
+  }
+}
+
+function renderDiceLobby() {
+  const list = document.getElementById('diceRoomsList');
+  if (!list) return;
+  const openRooms = diceRooms.filter(r => r.status === 'waiting');
+  if (!openRooms.length) {
+    list.innerHTML = `<p class="dice-empty-state">Hozircha ochiq xona yo'q. Birinchi bo'lib xona yarating! 🎲</p>`;
+    return;
+  }
+  list.innerHTML = openRooms.map(r => {
+    const avatarsHtml = r.players.slice(0, 4).map(p =>
+      `<img src="${p.photo || avatarFallback(p.username)}" onerror="this.src=avatarFallback('${diceEscapeHtml(p.username)}')">`
+    ).join('');
+    const creator = r.players[0];
+    return `
+      <div class="dice-room-card">
+        <div class="dice-room-avatars">${avatarsHtml}</div>
+        <div class="dice-room-info">
+          <div class="dice-room-title">${diceEscapeHtml(creator ? creator.username : 'Xona')}</div>
+          <div class="dice-room-meta">${r.players.length}/${r.maxPlayers} o'yinchi · ${fmtCoin(r.stake)} <span class="coin-ico"></span> · Pot: ${fmtCoin(r.pot)}</div>
+        </div>
+        <button class="dice-room-join-btn" onclick="diceJoinRoom('${r.id}')">Kirish</button>
+      </div>`;
+  }).join('');
+}
+
+function diceFacePipsHtml(value) {
+  const patterns = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  const on = new Set(patterns[value] || patterns[1]);
+  let html = '';
+  for (let i = 0; i < 9; i++) html += `<div class="dice-pip${on.has(i) ? ' on' : ''}"></div>`;
+  return html;
+}
+
+function renderDiceRoom(room) {
+  const potEl = document.getElementById('diceRoomPotVal');
+  if (potEl) potEl.textContent = fmtCoin(room.pot);
+
+  const grid = document.getElementById('dicePlayersGrid');
+  if (grid) {
+    const slots = [];
+    for (let i = 0; i < room.maxPlayers; i++) {
+      const p = room.players[i];
+      if (!p) {
+        slots.push(`<div class="dice-player-slot empty"><div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.05);margin:0 auto 6px;"></div><div class="dice-player-name">...</div></div>`);
+        continue;
+      }
+      const isTurn = room.status === 'rolling' && room.currentTurnId === p.id;
+      const isWinner = room.status === 'finished' && room.winner && room.winner.id === p.id;
+      const cls = ['dice-player-slot'];
+      if (p.eliminated) cls.push('eliminated');
+      if (isTurn) cls.push('turn');
+      if (isWinner) cls.push('winner');
+      const rollHtml = p.roll != null ? `<span class="dice-player-roll">🎲 ${p.roll}</span>` : (isTurn ? `<span class="dice-player-roll">...</span>` : '');
+      slots.push(`
+        <div class="${cls.join(' ')}">
+          <img src="${p.photo || avatarFallback(p.username)}" onerror="this.src=avatarFallback('${diceEscapeHtml(p.username)}')">
+          <div class="dice-player-name">${diceEscapeHtml(p.username || '?')}</div>
+          ${rollHtml}
+        </div>`);
+    }
+    grid.innerHTML = slots.join('');
+  }
+
+  const leaveBtn = document.getElementById('diceLeaveRoomBtn');
+  if (leaveBtn) leaveBtn.style.display = room.status === 'waiting' ? '' : 'none';
+
+  const stage = document.getElementById('diceCenterStage');
+  if (!stage) return;
+
+  if (room.status === 'waiting') {
+    stage.innerHTML = `<div class="dice-turn-label">${room.players.length}/${room.maxPlayers} o'yinchi kutilmoqda...</div>`;
+  } else if (room.status === 'starting') {
+    const secsLeft = Math.max(0, Math.ceil((room.countdownEndsAt - Date.now()) / 1000));
+    stage.innerHTML = `
+      <div class="dice-countdown-num" id="diceCountdownNum">${secsLeft}</div>
+      <div class="dice-countdown-label">O'yin boshlanishiga...</div>`;
+  } else if (room.status === 'rolling') {
+    const curPlayer = room.players.find(p => p.id === room.currentTurnId);
+    const isRolling = !!(curPlayer && curPlayer.roll == null);
+    stage.innerHTML = `
+      <div class="dice-turn-label">${curPlayer ? diceEscapeHtml(curPlayer.username || '?') + (room.round > 1 ? " — qayta tashlash!" : '') : ''}</div>
+      <div class="dice-cube ${isRolling ? 'rolling' : 'settle'}">${diceFacePipsHtml(curPlayer && curPlayer.roll ? curPlayer.roll : 1)}</div>`;
+  } else if (room.status === 'finished') {
+    const w = room.winner;
+    stage.innerHTML = w ? `
+      <div class="dice-winner-banner">
+        <img src="${w.photo || avatarFallback(w.username)}" onerror="this.src=avatarFallback('${diceEscapeHtml(w.username)}')">
+        <div class="dice-winner-title">🏆 G'olib</div>
+        <div class="dice-winner-name">${diceEscapeHtml(w.username || '?')}</div>
+        <div class="dice-winner-amount">+${fmtCoin(room.pot)} <span class="coin-ico"></span></div>
+      </div>` : '';
+  }
+}
+
+function diceTickCountdown() {
+  if (!diceMyRoomId) return;
+  const room = diceRooms.find(r => r.id === diceMyRoomId);
+  if (!room || room.status !== 'starting') return;
+  const el = document.getElementById('diceCountdownNum');
+  if (!el) return;
+  const secsLeft = Math.max(0, Math.ceil((room.countdownEndsAt - Date.now()) / 1000));
+  el.textContent = secsLeft;
+}
+
+function openDiceCreateModal() {
+  diceCreatePlayers = 2;
+  const valEl = document.getElementById('diceCreatePlayersVal');
+  if (valEl) valEl.textContent = diceCreatePlayers;
+  const stakeEl = document.getElementById('diceCreateStakeInput');
+  if (stakeEl) stakeEl.value = '';
+  diceUpdateCreateSummary();
+  document.getElementById('diceCreateOverlay').classList.add('active');
+}
+function closeDiceCreateModal() {
+  document.getElementById('diceCreateOverlay').classList.remove('active');
+}
+function diceAdjustPlayers(delta) {
+  diceCreatePlayers = Math.min(8, Math.max(2, diceCreatePlayers + delta));
+  document.getElementById('diceCreatePlayersVal').textContent = diceCreatePlayers;
+  diceUpdateCreateSummary();
+}
+function diceUpdateCreateSummary() {
+  const stake = Number(document.getElementById('diceCreateStakeInput')?.value) || 0;
+  const summary = document.getElementById('diceCreateSummary');
+  if (!summary) return;
+  summary.textContent = stake > 0
+    ? `Umumiy pot: ${fmtCoin(stake * diceCreatePlayers)} coin (${diceCreatePlayers} o'yinchi × ${fmtCoin(stake)})`
+    : '';
+}
+
+const DICE_ERROR_MESSAGES = {
+  INSUFFICIENT_BALANCE: "Balansingiz yetarli emas!",
+  ALREADY_IN_ROOM: "Siz allaqachon boshqa xonadasiz!",
+  invalid_stake: "Stavka miqdori noto'g'ri!",
+  invalid_max_players: "O'yinchilar soni noto'g'ri!",
+  ROOM_FULL: "Xona allaqachon to'lgan!",
+  ROOM_NOT_JOINABLE: "Bu xonaga hozir kirib bo'lmaydi!",
+  ROOM_NOT_FOUND: "Xona topilmadi (yopilgan bo'lishi mumkin)!",
+  CANNOT_LEAVE: "O'yin boshlangandan keyin xonadan chiqib bo'lmaydi!",
+  NOT_IN_ROOM: "Siz bu xonada emassiz!",
+  invalid_auth: "Sessiya tasdiqlanmadi. Ilovani qayta oching.",
+};
+
+async function diceSubmitCreateRoom() {
+  const stake = Number(document.getElementById('diceCreateStakeInput').value);
+  if (!stake || stake < 1) { alert("Stavka miqdorini kiriting (kamida 1 coin)!"); return; }
+  if (stake > (currentUserData?.balance || 0)) { alert("Balansingiz yetarli emas!"); return; }
+  const btn = document.getElementById('diceCreateConfirmBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/dice/create_room', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', maxPlayers: diceCreatePlayers, stake })
+    });
+    const data = await res.json();
+    if (!res.ok) throw (DICE_ERROR_MESSAGES[data.error] || "Xatolik yuz berdi!");
+    currentUserData.balance = data.balance;
+    syncBalanceDisplays(currentUserData.balance);
+    closeDiceCreateModal();
+  } catch (e) {
+    alert(typeof e === 'string' ? e : "Xatolik yuz berdi!");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function diceJoinRoom(roomId) {
+  try {
+    const res = await fetch('/api/dice/join_room', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', roomId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw (DICE_ERROR_MESSAGES[data.error] || "Xatolik yuz berdi!");
+    currentUserData.balance = data.balance;
+    syncBalanceDisplays(currentUserData.balance);
+  } catch (e) {
+    alert(typeof e === 'string' ? e : "Xatolik yuz berdi!");
+  }
+}
+
+async function diceLeaveRoom() {
+  if (!diceMyRoomId) return;
+  const roomId = diceMyRoomId;
+  try {
+    const res = await fetch('/api/dice/leave_room', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', roomId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw (DICE_ERROR_MESSAGES[data.error] || "Xatolik yuz berdi!");
+    currentUserData.balance = data.balance;
+    syncBalanceDisplays(currentUserData.balance);
+  } catch (e) {
+    alert(typeof e === 'string' ? e : "Xatolik yuz berdi!");
+  }
+}
+
+function diceLeaveIfNeededAndGoBack() {
+  // Faqat "kutilmoqda" holatidagi xonadan orqaga tugmasi bosilganda avtomatik
+  // chiqariladi (stavka to'liq qaytariladi). O'yin boshlangan/tugagan xonada
+  // esa orqaga tugmasi shunchaki lobbyni ko'rsatmaydi — o'yin davom etadi va
+  // xona qaytadan ochilganda yana ko'rinaveradi.
+  const room = diceMyRoomId ? diceRooms.find(r => r.id === diceMyRoomId) : null;
+  if (room && room.status === 'waiting') diceLeaveRoom();
+  goTo('play');
+}
 
 // Boshlanishida captcha tekshiriladi
 checkCaptchaRequirement();

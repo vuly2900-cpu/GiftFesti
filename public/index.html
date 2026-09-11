@@ -540,19 +540,28 @@
   .game-card.drum{background:linear-gradient(135deg,#3A2A1B,#211508);}
   .game-card.upgrade{background:linear-gradient(135deg,#123524,#0d211a);}
 
-  /* ---- RAKETA kartasi — yangi banner dizayn ---- */
+  /* ---- RAKETA kartasi — cosmic dizayn ---- */
   .game-card.crash{
-    padding:0; background:#120B24; overflow:hidden;
-    min-height:0; height:auto; aspect-ratio:1724/716;
+    padding-right:112px;
+    background:
+      radial-gradient(140px 110px at 88% 12%, rgba(150,110,255,.45), transparent 70%),
+      radial-gradient(90px 90px at 78% 70%, rgba(90,60,200,.35), transparent 70%),
+      linear-gradient(135deg,#2A1B4A,#120B24);
   }
-  .game-card.crash .gc-banner-img{
-    position:absolute; inset:0; width:100%; height:100%;
-    object-fit:cover; object-position:center; display:block;
+  .game-card.crash::before{
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:.8; z-index:0;
+    background-image:
+      radial-gradient(1.5px 1.5px at 18px 22px, rgba(255,255,255,.6), transparent),
+      radial-gradient(1px 1px at 58px 52px, rgba(255,255,255,.4), transparent),
+      radial-gradient(1.5px 1.5px at 104px 18px, rgba(255,255,255,.55), transparent),
+      radial-gradient(1px 1px at 140px 62px, rgba(255,255,255,.35), transparent),
+      radial-gradient(1.5px 1.5px at 42px 78px, rgba(255,255,255,.45), transparent),
+      radial-gradient(1px 1px at 170px 90px, rgba(255,255,255,.35), transparent);
+    background-repeat:repeat; background-size:190px 110px;
+    animation:gcTwinkle 4s ease-in-out infinite;
   }
-  /* Banner rasmning o'zida matn/belgilar bor — eski overlay elementlar yashiriladi */
-  .game-card.crash > .game-badge,
-  .game-card.crash > .game-name,
-  .game-card.crash > #gcVisualCrash{display:none;}
+  @keyframes gcTwinkle{0%,100%{opacity:.5;} 50%{opacity:.9;}}
+  .game-card.crash > .game-badge, .game-card.crash > .game-name{position:relative; z-index:1;}
   .game-card-visual{
     position:absolute; right:14px; top:50%; z-index:2;
     width:76px; height:76px; margin-top:-38px;
@@ -718,20 +727,14 @@
   /* ---- RAKETA katta karta ustidagi HOT belgisi ---- */
   .game-badge.hot{background:rgba(0,0,0,.5); color:#5FA8FF;}
 
-  /* ---- Battle PvP karta — yangi banner dizayn ---- */
+  /* ---- Battle PvP karta ---- */
   .game-card.pvp{
-    padding:0; background:#1F1706; overflow:hidden;
-    min-height:0; height:auto; aspect-ratio:1759/531;
+    background:linear-gradient(135deg,#3A2E12,#1F1706);
     flex-direction:row; align-items:center; justify-content:space-between;
   }
-  .game-card.pvp .gc-banner-img{
-    position:absolute; inset:0; width:100%; height:100%;
-    object-fit:cover; object-position:center; display:block;
-  }
-  /* Banner rasmning o'zida matn/belgilar bor — eski overlay elementlar yashiriladi */
-  .game-card.pvp .pvp-left,
-  .game-card.pvp .pvp-avatars{display:none;}
+  .pvp-left{display:flex; align-items:center; gap:10px;}
   .pvp-icon{font-size:26px;}
+  .pvp-avatars{display:flex;}
   .pvp-dot{
     width:26px; height:26px; border-radius:50%; margin-left:-8px;
     border:2px solid #1F1706;
@@ -740,35 +743,6 @@
   .pvp-dot.purple{background:#8B5CF6;}
   .pvp-dot.pink{background:#EC4899;}
   .pvp-dot.green{background:#22C55E;}
-
-  /* ---- CASE'LAR mini-kartasi (bosh sahifa) — yangi banner dizayn ---- */
-  .game-card.case-mini.case-home-banner{
-    padding:0; background:#0b0d10; overflow:hidden;
-    position:relative; min-height:0; height:auto;
-    aspect-ratio:1/1; align-self:flex-start;
-  }
-  .game-card.case-home-banner .gc-banner-img{
-    position:absolute; inset:0; width:100%; height:100%;
-    object-fit:cover; object-position:center; display:block;
-  }
-  /* Banner rasmning o'zida matn/belgilar bor — eski overlay elementlar yashiriladi */
-  .game-card.case-home-banner .mini-badge,
-  .game-card.case-home-banner .mini-icon-visual,
-  .game-card.case-home-banner .game-name{display:none;}
-
-  /* ---- UPGRADE mini-kartasi (bosh sahifa) — yangi banner dizayn ---- */
-  .game-card.upgrade-mini.upgrade-home-banner{
-    padding:0; background:#0b0d10; overflow:hidden;
-    position:relative; min-height:0; height:auto;
-    aspect-ratio:1/1; align-self:flex-start;
-  }
-  .game-card.upgrade-home-banner .gc-banner-img{
-    position:absolute; inset:0; width:100%; height:100%;
-    object-fit:cover; object-position:center; display:block;
-  }
-  .game-card.upgrade-home-banner .mini-badge,
-  .game-card.upgrade-home-banner .mini-icon-visual,
-  .game-card.upgrade-home-banner .game-name{display:none;}
 
   /* ---- FREE 24H / FREE kichik kartalar qatori ---- */
   .mini-row{display:flex; gap:12px;}
@@ -1577,14 +1551,12 @@
     </div>
 
     <div class="game-card crash" onclick="openGame('crash')">
-      <img class="gc-banner-img" src="banners/raketa_banner.webp" alt="Raketa">
       <span class="game-badge hot">⚡ <span data-i18n="badge_hot">Hot</span></span>
       <span class="game-name">🚀 <span data-i18n="game_rocket">RAKETA</span></span>
       <div class="game-card-visual" id="gcVisualCrash"><span class="fallback-emoji">🚀</span></div>
     </div>
 
     <div class="game-card pvp" onclick="goTo('pvp')">
-      <img class="gc-banner-img" src="banners/pvp_banner.webp" alt="Battle PvP">
       <div class="pvp-left">
         <div class="mini-icon-visual" id="gcVisualPvp" style="width:26px;height:26px;margin-top:0;"><span class="fallback-emoji" style="font-size:22px;">⚔️</span></div>
         <span class="game-name" data-i18n="game_pvp">Battle PvP</span>
@@ -1597,14 +1569,12 @@
     </div>
 
     <div class="mini-row">
-      <div class="game-card case-mini case-home-banner" onclick="goTo('cases')">
-        <img class="gc-banner-img" src="banners/case_banner.webp" alt="Case'lar">
+      <div class="game-card case-mini" onclick="goTo('cases')">
         <span class="mini-badge" data-i18n="badge_free24h">2 TA</span>
         <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
         <span class="game-name" data-i18n="game_case">Case'lar</span>
       </div>
-      <div class="game-card upgrade-mini upgrade-home-banner" onclick="openGame('upgrade')">
-        <img class="gc-banner-img" src="banners/upgrade_banner.webp" alt="Upgrade">
+      <div class="game-card upgrade-mini" onclick="openGame('upgrade')">
         <span class="mini-badge" data-i18n="badge_new">NEW</span>
         <div class="mini-icon-visual upg-duo-visual" id="gcVisualUpgrade">
           <div class="upg-duo-icon" id="gcVisualUpgradeDown"><span class="fallback-emoji">🔻</span></div>

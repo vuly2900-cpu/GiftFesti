@@ -539,6 +539,7 @@
   .game-card.hockey{background:linear-gradient(135deg,#1B4A6B,#0E2A3D);}
   .game-card.drum{background:linear-gradient(135deg,#3A2A1B,#211508);}
   .game-card.upgrade{background:linear-gradient(135deg,#123524,#0d211a);}
+  .game-card.wheel{background:linear-gradient(135deg,#2A1B3A,#180f21);}
 
   /* ---- RAKETA kartasi — cosmic dizayn ---- */
   .game-card.crash{
@@ -960,6 +961,19 @@
   .nft-detail-actions{display:flex; flex-direction:column; gap:8px;}
   .nft-stake-footer{display:flex; gap:8px; align-items:center; position:sticky; bottom:0; background:var(--surface); padding-top:8px;}
   .nft-stake-footer .n-total{flex:1; font-size:12px; color:var(--text-dim);}
+
+  /* WHEEL — multiplikator tanlash tugmalari (x2/x4/x5/x20) */
+  .wheel-mult-select{ display:flex; gap:8px; padding:0 16px; }
+  .wheel-mult-btn{
+    flex:1; padding:12px 0; border-radius:12px; border:2px solid var(--mc, #444);
+    background:rgba(255,255,255,0.03); color:var(--mc, #fff); font-weight:800; font-size:15px;
+    cursor:pointer; transition:all .15s ease;
+  }
+  .wheel-mult-btn.active{ background:var(--mc, #444); color:#0E1116; box-shadow:0 0 14px var(--mc, #444); }
+  .hockey-round-sep{
+    margin:10px 16px 4px; padding:4px 10px; border-radius:8px; width:fit-content;
+    background:rgba(255,255,255,0.06); color:var(--text-dim); font-size:12px; font-weight:700;
+  }
 
   /* BARABAN (DRUM/WHEEL) O'YINI */
   .drum-arena{
@@ -1574,13 +1588,13 @@
         <div class="mini-icon-visual" id="gcVisualCase"><span class="fallback-emoji">🏅</span></div>
         <span class="game-name" data-i18n="game_case">Case'lar</span>
       </div>
-      <div class="game-card upgrade-mini" onclick="openGame('upgrade')">
+      <div class="game-card upgrade-mini" onclick="goTo('solo')">
         <span class="mini-badge" data-i18n="badge_new">NEW</span>
         <div class="mini-icon-visual upg-duo-visual" id="gcVisualUpgrade">
           <div class="upg-duo-icon" id="gcVisualUpgradeDown"><span class="fallback-emoji">🔻</span></div>
           <div class="upg-duo-icon" id="gcVisualUpgradeUp"><span class="fallback-emoji">🔺</span></div>
         </div>
-        <span class="game-name" data-i18n="game_upgrade">UPGRADE</span>
+        <span class="game-name" data-i18n="game_solo">SOLO</span>
       </div>
     </div>
   </section>
@@ -1600,6 +1614,28 @@
       <span class="game-badge">🥁 <span data-i18n="badge_hit">Hit</span></span>
       <span class="game-name" data-i18n="game_drum">Baraban</span>
       <div class="game-card-visual" id="gcVisualDrum"><span class="fallback-emoji">🥁</span></div>
+    </div>
+  </section>
+
+  <!-- SOLO — Upgrade va Wheel shu yerda joylashgan -->
+  <section class="page" id="page-solo">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('play')">‹</button>
+      <div class="game-number-badge mono" data-i18n="game_solo">SOLO</div>
+      <span style="width:34px;"></span>
+    </div>
+    <div class="game-card upgrade" onclick="openGame('upgrade')">
+      <span class="game-badge">⬆️ <span data-i18n="badge_new">NEW</span></span>
+      <span class="game-name" data-i18n="game_upgrade">UPGRADE</span>
+      <div class="game-card-visual upg-duo-visual" id="gcVisualUpgrade2">
+        <div class="upg-duo-icon"><span class="fallback-emoji">🔻</span></div>
+        <div class="upg-duo-icon"><span class="fallback-emoji">🔺</span></div>
+      </div>
+    </div>
+    <div class="game-card wheel" onclick="openGame('wheel')">
+      <span class="game-badge">🎡 <span data-i18n="badge_hit">Hit</span></span>
+      <span class="game-name" data-i18n="game_wheel">WHEEL</span>
+      <div class="game-card-visual" id="gcVisualWheel"><span class="fallback-emoji">🎡</span></div>
     </div>
   </section>
 
@@ -1703,6 +1739,58 @@
 
     <button class="crash-big-bet-btn" id="drumBigBetBtn" onclick="openGameBetModal('drum')">Stavka qilish</button>
     <div class="hockey-players" id="drumPlayersList"></div>
+  </section>
+
+  <!-- WHEEL — multiplikatorli baraban: x2/x4/x5/x20 (SOLO bo'limida) -->
+  <section class="page" id="page-wheel">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('solo')">‹</button>
+      <div class="game-number-badge mono" id="wheelGameNumberLabel">O'yin #1</div>
+      <button class="history-btn" onclick="openGameHistory('wheel')" title="O'yin tarixi">🕒</button>
+    </div>
+    <div class="hockey-winner-banner" id="wheelWinnerBanner"></div>
+
+    <div class="drum-arena" id="wheelArena">
+      <div class="arena-loader" id="wheelLoader"><div class="spin"></div><span>Yuklanmoqda...</span></div>
+      <div class="drum-wheel-wrap">
+        <div class="drum-pointer"></div>
+        <div class="drum-wheel" id="wheelWheel">
+          <div id="wheelSegments" class="drum-segments"></div>
+        </div>
+        <div class="drum-center-dot" id="wheelCenterDot">?</div>
+      </div>
+    </div>
+
+    <div class="hockey-bottombar">
+      <div class="hockey-info-pill">
+        <span class="lbl">Status</span>
+        <span class="val mono" id="wheelCountdown">Kutish...</span>
+      </div>
+      <div class="hockey-info-pill">
+        <span class="lbl">Bank</span>
+        <span class="val mono"><span class="coin-ico"></span> <span id="wheelPot">0</span></span>
+      </div>
+    </div>
+
+    <p class="hockey-bet-label" style="margin:10px 0 6px;">Multiplikator tanlang</p>
+    <div class="wheel-mult-select" id="wheelMultSelect">
+      <button class="wheel-mult-btn active" data-mult="2" style="--mc:#3B82F6" onclick="selectWheelMult(2, this)">x2</button>
+      <button class="wheel-mult-btn" data-mult="4" style="--mc:#A855F7" onclick="selectWheelMult(4, this)">x4</button>
+      <button class="wheel-mult-btn" data-mult="5" style="--mc:#22C55E" onclick="selectWheelMult(5, this)">x5</button>
+      <button class="wheel-mult-btn" data-mult="20" style="--mc:#EC4899" onclick="selectWheelMult(20, this)">x20</button>
+    </div>
+
+    <input type="number" class="crash-bet-amount-input" id="wheelBetAmount" value="0.1" step="0.1" min="0.1" placeholder="Miqdor...">
+    <div class="crash-bet-quick">
+      <button class="amt-btn" onclick="wheelSetAmountMax(this)">MAX</button>
+      <button class="amt-btn active" onclick="wheelSetAmount(0.1, this)">0.1</button>
+      <button class="amt-btn" onclick="wheelSetAmount(1, this)">1</button>
+      <button class="amt-btn" onclick="wheelSetAmount(5, this)">5</button>
+      <button class="amt-btn" onclick="wheelSetAmount(10, this)">10</button>
+    </div>
+
+    <button class="crash-big-bet-btn" id="wheelBetBtn" onclick="placeWheelBet()">Stavka qilish</button>
+    <div class="hockey-players" id="wheelPlayersList"></div>
   </section>
 
 
@@ -2507,7 +2595,7 @@ const I18N = {
   uz: {
     nav_rating: "Reyting", nav_tasks: "Vazifalar", nav_play: "O'ynash", nav_konkurs: "Konkurs", nav_profile: "Profil",
     badge_hot: "Hot", badge_free24h: "2 TA", badge_new: "NEW", badge_physics: "Mukammal Fizika", badge_hit: "Hit",
-    game_rocket: "RAKETA", game_pvp: "Battle PvP", game_case: "Case'lar", game_upgrade: "UPGRADE", game_hockey: "Xokkey", game_drum: "Baraban",
+    game_rocket: "RAKETA", game_pvp: "Battle PvP", game_case: "Case'lar", game_upgrade: "UPGRADE", game_hockey: "Xokkey", game_drum: "Baraban", game_solo: "SOLO", game_wheel: "WHEEL",
     topup_btn: "To'ldirish",
     settings_title: "Sozlamalar", settings_bg_label: "Fon", settings_lang_label: "Til",
     vip_card_sub_inactive: "Raketa, Hokkey va Barabanda maxsus imtiyozlar",
@@ -2528,7 +2616,7 @@ const I18N = {
   ru: {
     nav_rating: "Рейтинг", nav_tasks: "Задания", nav_play: "Играть", nav_konkurs: "Конкурс", nav_profile: "Профиль",
     badge_hot: "Хит", badge_free24h: "2 ШТ", badge_new: "НОВОЕ", badge_physics: "Идеальная физика", badge_hit: "Хит",
-    game_rocket: "РАКЕТА", game_pvp: "Battle PvP", game_case: "Кейсы", game_upgrade: "АПГРЕЙД", game_hockey: "Хоккей", game_drum: "Барабан",
+    game_rocket: "РАКЕТА", game_pvp: "Battle PvP", game_case: "Кейсы", game_upgrade: "АПГРЕЙД", game_hockey: "Хоккей", game_drum: "Барабан", game_solo: "СОЛО", game_wheel: "WHEEL",
     topup_btn: "Пополнить",
     settings_title: "Настройки", settings_bg_label: "Фон", settings_lang_label: "Язык",
     vip_card_sub_inactive: "Особые привилегии в Ракете, Хоккее и Барабане",
@@ -2549,7 +2637,7 @@ const I18N = {
   en: {
     nav_rating: "Rating", nav_tasks: "Tasks", nav_play: "Play", nav_konkurs: "Contest", nav_profile: "Profile",
     badge_hot: "Hot", badge_free24h: "2 CASES", badge_new: "NEW", badge_physics: "Perfect Physics", badge_hit: "Hit",
-    game_rocket: "ROCKET", game_pvp: "Battle PvP", game_case: "Cases", game_upgrade: "UPGRADE", game_hockey: "Hockey", game_drum: "Drum",
+    game_rocket: "ROCKET", game_pvp: "Battle PvP", game_case: "Cases", game_upgrade: "UPGRADE", game_hockey: "Hockey", game_drum: "Drum", game_solo: "SOLO", game_wheel: "WHEEL",
     topup_btn: "Top up",
     settings_title: "Settings", settings_bg_label: "Background", settings_lang_label: "Language",
     vip_card_sub_inactive: "Special perks in Rocket, Hockey and Drum",
@@ -3887,6 +3975,7 @@ function goTo(pageName, presetItemId) {
   if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
   if (pageName === 'upgrade') initUpgradePage(presetItemId);
   if (pageName === 'crash') initCrashPage();
+  if (pageName === 'wheel') initWheelPage();
 }
 
 function stopAllBackgroundTimers(exceptPage) {
@@ -3932,6 +4021,13 @@ function stopAllBackgroundTimers(exceptPage) {
     vipCountdownTimer = null;
   }
   if (exceptPage !== 'konkurs-detail') stopContestDetailPolling();
+  // Wheel sahifasidan chiqilganda spin-animatsiya taймeri, hisoblagich va
+  // socket tinglovchisi to'xtatiladi — Baraban/Xokkeydagi bilan bir xil sabab.
+  if (exceptPage !== 'wheel') {
+    if (typeof wheelSpinTimeout !== 'undefined' && wheelSpinTimeout) { clearTimeout(wheelSpinTimeout); wheelSpinTimeout = null; }
+    if (typeof wheelBettingCountdownInterval !== 'undefined' && wheelBettingCountdownInterval) { clearInterval(wheelBettingCountdownInterval); wheelBettingCountdownInterval = null; }
+    if (typeof wheelUnsubscribe !== 'undefined' && wheelUnsubscribe) { wheelUnsubscribe(); wheelUnsubscribe = null; }
+  }
 }
 
 function fmtCoin(val) {
@@ -5515,6 +5611,26 @@ async function openGameHistory(game) {
       return;
     }
 
+    if (game === 'wheel') {
+      let html = '';
+      rounds.forEach(r => {
+        const bets = [...(r.bets || [])].sort((a, b) => (b.won ? 1 : 0) - (a.won ? 1 : 0));
+        html += `<div class="history-round">
+          <div class="history-round-title">O'yin #${r.game_number} — Tushdi: <span class="mono">x${r.result ? r.result.multiplier : 0}</span></div>
+          ${bets.map(b => `
+          <div class="history-player-row ${b.won ? 'is-winner' : ''}">
+            ${avatarWithCrown(b.photo, b.username, false)}
+            <div class="uname">${b.username}${b.won ? ' 🏆' : ''}</div>
+            <div class="stake mono"><span class="coin-ico"></span>${b.amount}</div>
+            <div class="chance mono">x${b.multiplier}</div>
+            <div class="won mono ${b.won ? '' : 'zero'}">${b.won ? '+' + b.payout : '—'}</div>
+          </div>`).join('')}
+        </div>`;
+      });
+      content.innerHTML = html;
+      return;
+    }
+
     let html = '';
     rounds.forEach(r => {
       let players = [...(r.players || [])].sort((a, b) => (b.stars || 0) - (a.stars || 0));
@@ -6109,6 +6225,7 @@ function openGame(name) {
   else if (name === 'hockey') goTo('hockey');
   else if (name === 'drum') goTo('drum');
   else if (name === 'upgrade') goTo('upgrade');
+  else if (name === 'wheel') goTo('wheel');
   else alert("Tez orada...");
 }
 
@@ -7613,6 +7730,256 @@ function renderDrumPlayers() {
         <div class="chance mono">${chance}%</div>
       </div>`;
   }).join('');
+}
+
+// ==================== WHEEL (SOLO bo'limi) ====================
+// Multiplikatorli baraban: hech kim bilan bellashilmaydi (solo), server
+// FIKS ehtimollik bilan bitta multiplikatorni (yoki bo'sh/x0 zonani)
+// tanlaydi. Shu multiplikatorni tanlab tikkan HAMMA o'yinchi yutadi.
+const WHEEL_OUTCOMES_CLIENT = [
+  { mult: 2, weight: 45, color: '#3B82F6' },
+  { mult: 4, weight: 22, color: '#A855F7' },
+  { mult: 5, weight: 18, color: '#22C55E' },
+  { mult: 20, weight: 4, color: '#EC4899' },
+  { mult: 0, weight: 11, color: '#6B7280' },
+];
+let wheelState = { status: 'idle', bets: [], pot: 0, game_number: 1 };
+let wheelSelectedMult = 2;
+let wheelSpinTimeout = null;
+let wheelBettingCountdownInterval = null;
+let wheelUnsubscribe = null;
+const WHEEL_BETTING_WAIT_SECONDS = 15;
+const WHEEL_SPIN_DURATION_MS = 6000;
+
+function initWheelPage() {
+  if (wheelUnsubscribe) wheelUnsubscribe();
+  resetWheelVisual();
+  renderWheelSegmentsStatic();
+
+  const loader = document.getElementById('wheelLoader');
+  if (loader) loader.classList.remove('hide');
+
+  const handler = (state) => {
+    const prevStatus = wheelState.status;
+    wheelState = state;
+
+    const gNum = wheelState.game_number || 1;
+    document.getElementById('wheelGameNumberLabel').textContent = `O'yin #${gNum}`;
+
+    renderWheelPlayers();
+    if (loader) loader.classList.add('hide');
+    document.getElementById('wheelPot').textContent = fmtCoin(wheelState.pot || 0);
+    const cd = document.getElementById('wheelCountdown');
+
+    if (wheelState.status === 'betting') {
+      if (wheelBettingCountdownInterval) { clearInterval(wheelBettingCountdownInterval); wheelBettingCountdownInterval = null; }
+      const startedAt = wheelState.bettingStartedAt;
+      if (!startedAt) {
+        cd.textContent = 'Kutish...';
+      } else {
+        const updateCd = () => {
+          const elapsed = (Date.now() - startedAt) / 1000;
+          const remaining = Math.max(0, Math.ceil(WHEEL_BETTING_WAIT_SECONDS - elapsed));
+          cd.textContent = `O'yin ${remaining}s da boshlanadi...`;
+        };
+        updateCd();
+        wheelBettingCountdownInterval = setInterval(updateCd, 250);
+      }
+    } else if (wheelState.status === 'spinning_visual') {
+      if (wheelBettingCountdownInterval) { clearInterval(wheelBettingCountdownInterval); wheelBettingCountdownInterval = null; }
+      if (prevStatus !== 'spinning_visual') {
+        startWheelSpinAnimation(wheelState.wheelSeed);
+      }
+    } else if (wheelState.status === 'cooldown') {
+      if (wheelBettingCountdownInterval) { clearInterval(wheelBettingCountdownInterval); wheelBettingCountdownInterval = null; }
+      cd.textContent = "Keyingi o'yin 5 soniyadan keyin boshlanadi...";
+    } else {
+      if (wheelBettingCountdownInterval) { clearInterval(wheelBettingCountdownInterval); wheelBettingCountdownInterval = null; }
+      cd.textContent = 'Kutish...';
+      resetWheelVisual();
+    }
+  };
+  socket.on('wheel:state', handler);
+  wheelUnsubscribe = () => socket.off('wheel:state', handler);
+  socket.emit('get_state', 'wheel');
+}
+
+function resetWheelVisual() {
+  const wheel = document.getElementById('wheelWheel');
+  if (!wheel) return;
+  wheel.style.transition = 'none';
+  wheel.style.transform = 'rotate(0deg)';
+  void wheel.offsetWidth; // reflow
+  wheel.style.transition = '';
+  const dot = document.getElementById('wheelCenterDot');
+  if (dot) dot.textContent = '?';
+  const banner = document.getElementById('wheelWinnerBanner');
+  if (banner) banner.classList.remove('show');
+}
+
+function computeWheelSegments() {
+  const total = WHEEL_OUTCOMES_CLIENT.reduce((s, o) => s + o.weight, 0);
+  let cursor = 0;
+  return WHEEL_OUTCOMES_CLIENT.map(o => {
+    const size = o.weight / total * 360;
+    const seg = { outcome: o, startDeg: cursor, endDeg: cursor + size };
+    cursor += size;
+    return seg;
+  });
+}
+
+function renderWheelSegmentsStatic() {
+  const segEl = document.getElementById('wheelSegments');
+  if (!segEl) return;
+  const segments = computeWheelSegments();
+  const gradientParts = segments.map(s => `${s.outcome.color} ${s.startDeg}deg ${s.outcome.mult === 0 ? s.endDeg : s.endDeg}deg`).join(', ');
+  segEl.style.background = `conic-gradient(${gradientParts})`;
+  segEl.innerHTML = '';
+}
+
+function startWheelSpinAnimation(seed) {
+  if (wheelSpinTimeout) clearTimeout(wheelSpinTimeout);
+
+  const wheel = document.getElementById('wheelWheel');
+  const cd = document.getElementById('wheelCountdown');
+  const angle = seed ? seed.angle : Math.random() * 360;
+
+  const segments = computeWheelSegments();
+  let winSeg = segments[segments.length - 1];
+  const hit = segments.find(s => angle >= s.startDeg && angle < s.endDeg);
+  if (hit) winSeg = hit;
+
+  // Ko'rsatgich tepada (0deg) qotib turadi, g'olib segment aynan yuqoriga
+  // kelib to'xtashi uchun kerakli burchakka SPINS marta aylantiriladi.
+  const SPINS = 6;
+  const targetRotation = SPINS * 360 + (360 - angle);
+
+  resetWheelVisual();
+  cd.textContent = "Baraban aylanmoqda...";
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      wheel.style.transform = `rotate(${targetRotation}deg)`;
+    });
+  });
+
+  wheelSpinTimeout = setTimeout(() => {
+    finishWheelRound(winSeg.outcome);
+  }, WHEEL_SPIN_DURATION_MS + 150);
+}
+
+function finishWheelRound(outcome) {
+  const cd = document.getElementById('wheelCountdown');
+  cd.textContent = "O'yin tugadi!";
+  const dot = document.getElementById('wheelCenterDot');
+  if (dot) dot.textContent = `x${outcome.mult}`;
+
+  const myBets = (wheelState.bets || []).filter(b => b.id === tgUser.id && b.multiplier === outcome.mult);
+  const iWon = outcome.mult > 0 && myBets.length > 0;
+  const myPayout = myBets.reduce((s, b) => s + round2client(b.amount * outcome.mult), 0);
+
+  const banner = document.getElementById('wheelWinnerBanner');
+  if (outcome.mult === 0) {
+    banner.textContent = `🎡 Bo'sh (x0) tushdi — bu safar hech kim yutmadi`;
+  } else {
+    banner.textContent = `🎡 x${outcome.mult} tushdi!` + (iWon ? ` Siz +${fmtCoin(myPayout)} yutdingiz!` : '');
+  }
+  banner.classList.add('show');
+
+  // MUHIM: balans va yutuq to'lovi haqiqatda serverda hisoblanadi — bu
+  // yerda faqat o'zimizning UI'imizni tezroq yangilash uchun optimistik
+  // ravishda balansga qo'shib qo'yamiz (keyingi holat yangilanishi/profil
+  // yangilanishi bilan haqiqiy qiymatga moslashadi).
+  if (iWon && myPayout > 0) {
+    currentUserData.balance += myPayout;
+    currentUserData.total_won = (currentUserData.total_won || 0) + myPayout;
+    syncBalanceDisplays(currentUserData.balance);
+  }
+
+  setTimeout(() => {
+    banner.classList.remove('show');
+    resetWheelVisual();
+  }, 4000);
+}
+
+function round2client(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
+
+function selectWheelMult(mult, btn) {
+  wheelSelectedMult = mult;
+  document.querySelectorAll('#wheelMultSelect .wheel-mult-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function wheelSetAmount(v, btn) {
+  document.getElementById('wheelBetAmount').value = v;
+  document.querySelectorAll('#page-wheel .crash-bet-quick .amt-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+function wheelSetAmountMax(btn) {
+  const bal = Math.max(0, Number(currentUserData.balance) || 0);
+  document.getElementById('wheelBetAmount').value = bal;
+  document.querySelectorAll('#page-wheel .crash-bet-quick .amt-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+async function placeWheelBet() {
+  const btn = document.getElementById('wheelBetBtn');
+  if (btn.disabled) return;
+
+  if (wheelState.status === 'spinning_visual' || wheelState.status === 'cooldown') {
+    alert("O'yin jarayoni kutilmoqda, yangi davr boshlanishini kuting!");
+    return;
+  }
+
+  const amount = parseFloat(document.getElementById('wheelBetAmount').value);
+  if (!amount || amount < 0.1) { alert('Minimal tikish 0.1 ★'); return; }
+  if (currentUserData.balance < amount) { alert("Coin yetarli emas!"); return; }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/wheel/bet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '', multiplier: wheelSelectedMult, amount })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'INSUFFICIENT_BALANCE') alert("Coin yetarli emas!");
+      else if (data.error === 'GAME_NOT_ACCEPTING_BETS') alert("O'yin jarayoni kutilmoqda, yangi davr boshlanishini kuting!");
+      else alert("Xatolik yuz berdi!");
+      return;
+    }
+    currentUserData.balance -= amount;
+    syncBalanceDisplays(currentUserData.balance);
+  } catch (e) {
+    console.error(e);
+    alert("Xatolik yuz berdi!");
+  }
+  finally { btn.disabled = false; }
+}
+
+function renderWheelPlayers() {
+  const list = document.getElementById('wheelPlayersList');
+  const bets = wheelState.bets || [];
+  if (!bets.length) {
+    list.innerHTML = '<p class="empty">Hali hech kim tikmadi</p>';
+    return;
+  }
+  const byMult = {};
+  bets.forEach(b => { (byMult[b.multiplier] = byMult[b.multiplier] || []).push(b); });
+  const multsSorted = Object.keys(byMult).map(Number).sort((a, b) => a - b);
+  list.innerHTML = multsSorted.map(m => `
+    <div class="hockey-round-sep">x${m}</div>
+    ${byMult[m].map(p => {
+      const color = WHEEL_OUTCOMES_CLIENT.find(o => o.mult === m)?.color || '#888';
+      return `
+      <div class="hockey-player-row">
+        ${avatarWithCrown(p.photo, p.username, p.vip)}
+        <div class="uname" style="color:${color}">${p.username}</div>
+        <div class="stake mono"><span class="coin-ico"></span> ${p.amount}</div>
+      </div>`;
+    }).join('')}
+  `).join('');
 }
 
 // ==================== GIFT UPGRADE ====================

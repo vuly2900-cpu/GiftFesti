@@ -79,7 +79,7 @@ let leaderboardEndAt = null; // Reyting tugash vaqti (ms, epoch) — admin panel
 //   requireChannel, status:'active'|'finished', participants:[{userId,tickets}],
 //   winners: [{userId,username,itemId,itemName}]|null, createdAt, endedAt }
 let contests = [];
-const gameHistory = { hockey: [], drum: [], crash: [] };
+const gameHistory = { hockey: [], drum: [], crash: [], wheel: [] };
 // Telegram Stars orqali balans to'ldirishda bir xil to'lovni ikki marta
 // kreditlab qo'ymaslik uchun qayta ishlangan telegram_payment_charge_id'lar:
 const processedTopupCharges = new Set();
@@ -2170,6 +2170,7 @@ function requireSimpleAdmin(req, res) {
 function resetGameState(game) {
   if (game === 'hockey') { clearTimeout(gameTimers.hockey); hockeyState = defaultHockeyState(); emitState('hockey'); }
   else if (game === 'drum') { clearTimeout(gameTimers.drum); drumState = defaultDrumState(); emitState('drum'); }
+  else if (game === 'wheel') { clearTimeout(wheelTimer); wheelState = defaultWheelState(); emitWheelState(); }
   gameHistory[game] = [];
 }
 
@@ -2189,6 +2190,7 @@ app.get('/api/internal_stats', (req, res) => {
     activeVouchers: vouchers.filter(v => v.used < v.maxUses).length,
     hockey: { status: hockeyState.status, players: hockeyState.players.length, round: hockeyState.game_number },
     drum: { status: drumState.status, players: drumState.players.length, round: drumState.game_number },
+    wheel: { status: wheelState.status, players: wheelState.bets.length, round: wheelState.game_number },
   });
 });
 
@@ -3020,6 +3022,147 @@ function finalizeRound(game) {
   }, COOLDOWN_MS);
 }
 
+/* ============================================================
+   YANGI O'YIN: WHEEL — "SOLO" bo'limi ichida (Upgrade bilan bir qatorda).
+   Hockey/Drum'dan farqi: g'olib pot ULUSHIGA proportsional emas, aksincha
+   baraban FIKS ehtimollik bilan bitta multiplikatorga (x2/x4/x5/x20) yoki
+   "bo'sh" (x0, hech kim yutmaydi) zonaga tushadi. O'sha multiplikatorni
+   tanlagan HAMMA o'yinchilar o'z tikkan summasini shu songa ko'paytirib
+   yutib oladi (masalan x5 tushsa va 0.1 tikkan bo'lsa — 0.5 qaytadi).
+   Ehtimollar (bank foydasi kam, "adolatli" variant):
+     x2  -> 45%   (EV 0.90, ~10% bank foydasi)
+     x4  -> 22%   (EV 0.88, ~12% bank foydasi)
+     x5  -> 18%   (EV 0.90, ~10% bank foydasi)
+     x20 -> 4%    (EV 0.80, ~20% bank foydasi)
+     x0  -> 11%   (hech kim yutmaydi — "bo'sh" kulrang zona)
+   ============================================================ */
+const WHEEL_OUTCOMES = [
+  { mult: 2, weight: 45, color: '#3B82F6' },  // ko'k
+  { mult: 4, weight: 22, color: '#A855F7' },  // siyohrang/binafsha
+  { mult: 5, weight: 18, color: '#22C55E' },  // yashil
+  { mult: 20, weight: 4, color: '#EC4899' },  // pushti
+  { mult: 0, weight: 11, color: '#6B7280' },  // kulrang — bo'sh (hech kim yutmaydi)
+];
+const WHEEL_BETTABLE_MULTS = WHEEL_OUTCOMES.filter(o => o.mult > 0).map(o => o.mult);
+const WHEEL_WAIT_SECONDS = 15;
+const WHEEL_SPIN_MS = 6150;
+const WHEEL_COOLDOWN_MS = 5000;
+let wheelTimer = null;
+
+function defaultWheelState() {
+  return { status: 'idle', bets: [], pot: 0, game_number: 1, bettingStartedAt: null, cooldownStartedAt: null, result: null, wheelSeed: null };
+}
+let wheelState = defaultWheelState();
+function emitWheelState() { io.emit('wheel:state', wheelState); }
+
+function startWheelBettingTimer() {
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(onWheelBettingTimeout, WHEEL_WAIT_SECONDS * 1000);
+}
+function onWheelBettingTimeout() {
+  if (wheelState.bets.length < 1) return;
+  resolveWheelRound();
+}
+
+function pickWheelOutcome() {
+  const total = WHEEL_OUTCOMES.reduce((s, o) => s + o.weight, 0);
+  let r = Math.random() * total;
+  for (const o of WHEEL_OUTCOMES) {
+    if (r < o.weight) return o;
+    r -= o.weight;
+  }
+  return WHEEL_OUTCOMES[WHEEL_OUTCOMES.length - 1];
+}
+
+function resolveWheelRound() {
+  clearTimeout(wheelTimer);
+  wheelState.status = 'spinning_visual';
+
+  const outcome = pickWheelOutcome();
+  const total = WHEEL_OUTCOMES.reduce((s, o) => s + o.weight, 0);
+  let cursor = 0, start = 0, end = 360;
+  for (const o of WHEEL_OUTCOMES) {
+    const size = o.weight / total * 360;
+    if (o.mult === outcome.mult) { start = cursor; end = cursor + size; break; }
+    cursor += size;
+  }
+  const angle = start + Math.random() * Math.max(end - start, 0.001);
+
+  wheelState.result = { multiplier: outcome.mult, color: outcome.color };
+  wheelState.wheelSeed = { angle };
+  emitWheelState();
+
+  setTimeout(() => finalizeWheelRound(), WHEEL_SPIN_MS);
+}
+
+function finalizeWheelRound() {
+  const winMult = wheelState.result.multiplier;
+  const historyEntry = { game_number: wheelState.game_number, result: wheelState.result, pot: wheelState.pot, bets: [] };
+
+  wheelState.bets.forEach(b => {
+    const won = b.multiplier === winMult && winMult > 0;
+    const payout = won ? round2(b.amount * winMult) : 0;
+    if (won && payout > 0) {
+      const u = users.get(String(b.id));
+      if (u) {
+        u.balance = round2(u.balance + payout);
+        u.total_won = round2((u.total_won || 0) + payout);
+        u.wins = (u.wins || 0) + 1;
+      }
+    }
+    historyEntry.bets.push({ id: b.id, username: b.username, photo: b.photo, multiplier: b.multiplier, amount: b.amount, won, payout });
+  });
+
+  gameHistory.wheel.unshift(historyEntry);
+  if (gameHistory.wheel.length > 10) gameHistory.wheel.length = 10;
+
+  wheelState.status = 'cooldown';
+  wheelState.cooldownStartedAt = Date.now();
+  emitWheelState();
+
+  setTimeout(() => {
+    const gnum = wheelState.game_number + 1;
+    wheelState = { ...defaultWheelState(), game_number: gnum };
+    emitWheelState();
+  }, WHEEL_COOLDOWN_MS);
+}
+
+/* ---- Tikish (wheel) — multiplikator tanlab tikish ---- */
+app.post('/api/wheel/bet', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const { multiplier, amount } = req.body || {};
+  const mult = Number(multiplier);
+  if (!WHEEL_BETTABLE_MULTS.includes(mult)) return res.status(400).json({ error: 'invalid_multiplier' });
+
+  const amt = Number(amount);
+  if (!amt || amt < 0.1) return res.status(400).json({ error: 'invalid_amount' });
+  if (amt > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
+
+  if (wheelState.status === 'spinning_visual' || wheelState.status === 'cooldown') {
+    return res.status(400).json({ error: 'GAME_NOT_ACCEPTING_BETS' });
+  }
+
+  user.balance = round2(user.balance - amt);
+  const existing = wheelState.bets.find(b => b.id === Number(user.id) && b.multiplier === mult);
+  if (existing) existing.amount = round2(existing.amount + amt);
+  else {
+    wheelState.bets.push({
+      id: Number(user.id), username: user.username, photo: user.photo_url,
+      multiplier: mult, amount: amt, vip: isVipActive(user),
+    });
+  }
+  wheelState.pot = round2(wheelState.pot + amt);
+
+  if (wheelState.status === 'idle') {
+    wheelState.status = 'betting';
+    wheelState.bettingStartedAt = Date.now();
+    startWheelBettingTimer();
+  }
+  maybeGrantDailyGameTask(user, 'wheel');
+  emitWheelState();
+  res.json({ ok: true, balance: user.balance });
+});
+
 /* ---- Tikish (hockey / drum) ---- */
 app.post('/api/place_bet', (req, res) => {
   const user = requireUser(req, res); if (!user) return;
@@ -3387,6 +3530,7 @@ io.on('connection', (socket) => {
   socket.emit('hockey:state', hockeyState);
   socket.emit('drum:state', drumState);
   socket.emit('crash:state', sanitizeCrashState());
+  socket.emit('wheel:state', wheelState);
 
   // MUHIM (bug fix): yuqoridagi emit faqat socket ULANGAN paytda bir marta
   // yuboriladi. Agar foydalanuvchi keyinroq (masalan, boshqa sahifada bir oz
@@ -3399,6 +3543,7 @@ io.on('connection', (socket) => {
     if (game === 'hockey') socket.emit('hockey:state', hockeyState);
     else if (game === 'drum') socket.emit('drum:state', drumState);
     else if (game === 'crash') socket.emit('crash:state', sanitizeCrashState());
+    else if (game === 'wheel') socket.emit('wheel:state', wheelState);
   });
 
   /* -------- RAKETA (CRASH) — "OLISH" real vaqtda, socket orqali -------- */

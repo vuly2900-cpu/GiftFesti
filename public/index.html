@@ -2424,7 +2424,10 @@ tg?.ready(); tg?.expand();
 
 const tgUser = tg?.initDataUnsafe?.user;
 const BOT_USERNAME = 'GiftFesti_bot'; // Yangilangan bot nomi
-const ADMIN_ID = 5860144922;
+// MUHIM: admin ekanligi hech qachon clientda (bu yerda) aniqlanmaydi —
+// faqat server /api/init_user javobidagi currentUserData.isAdmin maydoniga
+// ishoniladi, u esa serverdagi ADMIN_IDS ro'yxatiga (validatsiya qilingan
+// Telegram ID orqali) qarab hisoblanadi.
 let currentUserData = null;
 let currentGeneratedCaptcha = "";
 syncUserAvatars();
@@ -4880,7 +4883,7 @@ async function loadProfile() {
   document.getElementById('profBalance').textContent = fmtCoin(currentUserData.balance);
   document.getElementById('profTotalWon').textContent = fmtCoin(currentUserData.total_won || 0);
   document.getElementById('profWins').textContent = currentUserData.wins || 0;
-  if (tgUser && tgUser.id === ADMIN_ID) {
+  if (currentUserData && currentUserData.isAdmin) {
     document.getElementById('adminOpenerBtn').style.display = 'block';
   }
   if (currentUserData && currentUserData.isSimpleAdmin) {
@@ -5623,9 +5626,8 @@ async function activatePromo() {
   }
 }
 
-// MUHIM: barcha admin amallari endi backend orqali o'tadi. Server ADMIN_IDS
-// ro'yxatiga qarab tekshiradi — clientdagi ADMIN_ID esa faqat tugmani
-// ko'rsatish/yashirish uchun, haqiqiy himoya emas.
+// MUHIM: barcha admin amallari backend orqali o'tadi va server ADMIN_IDS
+// ro'yxatiga (validatsiya qilingan Telegram ID) qarab tekshiradi.
 async function callAdminAction(action, payload = {}) {
   const res = await fetch(ADMIN_ACTION_API_URL, {
     method: 'POST',

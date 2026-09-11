@@ -1394,6 +1394,21 @@
   .history-player-row.is-winner { color: var(--success); }
   .history-player-row .won.zero { color: var(--text-dim); font-weight: 400; }
 
+  /* WHEEL tarixi — faqat oldingi raundlarda qaysi rang/multiplikator
+     tushganini ko'rsatadi, kim yutgani emas */
+  .wheel-history-list{ display:flex; flex-direction:column; gap:2px; }
+  .wheel-history-row{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 4px; border-bottom:1px solid var(--border);
+  }
+  .wheel-history-row:last-child{ border-bottom:none; }
+  .wheel-history-dot{
+    width:16px; height:16px; border-radius:50%; flex-shrink:0;
+    box-shadow:0 0 0 2px rgba(255,255,255,.08);
+  }
+  .wheel-history-round{ flex:1; font-size:13px; color:var(--text-dim); }
+  .wheel-history-mult{ font-size:14px; font-weight:700; }
+
   /* ===== Dizayn yaxshilash: chuqurlik, animatsiya, tipografiya ===== */
 
   /* --- Kartalarga chuqurlik (soya) --- */
@@ -5647,21 +5662,18 @@ async function openGameHistory(game) {
     }
 
     if (game === 'wheel') {
-      let html = '';
+      let html = '<div class="wheel-history-list">';
       rounds.forEach(r => {
-        const bets = [...(r.bets || [])].sort((a, b) => (b.won ? 1 : 0) - (a.won ? 1 : 0));
-        html += `<div class="history-round">
-          <div class="history-round-title">O'yin #${r.game_number} — Tushdi: <span class="mono">x${r.result ? r.result.multiplier : 0}</span></div>
-          ${bets.map(b => `
-          <div class="history-player-row ${b.won ? 'is-winner' : ''}">
-            ${avatarWithCrown(b.photo, b.username, false)}
-            <div class="uname">${b.username}${b.won ? ' 🏆' : ''}</div>
-            <div class="stake mono"><span class="coin-ico"></span>${b.amount}</div>
-            <div class="chance mono">x${b.multiplier}</div>
-            <div class="won mono ${b.won ? '' : 'zero'}">${b.won ? '+' + b.payout : '—'}</div>
-          </div>`).join('')}
-        </div>`;
+        const mult = r.result ? r.result.multiplier : 0;
+        const color = (r.result && r.result.color) || '#6B7280';
+        html += `
+          <div class="wheel-history-row">
+            <span class="wheel-history-dot" style="background:${color}"></span>
+            <div class="wheel-history-round">O'yin #${r.game_number}</div>
+            <div class="wheel-history-mult mono" style="color:${color}">${mult === 0 ? "Bo'sh (x0)" : 'x' + mult}</div>
+          </div>`;
       });
+      html += '</div>';
       content.innerHTML = html;
       return;
     }
@@ -7945,18 +7957,19 @@ function startWheelSpinAnimation() {
 function finishWheelRound(outcome) {
   const cd = document.getElementById('wheelCountdown');
   cd.textContent = "O'yin tugadi!";
+  const winMult = outcome.multiplier;
   const dot = document.getElementById('wheelCenterDot');
-  if (dot) dot.textContent = `x${outcome.mult}`;
+  if (dot) dot.textContent = `x${winMult}`;
 
-  const myBets = (wheelState.bets || []).filter(b => b.id === tgUser.id && b.multiplier === outcome.mult);
-  const iWon = outcome.mult > 0 && myBets.length > 0;
-  const myPayout = myBets.reduce((s, b) => s + round2client(b.amount * outcome.mult), 0);
+  const myBets = (wheelState.bets || []).filter(b => b.id === tgUser.id && b.multiplier === winMult);
+  const iWon = winMult > 0 && myBets.length > 0;
+  const myPayout = myBets.reduce((s, b) => s + round2client(b.amount * winMult), 0);
 
   const banner = document.getElementById('wheelWinnerBanner');
-  if (outcome.mult === 0) {
+  if (winMult === 0) {
     banner.textContent = `🎡 Bo'sh (x0) tushdi — bu safar hech kim yutmadi`;
   } else {
-    banner.textContent = `🎡 x${outcome.mult} tushdi!` + (iWon ? ` Siz +${fmtCoin(myPayout)} yutdingiz!` : '');
+    banner.textContent = `🎡 x${winMult} tushdi!` + (iWon ? ` Siz +${fmtCoin(myPayout)} yutdingiz!` : '');
   }
   banner.classList.add('show');
 

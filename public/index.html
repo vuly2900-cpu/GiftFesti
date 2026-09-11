@@ -541,6 +541,15 @@
   .game-card.upgrade{background:linear-gradient(135deg,#123524,#0d211a);}
   .game-card.wheel{background:linear-gradient(135deg,#2A1B3A,#180f21);}
 
+  /* ---- Rasm-asosidagi banner kartalar (Raketa/PVP) ---- */
+  .game-card-banner{
+    display:block; width:100%; border-radius:16px; overflow:hidden;
+    margin-bottom:12px; cursor:pointer; line-height:0;
+    transition:transform .15s ease;
+  }
+  .game-card-banner:active{transform:scale(.98);}
+  .game-card-banner img{width:100%; height:auto; display:block;}
+
   /* ---- RAKETA kartasi — cosmic dizayn ---- */
   .game-card.crash{
     padding-right:112px;
@@ -611,10 +620,11 @@
   .crash-rocket.crash-hidden, .crash-mult.crash-hidden{opacity:0; pointer-events:none;}
   .crash-mult.running{color:var(--success); text-shadow:0 0 24px rgba(51,196,129,.35);}
   .crash-mult.crashed{color:var(--danger); text-shadow:0 0 24px rgba(229,84,75,.4); animation:crashShake .4s ease;}
-  .crash-rocket{position:absolute; left:50%; top:38%; width:94px; height:94px; z-index:2;
+  .crash-rocket{position:absolute; left:50%; top:38%; width:128px; height:104px; z-index:2;
     transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center;
     animation:crashFloat 2.2s ease-in-out infinite; transition:opacity .25s ease;}
   .crash-rocket .fallback-emoji{font-size:56px;}
+  .crash-rocket img{width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 6px 18px rgba(35,145,255,.45));}
   .crash-rocket video, .crash-rocket .lottie-box{width:100%; height:100%;}
   .crash-rocket.running{animation:crashFloat 0.6s ease-in-out infinite, crashGrow 1.4s ease forwards;}
   .crash-rocket.crashed{animation:crashBoom .5s ease forwards;}
@@ -629,6 +639,7 @@
   /* ---- RAKETA "PAS" YO'NALISHI (sozlamalarda tanlansa) ---- */
   .crash-rocket.dir-down{top:62%;}
   .crash-rocket.dir-down .fallback-emoji{display:inline-block; transform:rotate(180deg);}
+  .crash-rocket.dir-down img{transform:rotate(180deg);}
   .crash-rocket.dir-down{animation:crashFloatDown 2.2s ease-in-out infinite;}
   .crash-rocket.dir-down.running{animation:crashFloatDown 0.6s ease-in-out infinite, crashGrowDown 1.4s ease forwards;}
   .crash-rocket.dir-down.crashed{animation:crashBoomDown .5s ease forwards;}
@@ -1712,22 +1723,12 @@
       <button class="play-topup-btn" onclick="openTopupOverlay()">💳 <span data-i18n="topup_btn">To'ldirish</span></button>
     </div>
 
-    <div class="game-card crash" onclick="openGame('crash')">
-      <span class="game-badge hot">⚡ <span data-i18n="badge_hot">Hot</span></span>
-      <span class="game-name">🚀 <span data-i18n="game_rocket">RAKETA</span></span>
-      <div class="game-card-visual" id="gcVisualCrash"><span class="fallback-emoji">🚀</span></div>
+    <div class="game-card-banner" onclick="openGame('crash')">
+      <img src="/banners/raketa_banner.png" alt="RAKETA">
     </div>
 
-    <div class="game-card pvp" onclick="goTo('pvp')">
-      <div class="pvp-left">
-        <div class="mini-icon-visual" id="gcVisualPvp" style="width:26px;height:26px;margin-top:0;"><span class="fallback-emoji" style="font-size:22px;">⚔️</span></div>
-        <span class="game-name" data-i18n="game_pvp">Battle PvP</span>
-      </div>
-      <div class="pvp-avatars">
-        <span class="pvp-dot purple"></span>
-        <span class="pvp-dot pink"></span>
-        <span class="pvp-dot green"></span>
-      </div>
+    <div class="game-card-banner" onclick="goTo('pvp')">
+      <img src="/banners/pvp_banner.png" alt="PVP">
     </div>
 
     <div class="mini-row">
@@ -1868,7 +1869,7 @@
         </svg>
         <div class="ring-num" id="crashWaitRingNum">7</div>
       </div>
-      <div class="crash-rocket" id="crashRocket"><span class="fallback-emoji">🚀</span></div>
+      <div class="crash-rocket" id="crashRocket"><img src="/gifts/rocket_crash.png" alt="RAKETA"></div>
       <div class="crash-mult" id="crashMultDisplay">1.00x</div>
     </div>
 
@@ -6454,26 +6455,8 @@ function openGame(name) {
 }
 
 
-/* ===== Raketa (Crash) — premium animatsiyali emojilar (har raundda almashadi) ===== */
-const rocketAnimState = { ready: false, loading: false, assets: [], mountedIndex: null };
-async function initRocketEmoji() {
-  if (rocketAnimState.ready || rocketAnimState.loading) return;
-  rocketAnimState.loading = true;
-  try {
-    const metaRes = await fetch('/api/rocket_emoji');
-    if (!metaRes.ok) return; // BOT_TOKEN sozlanmagan bo'lsa — statik 🚀 emoji qoladi
-    const meta = await metaRes.json();
-    rocketAnimState.assets = await Promise.all(
-      (meta.emojis || []).map(e => loadEmojiAsset(e.custom_emoji_id, e.is_video))
-    );
-    rocketAnimState.ready = rocketAnimState.assets.length > 0;
-    mountRocketForRound(crashState.round_number || 1);
-  } catch (e) {
-    console.error('Raketa animatsiyasi yuklanmadi:', e.message);
-  } finally {
-    rocketAnimState.loading = false;
-  }
-}
+/* ===== Raketa (Crash) — statik raketa rasmi (premium emoji olib tashlandi) ===== */
+function initRocketEmoji() { /* endi kerak emas: raketa rasmi statik holda HTML'da turadi */ }
 
 /* ---- Raketa grafik yo'nalishi sozlamasi ("Tepa" / "Pas") ---- */
 let crashDirection = localStorage.getItem('crashDirection') || 'up';
@@ -6504,22 +6487,10 @@ function mountRocketForRound(roundNumber, force) {
   const el = document.getElementById('crashRocket');
   if (!el) return;
   el.classList.toggle('dir-down', crashDirection === 'down');
-
-  if (crashDirection === 'down') {
-    // "Pas" tanlansa — animatsiyasiz oddiy raketa emoji ko'rsatiladi
-    if (rocketAnimState.mountedIndex !== 'static' || force) {
-      rocketAnimState.mountedIndex = 'static';
-      el.innerHTML = '<span class="fallback-emoji">🚀</span>';
-    }
-    return;
+  // Raketa rasmi statik — faqat yo'nalish (Tepa/Pas) klassi almashadi, rasm o'zgarmaydi
+  if (!el.querySelector('img')) {
+    el.innerHTML = '<img src="/gifts/rocket_crash.png" alt="RAKETA">';
   }
-
-  if (!rocketAnimState.ready || !rocketAnimState.assets.length) return;
-  const idx = (Number(roundNumber || 1) - 1) % rocketAnimState.assets.length;
-  if (rocketAnimState.mountedIndex === idx && !force) return;
-  rocketAnimState.mountedIndex = idx;
-  el.innerHTML = '';
-  mountEmojiAsset(el, rocketAnimState.assets[idx]);
 }
 
 // ==================== RAKETA (CRASH) — real vaqtli multiplayer ====================

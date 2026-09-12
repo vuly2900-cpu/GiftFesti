@@ -595,17 +595,18 @@
   .tile-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}
   .game-card.tile{
     aspect-ratio:1/1; margin-bottom:0; padding:12px;
-    display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-start;
+    display:flex; flex-direction:column; justify-content:flex-end; align-items:center;
+    text-align:center;
   }
   .game-card.tile .game-badge{display:none;}
-  .game-card.tile .game-name{position:relative; z-index:1; font-size:15px; line-height:1.2;}
+  .game-card.tile .game-name{position:relative; z-index:1; font-size:15px; line-height:1.2; width:100%; text-align:center;}
   .game-card.tile .game-card-visual{
     position:absolute; left:50%; top:38%; right:auto; margin:0;
-    transform:translate(-50%,-50%); width:auto; height:auto;
+    transform:translate(-50%,-50%); width:84px; height:84px;
   }
-  .game-card.tile .game-card-visual .fallback-emoji{font-size:64px;}
+  .game-card.tile .game-card-visual .fallback-emoji{font-size:56px;}
   .game-card.tile .upg-duo-visual{
-    position:absolute; left:50%; top:38%; right:auto;
+    position:absolute; left:50%; top:38%; right:auto; width:auto; height:auto;
     transform:translate(-50%,-50%); flex-direction:row; gap:6px;
   }
   .game-card.tile .upg-duo-icon .fallback-emoji{font-size:40px;}

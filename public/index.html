@@ -211,13 +211,46 @@
   .podium .name{font-size:12px; font-weight:600; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .podium .stars{font-size:12px; color:var(--gold); font-weight:700; margin-top:2px; margin-bottom:10px;}
   .podium-block{
-    width:100%; border-radius:12px 12px 0 0; display:flex; align-items:flex-start;
-    justify-content:center; padding-top:8px; box-sizing:border-box;
-    font-family:'Sora',sans-serif; font-weight:800; font-size:22px;
+    position:relative; width:100%; box-sizing:border-box;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding-top:30px; font-family:'Sora',sans-serif; font-weight:800; font-size:24px;
+    border-radius:4px 4px 10px 10px; overflow:visible;
   }
-  .slot.first .podium-block{height:96px; background:linear-gradient(180deg,#FFDE7E,#E8B923); color:#1A1400;}
-  .slot.second .podium-block{height:68px; background:linear-gradient(180deg,#E4E7ED,#C6C9D1); color:#1A1A1A;}
-  .slot.third .podium-block{height:54px; background:linear-gradient(180deg,#E39B6B,#C97B4A); color:#1A1000;}
+  .podium-block::before{
+    content:''; position:absolute; top:-11px; left:2%; right:2%; height:22px;
+    border-radius:50%; z-index:0;
+  }
+  .podium-block .rank-num{ position:relative; z-index:1; }
+  .slot.first .podium-block{
+    height:100px;
+    background:linear-gradient(90deg,#C79A1E 0%,#FFE28A 18%,#F4C430 50%,#FFE28A 82%,#C79A1E 100%);
+    box-shadow:inset 0 -20px 22px rgba(0,0,0,.18), 0 8px 18px rgba(232,185,35,.28);
+  }
+  .slot.first .podium-block::before{
+    background:linear-gradient(90deg,#D9AC35 0%,#FFF3C4 50%,#D9AC35 100%);
+    box-shadow:0 2px 4px rgba(0,0,0,.18);
+  }
+  .slot.first .podium-block .rank-num{ color:#6B4E00; text-shadow:0 1px 0 rgba(255,255,255,.35); }
+  .slot.second .podium-block{
+    height:68px;
+    background:linear-gradient(90deg,#9CA1AB 0%,#E8EAEF 18%,#C6C9D1 50%,#E8EAEF 82%,#9CA1AB 100%);
+    box-shadow:inset 0 -16px 18px rgba(0,0,0,.16), 0 6px 14px rgba(0,0,0,.2);
+  }
+  .slot.second .podium-block::before{
+    background:linear-gradient(90deg,#B7BBC3 0%,#F5F6F8 50%,#B7BBC3 100%);
+    box-shadow:0 2px 4px rgba(0,0,0,.15);
+  }
+  .slot.second .podium-block .rank-num{ color:#3B3E44; }
+  .slot.third .podium-block{
+    height:54px;
+    background:linear-gradient(90deg,#A3552B 0%,#E8A06B 18%,#C97B4A 50%,#E8A06B 82%,#A3552B 100%);
+    box-shadow:inset 0 -14px 16px rgba(0,0,0,.18), 0 6px 14px rgba(201,123,74,.22);
+  }
+  .slot.third .podium-block::before{
+    background:linear-gradient(90deg,#C08050 0%,#F0C29A 50%,#C08050 100%);
+    box-shadow:0 2px 4px rgba(0,0,0,.15);
+  }
+  .slot.third .podium-block .rank-num{ color:#4A2200; }
   .gift-badge{
     display:flex; align-items:center; justify-content:center;
     width:36px; height:36px; margin:8px auto 0;
@@ -1572,12 +1605,6 @@
     box-shadow: 0 2px 10px rgba(0,0,0,.3);
     backdrop-filter: blur(16px) saturate(150%);
     -webkit-backdrop-filter: blur(16px) saturate(150%);
-  }
-  .podium-block {
-    box-shadow: 0 4px 16px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.35);
-  }
-  .slot.first .podium-block {
-    box-shadow: 0 6px 22px rgba(232,185,35,.28), 0 1px 2px rgba(0,0,0,.35);
   }
 
   /* --- Padding/bo'sh joyni biroz kengaytirish --- */
@@ -4384,7 +4411,7 @@ function renderLeaderboard(leaderboard) {
       </div>
       <div class="name">${u.username}</div>
       <div class="stars"><span class="coin-ico"></span> ${fmtCoin(u.stars)}</div>
-      <div class="podium-block">${u.place}</div>
+      <div class="podium-block"><span class="rank-num">${u.place}</span></div>
     </div>
   `).join('');
   // Ayiqcha ikonkasi ham case sahifasidagi kabi haqiqiy Telegram premium

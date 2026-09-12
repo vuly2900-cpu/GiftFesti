@@ -793,11 +793,24 @@
   }
   .play-header-left{display:flex; align-items:center; gap:10px; position:relative; z-index:1;}
   .play-header-avatar{display:none;}
-  .play-coin-stack{position:relative; width:48px; height:40px; flex-shrink:0;}
-  .pcs-coin{position:absolute; border-radius:50%; filter:drop-shadow(0 3px 6px rgba(0,0,0,.55));}
-  .pcs-c1{left:0; top:9px; width:28px; height:28px; z-index:3;}
-  .pcs-c2{left:15px; top:0; width:26px; height:26px; z-index:2; opacity:.92;}
-  .pcs-c3{left:24px; top:13px; width:20px; height:20px; z-index:1; opacity:.85;}
+  .play-wallet{position:relative; width:54px; height:44px; flex-shrink:0;}
+  .pw-flap{
+    position:absolute; left:6px; top:0; width:26px; height:14px;
+    background:linear-gradient(160deg,#4B525E,#20242B);
+    border:1.2px solid rgba(90,190,255,.55); border-radius:6px 10px 4px 4px;
+    transform:rotate(-10deg); box-shadow:0 0 8px rgba(60,170,255,.4);
+  }
+  .pw-body{
+    position:absolute; left:3px; top:11px; width:38px; height:28px; border-radius:9px;
+    background:linear-gradient(160deg,#3A4048,#1A1D22 55%,#0A0B0D);
+    border:1.2px solid rgba(90,190,255,.65);
+    box-shadow:0 0 10px rgba(60,170,255,.5), inset 0 1px 2px rgba(255,255,255,.15);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .pw-logo{width:18px; height:18px; position:relative; z-index:1; filter:drop-shadow(0 0 4px rgba(90,190,255,.8));}
+  .pw-coin{position:absolute; border-radius:50%; filter:drop-shadow(0 0 5px rgba(60,170,255,.7));}
+  .pw-coin-a{right:-3px; top:4px; width:18px; height:18px; z-index:2;}
+  .pw-coin-b{right:0; bottom:0; width:14px; height:14px; opacity:.9; z-index:2;}
   .play-balance-info{display:flex; flex-direction:column; gap:2px; position:relative; z-index:1;}
   .play-balance-label{font-size:11px; color:var(--text-dim);}
   .play-balance-amt{
@@ -1794,10 +1807,11 @@
     <div class="play-header">
       <div class="play-header-left">
         <img class="play-header-avatar" id="playHeaderAvatar" src="" alt="">
-        <div class="play-coin-stack">
-          <img class="pcs-coin pcs-c3" src="/coin_2k.png" alt="">
-          <img class="pcs-coin pcs-c2" src="/coin_2k.png" alt="">
-          <img class="pcs-coin pcs-c1" src="/coin_2k.png" alt="">
+        <div class="play-wallet">
+          <div class="pw-flap"></div>
+          <div class="pw-body"><img class="pw-logo" src="/coin_icon.png" alt=""></div>
+          <img class="pw-coin pw-coin-a" src="/coin_icon.png" alt="">
+          <img class="pw-coin pw-coin-b" src="/coin_icon.png" alt="">
         </div>
         <div class="play-balance-info">
           <span class="play-balance-label">Balans</span>

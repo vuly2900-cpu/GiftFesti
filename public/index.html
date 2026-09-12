@@ -591,6 +591,25 @@
   .game-card.upgrade{background:linear-gradient(135deg,#123524,#0d211a);}
   .game-card.wheel{background:linear-gradient(135deg,#2A1B3A,#180f21);}
 
+  /* ---- PVP / SOLO bo'limlaridagi 2 ustunli kvadrat kartochkalar ---- */
+  .tile-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}
+  .game-card.tile{
+    aspect-ratio:1/1; margin-bottom:0; padding:12px;
+    display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-start;
+  }
+  .game-card.tile .game-badge{position:relative; z-index:1; align-self:flex-start;}
+  .game-card.tile .game-name{position:relative; z-index:1; font-size:15px; line-height:1.2;}
+  .game-card.tile .game-card-visual{
+    position:absolute; left:50%; top:38%; right:auto; margin:0;
+    transform:translate(-50%,-50%); width:auto; height:auto;
+  }
+  .game-card.tile .game-card-visual .fallback-emoji{font-size:64px;}
+  .game-card.tile .upg-duo-visual{
+    position:absolute; left:50%; top:38%; right:auto;
+    transform:translate(-50%,-50%); flex-direction:row; gap:6px;
+  }
+  .game-card.tile .upg-duo-icon .fallback-emoji{font-size:40px;}
+
   /* ---- RAKETA kartasi — cosmic dizayn ---- */
   .game-card.crash{
     padding-right:170px;
@@ -1870,15 +1889,17 @@
       <div class="game-number-badge mono" data-i18n="game_pvp">Battle PvP</div>
       <span style="width:34px;"></span>
     </div>
-    <div class="game-card hockey" onclick="openGame('hockey')">
-      <span class="game-badge">🏒 <span data-i18n="badge_physics">Mukammal Fizika</span></span>
-      <span class="game-name" data-i18n="game_hockey">Xokkey</span>
-      <div class="game-card-visual" id="gcVisualHockey"><span class="fallback-emoji">🏒</span></div>
-    </div>
-    <div class="game-card drum" onclick="openGame('drum')">
-      <span class="game-badge">🥁 <span data-i18n="badge_hit">Hit</span></span>
-      <span class="game-name" data-i18n="game_drum">Baraban</span>
-      <div class="game-card-visual" id="gcVisualDrum"><span class="fallback-emoji">🥁</span></div>
+    <div class="tile-grid">
+      <div class="game-card tile hockey" onclick="openGame('hockey')">
+        <span class="game-badge">🏒 <span data-i18n="badge_physics">Mukammal Fizika</span></span>
+        <div class="game-card-visual" id="gcVisualHockey"><span class="fallback-emoji">🏒</span></div>
+        <span class="game-name" data-i18n="game_hockey">Xokkey</span>
+      </div>
+      <div class="game-card tile drum" onclick="openGame('drum')">
+        <span class="game-badge">🥁 <span data-i18n="badge_hit">Hit</span></span>
+        <div class="game-card-visual" id="gcVisualDrum"><span class="fallback-emoji">🥁</span></div>
+        <span class="game-name" data-i18n="game_drum">Baraban</span>
+      </div>
     </div>
   </section>
 
@@ -1889,18 +1910,20 @@
       <div class="game-number-badge mono" data-i18n="game_solo">SOLO</div>
       <span style="width:34px;"></span>
     </div>
-    <div class="game-card upgrade" onclick="openGame('upgrade')">
-      <span class="game-badge">⬆️ <span data-i18n="badge_new">NEW</span></span>
-      <span class="game-name" data-i18n="game_upgrade">UPGRADE</span>
-      <div class="game-card-visual upg-duo-visual" id="gcVisualUpgrade2">
-        <div class="upg-duo-icon"><span class="fallback-emoji">🔻</span></div>
-        <div class="upg-duo-icon"><span class="fallback-emoji">🔺</span></div>
+    <div class="tile-grid">
+      <div class="game-card tile upgrade" onclick="openGame('upgrade')">
+        <span class="game-badge">⬆️ <span data-i18n="badge_new">NEW</span></span>
+        <div class="game-card-visual upg-duo-visual" id="gcVisualUpgrade2">
+          <div class="upg-duo-icon"><span class="fallback-emoji">🔻</span></div>
+          <div class="upg-duo-icon"><span class="fallback-emoji">🔺</span></div>
+        </div>
+        <span class="game-name" data-i18n="game_upgrade">UPGRADE</span>
       </div>
-    </div>
-    <div class="game-card wheel" onclick="openGame('wheel')">
-      <span class="game-badge">🎡 <span data-i18n="badge_hit">Hit</span></span>
-      <span class="game-name" data-i18n="game_wheel">WHEEL</span>
-      <div class="game-card-visual" id="gcVisualWheel"><span class="fallback-emoji">🎡</span></div>
+      <div class="game-card tile wheel" onclick="openGame('wheel')">
+        <span class="game-badge">🎡 <span data-i18n="badge_hit">Hit</span></span>
+        <div class="game-card-visual" id="gcVisualWheel"><span class="fallback-emoji">🎡</span></div>
+        <span class="game-name" data-i18n="game_wheel">WHEEL</span>
+      </div>
     </div>
   </section>
 

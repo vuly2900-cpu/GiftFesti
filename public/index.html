@@ -200,6 +200,14 @@
   .podium .slot.first{order:2;}
   .podium .slot.second{order:1;}
   .podium .slot.third{order:3;}
+  .crown{
+    width:28px; height:28px; margin:0 auto -8px; position:relative; z-index:3;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));
+  }
+  .crown svg{width:100%; height:100%; display:block;}
+  .slot.first .crown{ width:38px; height:38px; margin-bottom:-12px; color:#FFD24C; }
+  .slot.second .crown{ color:#D7DAE0; }
+  .slot.third .crown{ color:#E29B67; }
   .podium .avatar-wrap{position:relative; margin-bottom:8px;}
   .podium img.avatar{
     width:52px; height:52px; border-radius:50%; object-fit:cover;
@@ -4405,6 +4413,7 @@ function renderLeaderboard(leaderboard) {
   const order = ['first', 'second', 'third'];
   podium.innerHTML = top3.map((u, i) => `
     <div class="slot ${order[i]}">
+      <div class="crown"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 19h18l-1.6-9.2-4.9 3.6L12 6l-2.5 7.4-4.9-3.6L3 19z"/></svg></div>
       <div class="avatar-wrap">
         <img class="avatar" src="${u.photo_url || avatarFallback(u.username)}" onerror="this.src=avatarFallback('${u.username}')">
         <div class="gift-badge"><div class="anim-slot" id="lbGiftAnim_${u.place}"></div></div>

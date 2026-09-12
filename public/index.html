@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0A0B0E;
+    --bg:#060B18;
     --surface:rgba(24,26,33,.6);
     --surface-2:rgba(32,35,44,.62);
     --border:rgba(255,255,255,.09);
@@ -105,10 +105,11 @@
        barcha haqiqiy kontent (topbar/main/bottomnav) explicit ravishda z-index:1+
        bilan uning USTIGA chiqariladi (pastga qarang: #contentLayer). */
     z-index:0; overflow:hidden; pointer-events:none;
-    background:
-      radial-gradient(ellipse at 50% 0%, rgba(60,50,90,.35), transparent 55%),
-      var(--bg);
+    background:var(--bg);
   }
+  /* Yulduzlar, tumanlik va sayyora fondan butunlay olib tashlandi — endi
+     to'q ko'k tekis (flat) fon ishlatiladi. */
+  .nebula, .cosmic-planet, .star-layer, .shooting-stars-layer{ display:none !important; }
 
   /* --- Tumanlik (nebula) dog'lari: xira, sekin suzuvchi rangli bulutlar --- */
   .nebula{
@@ -2870,7 +2871,7 @@ syncUserAvatars();
 // ================= FON (BACKGROUND) SOZLAMALARI =================
 const BG_THEMES = [
   { key:'violet',  label:"Binafsha", bg:'#0A0B0E', grad:'linear-gradient(160deg, #4c2f8f 0%, #14101f 100%)', neb:['rgba(139,92,246,.55)','rgba(56,132,246,.45)','rgba(232,80,170,.38)'] },
-  { key:'blue',    label:"Ko'k",     bg:'#080b14', grad:'linear-gradient(160deg, #1e3fae 0%, #060a16 100%)', neb:['rgba(45,100,240,.55)','rgba(30,70,190,.45)','rgba(70,140,255,.30)'] },
+  { key:'blue',    label:"Ko'k",     bg:'#0A1830', grad:'linear-gradient(160deg, #1e3fae 0%, #060a16 100%)', neb:['rgba(45,100,240,.55)','rgba(30,70,190,.45)','rgba(70,140,255,.30)'] },
   { key:'teal',    label:"Firuza",   bg:'#061412', grad:'linear-gradient(160deg, #0d8078 0%, #06120f 100%)', neb:['rgba(20,170,160,.5)','rgba(15,110,110,.4)','rgba(60,200,190,.28)'] },
   { key:'red',     label:"Qizil",    bg:'#170505', grad:'linear-gradient(160deg, #8a1414 0%, #150404 100%)', neb:['rgba(210,40,40,.5)','rgba(140,20,20,.4)','rgba(255,90,70,.25)'] },
   { key:'green',   label:"Yashil",   bg:'#04140a', grad:'linear-gradient(160deg, #0d7a32 0%, #041209 100%)', neb:['rgba(30,170,80,.5)','rgba(15,110,55,.4)','rgba(70,220,120,.25)'] },
@@ -2881,7 +2882,7 @@ const BG_THEMES = [
 const BG_THEME_KEY = 'gf_bg_theme';
 
 function getSavedBgTheme(){
-  return localStorage.getItem(BG_THEME_KEY) || 'violet';
+  return localStorage.getItem(BG_THEME_KEY) || 'blue';
 }
 
 function applyBgTheme(key){
@@ -2890,23 +2891,13 @@ function applyBgTheme(key){
 
   const cosmicBg = document.getElementById('cosmicBg');
   if (cosmicBg) {
+    // Yulduzlar, tumanlik va sayyora butunlay olib tashlandi — qaysi rang
+    // tanlanishidan qat'i nazar, fon har doim tekis (flat) rangda bo'ladi.
     const nebulaEls = cosmicBg.querySelectorAll('.nebula-violet, .nebula-blue, .nebula-pink');
+    nebulaEls.forEach(el => { el.style.display = 'none'; });
     const planet = cosmicBg.querySelector('.cosmic-planet');
-
-    if (theme.key === 'none') {
-      // "Yo'q" tanlansa — butunlay qop-qora, hech qanday bezak/tumanlik yo'q
-      nebulaEls.forEach(el => { el.style.display = 'none'; });
-      if (planet) planet.style.display = 'none';
-      cosmicBg.style.background = '#000000';
-    } else {
-      cosmicBg.style.background = `radial-gradient(ellipse at 50% 0%, rgba(60,50,90,.35), transparent 55%), ${theme.bg}`;
-      if (planet) planet.style.display = '';
-      nebulaEls.forEach((el, i) => {
-        el.style.display = '';
-        const color = (theme.neb && theme.neb[i]) || (theme.neb && theme.neb[0]) || 'rgba(120,120,120,.3)';
-        el.style.background = `radial-gradient(circle, ${color} 0%, rgba(0,0,0,0) 70%)`;
-      });
-    }
+    if (planet) planet.style.display = 'none';
+    cosmicBg.style.background = theme.bg;
   }
 
   localStorage.setItem(BG_THEME_KEY, theme.key);

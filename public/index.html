@@ -580,7 +580,8 @@
   .case-reel-pointer::after{ bottom:-2px; border-bottom:7px solid var(--gold); }
 
   .game-card{
-    position:relative; overflow:hidden;
+    position:relative; overflow:hidden; isolation:isolate;
+    -webkit-clip-path:inset(0 round 16px); clip-path:inset(0 round 16px);
     border-radius:16px; padding:18px; margin-bottom:12px;
     min-height:100px; display:flex; flex-direction:column; justify-content:space-between;
     border:1px solid var(--border);
@@ -611,14 +612,6 @@
     animation:gcTwinkle 4s ease-in-out infinite;
   }
   @keyframes gcTwinkle{0%,100%{opacity:.5;} 50%{opacity:.9;}}
-  .game-card.crash::after{
-    content:''; position:absolute; right:-10px; top:50%; z-index:0; pointer-events:none;
-    width:230px; height:230px; transform:translateY(-50%);
-    background:repeating-conic-gradient(from 0deg, rgba(150,180,255,.22) 0deg 3deg, transparent 3deg 16deg);
-    border-radius:50%; opacity:.55; mix-blend-mode:screen;
-    animation:gcRaySpin 18s linear infinite;
-  }
-  @keyframes gcRaySpin{0%{transform:translateY(-50%) rotate(0deg);} 100%{transform:translateY(-50%) rotate(360deg);}}
   .game-card.crash > .game-badge, .game-card.crash > .game-name{position:relative; z-index:1;}
   /* ---- Kartalardagi suzuvchi multiplikator chiplari (dekorativ) ---- */
   .gc-chip{
@@ -784,26 +777,43 @@
     background:rgba(0,0,0,.25);
   }
 
-  /* ---- O'ynash sahifasi — Balans header ---- */
+  /* ---- O'ynash sahifasi — Balans header (TON-uslub dizayn) ---- */
   .play-header{
-    display:flex; align-items:center; justify-content:space-between;
-    background:var(--surface); border:1px solid var(--border); border-radius:16px;
-    padding:10px 14px; margin-bottom:16px;
+    position:relative; display:flex; align-items:center; justify-content:space-between;
+    background:linear-gradient(135deg,#0B1A2E 0%,#0A1220 55%,#120C1E 100%);
+    border:1px solid rgba(90,170,255,.35); border-radius:18px;
+    padding:12px 16px 12px 10px; margin-bottom:16px; overflow:hidden;
+    box-shadow:0 0 0 1px rgba(255,196,64,.12) inset, 0 0 22px rgba(40,120,255,.22), 0 4px 14px rgba(0,0,0,.4);
   }
-  .play-header-left{display:flex; align-items:center; gap:10px;}
-  .play-header-avatar{
-    width:40px; height:40px; border-radius:50%; object-fit:cover;
-    border:2px solid var(--border);
+  .play-header::before{
+    content:''; position:absolute; inset:0; border-radius:18px; padding:1px; pointer-events:none;
+    background:linear-gradient(120deg, rgba(255,205,90,.55), rgba(90,170,255,.12) 45%, rgba(255,205,90,.4) 100%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude;
   }
-  .play-balance-info{display:flex; flex-direction:column; gap:2px;}
+  .play-header-left{display:flex; align-items:center; gap:10px; position:relative; z-index:1;}
+  .play-header-avatar{display:none;}
+  .play-coin-stack{position:relative; width:48px; height:40px; flex-shrink:0;}
+  .pcs-coin{position:absolute; border-radius:50%; filter:drop-shadow(0 3px 6px rgba(0,0,0,.55));}
+  .pcs-c1{left:0; top:9px; width:28px; height:28px; z-index:3;}
+  .pcs-c2{left:15px; top:0; width:26px; height:26px; z-index:2; opacity:.92;}
+  .pcs-c3{left:24px; top:13px; width:20px; height:20px; z-index:1; opacity:.85;}
+  .play-balance-info{display:flex; flex-direction:column; gap:2px; position:relative; z-index:1;}
   .play-balance-label{font-size:11px; color:var(--text-dim);}
-  .play-balance-amt{font-size:16px; font-weight:700; display:flex; align-items:center; gap:4px;}
-  .play-topup-btn{
-    display:flex; align-items:center; gap:6px;
-    background:var(--gold); color:#1A1400; border:none; border-radius:999px;
-    padding:10px 16px; font-weight:700; font-size:13px; font-family:'Inter',sans-serif;
+  .play-balance-amt{
+    font-size:19px; font-weight:800; display:flex; align-items:center; gap:5px;
+    font-family:'Sora',sans-serif; text-shadow:0 0 16px rgba(90,170,255,.35);
   }
-  .play-topup-btn:active{opacity:.8;}
+  .play-balance-amt .coin-ico{width:19px; height:19px;}
+  .play-topup-btn{
+    position:relative; z-index:1; display:flex; align-items:center; gap:6px;
+    background:linear-gradient(180deg,#FFE9A8,#F4C430 45%,#D9A521);
+    color:#4A2E00; border:1px solid rgba(255,238,190,.6); border-radius:999px;
+    padding:10px 18px; font-weight:800; font-size:13px; font-family:'Inter',sans-serif;
+    box-shadow:0 0 16px rgba(244,196,48,.45), 0 3px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+  .play-topup-btn:active{opacity:.85; transform:scale(.97);}
+  .ptb-plus{font-size:16px; font-weight:900; line-height:1;}
 
   /* ---- RAKETA katta karta ustidagi HOT belgisi ---- */
   .game-badge.hot{background:rgba(0,0,0,.5); color:#5FA8FF;}
@@ -815,13 +825,6 @@
       radial-gradient(120px 120px at 12% 15%, rgba(255,206,90,.35), transparent 70%),
       linear-gradient(135deg,#3A2E12,#1F1706);
     flex-direction:row; align-items:center; justify-content:space-between;
-  }
-  .game-card.pvp::before{
-    content:''; position:absolute; left:-40px; top:50%; z-index:0; pointer-events:none;
-    width:210px; height:210px; transform:translateY(-50%);
-    background:repeating-conic-gradient(from 0deg, rgba(255,205,90,.24) 0deg 3deg, transparent 3deg 16deg);
-    border-radius:50%; opacity:.6; mix-blend-mode:screen;
-    animation:gcRaySpin 22s linear infinite reverse;
   }
   .game-card.pvp > .pvp-left, .game-card.pvp > .pvp-avatars{position:relative; z-index:1;}
   .pvp-left{display:flex; align-items:center; gap:10px;}
@@ -1791,20 +1794,22 @@
     <div class="play-header">
       <div class="play-header-left">
         <img class="play-header-avatar" id="playHeaderAvatar" src="" alt="">
+        <div class="play-coin-stack">
+          <img class="pcs-coin pcs-c3" src="/coin_2k.png" alt="">
+          <img class="pcs-coin pcs-c2" src="/coin_2k.png" alt="">
+          <img class="pcs-coin pcs-c1" src="/coin_2k.png" alt="">
+        </div>
         <div class="play-balance-info">
           <span class="play-balance-label">Balans</span>
           <span class="play-balance-amt mono"><span class="coin-ico"></span><span id="playHeaderBalance">0</span></span>
         </div>
       </div>
-      <button class="play-topup-btn" onclick="openTopupOverlay()">💳 <span data-i18n="topup_btn">To'ldirish</span></button>
+      <button class="play-topup-btn" onclick="openTopupOverlay()"><span class="ptb-plus">+</span> <span data-i18n="topup_btn">To'ldirish</span></button>
     </div>
 
     <div class="game-card crash" onclick="openGame('crash')">
       <span class="game-badge hot">⚡ <span data-i18n="badge_hot">Hot</span></span>
       <span class="game-name">🚀 <span data-i18n="game_rocket">RAKETA</span></span>
-      <span class="gc-chip" style="top:16px; right:118px; transform:rotate(-9deg);">×1.68</span>
-      <span class="gc-chip" style="top:52px; right:16px; transform:rotate(6deg);">×5.73</span>
-      <span class="gc-chip" style="bottom:14px; right:60px; transform:rotate(-4deg);">×3.51</span>
       <div class="game-card-visual gc-static" id="gcVisualCrash"><img class="gc-static-img" src="game-icons/raketa.png" alt="Raketa"></div>
     </div>
 

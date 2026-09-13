@@ -1132,7 +1132,9 @@ function pickFortuneCaseReward() {
 
 /* ============================================================
    BLACK CASE (4-case) — barcha gift'lar "Black" fon variantida (4x narx).
-   5 ta arzon, 5 ta o'rtacha, 5 ta qimmatroq NFT + Heart Locked (juda kam
+   5 ta arzon, 5 ta o'rtacha, 5 ta qimmatroq, 9 ta premium (Durov's Cap,
+   Precious Peach, Mini Oscar, Westside Sign, Mighty Arm, Scared Cat,
+   Astral Shard, Loot Bag, Heroic Helmet) NFT + Heart Locked (juda kam
    ehtimol) + Plush Pepe (faqat vitrinada turadi, ehtimoli 0 — hech qachon
    tushmaydi). Narxi: 400 coin yoki 4 Stars. ---- */
 const BLACK_CASE_PRICE_COIN = 400;
@@ -1140,11 +1142,13 @@ const BLACK_CASE_PRICE_STARS = 4;
 const BLACK_CASE_LOW_IDS = ['ice_cream', 'easter_egg', 'lunar_snake', 'spiced_wine', 'clover_pin'];
 const BLACK_CASE_MID_IDS = ['top_hat', 'sakura_flower', 'crystal_ball', 'valentine_box', 'record_player'];
 const BLACK_CASE_HIGH_IDS = ['swiss_watch', 'genie_lamp', 'diamond_ring', 'signet_ring', 'perfume_bottle'];
-const BLACK_CASE_GROUP_WEIGHT = { low: 40, mid: 30, high: 25 };
+const BLACK_CASE_PREMIUM_IDS = ['durovs_cap', 'precious_peach', 'mini_oscar', 'westside_sign', 'mighty_arm', 'scared_cat', 'astral_shard', 'loot_bag', 'heroic_helmet'];
+const BLACK_CASE_GROUP_WEIGHT = { low: 40, mid: 30, high: 25, premium: 20 };
 const BLACK_CASE_ITEMS = [
   ...BLACK_CASE_LOW_IDS.map(id => ({ baseId: id, bg: 'black', weight: BLACK_CASE_GROUP_WEIGHT.low / BLACK_CASE_LOW_IDS.length })),
   ...BLACK_CASE_MID_IDS.map(id => ({ baseId: id, bg: 'black', weight: BLACK_CASE_GROUP_WEIGHT.mid / BLACK_CASE_MID_IDS.length })),
   ...BLACK_CASE_HIGH_IDS.map(id => ({ baseId: id, bg: 'black', weight: BLACK_CASE_GROUP_WEIGHT.high / BLACK_CASE_HIGH_IDS.length })),
+  ...BLACK_CASE_PREMIUM_IDS.map(id => ({ baseId: id, bg: 'black', weight: BLACK_CASE_GROUP_WEIGHT.premium / BLACK_CASE_PREMIUM_IDS.length })),
   { baseId: 'heart_locked', bg: 'black', weight: 0.1 },
   { baseId: 'plush_pepe', bg: 'black', weight: 0 },
 ];

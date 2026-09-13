@@ -1481,6 +1481,37 @@
   .lang-swatch.active .check{opacity:1;}
 
   /* BIRINCHI MARTA KIRGANDA — TIL TANLASH EKRANI */
+  /* ============================================================
+     APP / O'YIN / CASE YUKLANISH EKRANI (loader)
+     ============================================================ */
+  .app-loader-overlay{
+    position:fixed; inset:0; z-index:9999;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at 50% 20%, #113A2E 0%, #06120D 55%, #020604 100%);
+    opacity:0; visibility:hidden; pointer-events:none;
+    transition:opacity .25s ease;
+  }
+  .app-loader-overlay.active{ opacity:1; visibility:visible; pointer-events:auto; }
+  .app-loader-logo-wrap{
+    width:150px; height:150px; margin-bottom:34px;
+    display:flex; align-items:center; justify-content:center;
+    animation:appLoaderPulse 1.4s ease-in-out infinite;
+  }
+  .app-loader-logo{ width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 22px rgba(52,211,153,.45)); }
+  @keyframes appLoaderPulse{
+    0%,100%{ transform:scale(1); opacity:1; }
+    50%{ transform:scale(1.05); opacity:.85; }
+  }
+  .app-loader-bar-track{
+    position:absolute; left:16px; right:16px; bottom:48px;
+    height:6px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden;
+  }
+  .app-loader-bar-fill{
+    height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#0ED27A,#34D399);
+    box-shadow:0 0 10px rgba(52,211,153,.6);
+  }
+
   .lang-onboard-overlay{
     position:fixed; inset:0; z-index:900; background:#07050c;
     display:none; align-items:center; justify-content:center; padding:24px;
@@ -1700,6 +1731,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 </head>
 <body>
+
+<!-- APP/O'YIN/CASE YUKLANISH EKRANI -->
+<div class="app-loader-overlay" id="appLoaderOverlay">
+  <div class="app-loader-logo-wrap">
+    <img class="app-loader-logo" src="/gifts/giftfesti_bot.png" alt="GiftFesti">
+  </div>
+  <div class="app-loader-bar-track">
+    <div class="app-loader-bar-fill" id="appLoaderBar"></div>
+  </div>
+</div>
 
 <!-- BIRINCHI MARTA KIRGANDA — TIL TANLASH EKRANI -->
 <div class="lang-onboard-overlay" id="langOnboardOverlay">
@@ -2879,6 +2920,37 @@ const socket = io();
 
 const tg = window.Telegram?.WebApp;
 
+/* ============================================================
+   APP / O'YIN / CASE YUKLANISH EKRANI (loader) — logikasi
+   ============================================================ */
+let appLoaderHideTimer = null;
+function showAppLoader() {
+  const el = document.getElementById('appLoaderOverlay');
+  const bar = document.getElementById('appLoaderBar');
+  if (!el) return;
+  if (appLoaderHideTimer) { clearTimeout(appLoaderHideTimer); appLoaderHideTimer = null; }
+  el.classList.add('active');
+  if (bar) {
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+    void bar.offsetWidth; // reflow — animatsiyani qaytadan boshlash uchun
+    bar.style.transition = 'width 2s cubic-bezier(.25,.7,.3,1)';
+    bar.style.width = '92%';
+  }
+}
+function hideAppLoader() {
+  const el = document.getElementById('appLoaderOverlay');
+  const bar = document.getElementById('appLoaderBar');
+  if (!el) return;
+  if (bar) { bar.style.transition = 'width .25s ease'; bar.style.width = '100%'; }
+  appLoaderHideTimer = setTimeout(() => { el.classList.remove('active'); }, 260);
+}
+/* ---- Botga kirganda va o'yinga kirganda — belgilangan vaqt (standart 2s) davomida ko'rsatiladi ---- */
+function showAppLoaderTimed(ms) {
+  showAppLoader();
+  setTimeout(hideAppLoader, ms || 2000);
+}
+
 function openOurChat(){
   const chatUrl = 'https://t.me/GiftFesti_chat';
   try {
@@ -3740,7 +3812,8 @@ function updateCaseAvailability() {
 }
 
 function initCasePage() {
-  loadCaseItemsCatalog().then(renderCaseItems);
+  showAppLoader();
+  loadCaseItemsCatalog().then(() => { renderCaseItems(); hideAppLoader(); });
   updateCaseAvailability();
 }
 
@@ -4067,7 +4140,8 @@ async function openPepeCaseWithStars() {
 }
 
 function initPepeCasePage() {
-  loadPepeCaseItemsCatalog().then(renderPepeCaseItems);
+  showAppLoader();
+  loadPepeCaseItemsCatalog().then(() => { renderPepeCaseItems(); hideAppLoader(); });
 }
 
 // ==================== OMAD (FORTUNE) CASE ====================
@@ -4294,7 +4368,8 @@ async function openFortuneCaseWithStars() {
 }
 
 function initFortuneCasePage() {
-  loadFortuneCaseItemsCatalog().then(renderFortuneCaseItems);
+  showAppLoader();
+  loadFortuneCaseItemsCatalog().then(() => { renderFortuneCaseItems(); hideAppLoader(); });
 }
 
 // ==================== BLACK CASE ====================
@@ -4521,7 +4596,8 @@ async function openBlackCaseWithStars() {
 }
 
 function initBlackCasePage() {
-  loadBlackCaseItemsCatalog().then(renderBlackCaseItems);
+  showAppLoader();
+  loadBlackCaseItemsCatalog().then(() => { renderBlackCaseItems(); hideAppLoader(); });
 }
 
 // ==================== FIREBASE READ CACHE ====================
@@ -6792,6 +6868,7 @@ async function adminResetEverything() {
 }
 
 function openGame(name) {
+  showAppLoaderTimed(2000);
   if (name === 'crash') goTo('crash');
   else if (name === 'hockey') goTo('hockey');
   else if (name === 'drum') goTo('drum');
@@ -9294,6 +9371,8 @@ function diceLeaveIfNeededAndGoBack() {
   goTo('play');
 }
 
+// Botga kirganda 2 sekundlik yuklanish ekrani chiqadi
+showAppLoaderTimed(2000);
 // Boshlanishida captcha tekshiriladi
 checkCaptchaRequirement();
 // Coin logotipini premium animatsiyali emoji bilan almashtiramiz

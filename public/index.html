@@ -494,6 +494,7 @@
   .anim-slot video, .anim-slot .lottie-box{width:100%; height:100%; object-fit:contain;}
   .anim-slot.bg-onyx_black{background:radial-gradient(circle at 50% 35%, #4a4f57 0%, #23262c 55%, #0e0f12 100%); border-radius:10px;}
   .anim-slot.bg-black{background:radial-gradient(circle at 50% 35%, #2a2a2a 0%, #0a0a0a 60%, #000 100%); border-radius:10px; box-shadow:inset 0 0 10px rgba(0,0,0,.9);}
+  .anim-slot.bg-ice{background:radial-gradient(circle at 50% 35%, #1f6fa8 0%, #0b3260 55%, #041225 100%); border-radius:10px; box-shadow:inset 0 0 10px rgba(63,196,255,.5);}
   .case-item .anim-slot{width:32px; height:32px; margin:0 auto;}
   .case-reel-item .anim-slot{width:36px; height:36px; margin:0 auto;}
   .case-result-emoji .anim-slot{width:64px; height:64px; margin:0 auto 4px;}
@@ -507,6 +508,8 @@
   .case-item.bg-onyx_black .val{color:#9C8CFF;}
   .case-item.bg-black{border-color:#E0435C;}
   .case-item.bg-black .val{color:#FF6B85;}
+  .case-item.bg-ice{border-color:#3FC4FF;}
+  .case-item.bg-ice .val{color:#7EE0FF;}
   .case-item .bg-tag{font-size:9px; color:var(--text-dim); margin-top:2px; font-weight:700; text-transform:uppercase; letter-spacing:.02em;}
   .pepe-case-buy-row{margin-bottom:10px;}
   .pepe-case-old-price{font-size:11px; color:var(--text-dim); text-decoration:line-through; margin-left:4px;}
@@ -526,6 +529,8 @@
   .nft-card.bg-onyx_black .nft-bg-badge{background:linear-gradient(135deg,#6b7280,#1f2328); color:#e5e7eb; border:1px solid #4b5563;}
   .nft-card.bg-black .nft-anim{background:radial-gradient(circle at 50% 35%, #2a2a2a 0%, #0a0a0a 60%, #000 100%); box-shadow:inset 0 0 18px rgba(0,0,0,.9);}
   .nft-card.bg-black .nft-bg-badge{background:linear-gradient(135deg,#3a3a3a,#000); color:#fff; border:1px solid #000; box-shadow:0 0 6px rgba(0,0,0,.8);}
+  .nft-card.bg-ice .nft-anim{background:radial-gradient(circle at 50% 35%, #1f6fa8 0%, #0b3260 55%, #041225 100%); box-shadow:inset 0 0 18px rgba(63,196,255,.5);}
+  .nft-card.bg-ice .nft-bg-badge{background:linear-gradient(135deg,#3fc4ff,#0b3260); color:#eafcff; border:1px solid #7ee0ff; box-shadow:0 0 6px rgba(63,196,255,.7);}
   .case-timer{
     text-align:center; font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace;
     color:var(--text-dim); margin-bottom:12px;
@@ -563,6 +568,8 @@
   .case-reel-item.bg-onyx_black .rv{color:#9C8CFF;}
   .case-reel-item.bg-black{border-color:#E0435C;}
   .case-reel-item.bg-black .rv{color:#FF6B85;}
+  .case-reel-item.bg-ice{border-color:#3FC4FF;}
+  .case-reel-item.bg-ice .rv{color:#7EE0FF;}
   .case-reel-item.winning{
     background:rgba(232,185,35,.15); border-color:var(--gold);
     box-shadow:0 0 16px rgba(232,185,35,.5);
@@ -1291,6 +1298,7 @@
   .nft-detail-visual video, .nft-detail-visual .lottie-box{width:100%; height:100%; object-fit:contain;}
   .nft-detail-visual.bg-onyx_black{background:radial-gradient(circle at 50% 35%, #4a4f57 0%, #23262c 55%, #0e0f12 100%);}
   .nft-detail-visual.bg-black{background:radial-gradient(circle at 50% 35%, #2a2a2a 0%, #0a0a0a 60%, #000 100%); box-shadow:inset 0 0 18px rgba(0,0,0,.9);}
+  .nft-detail-visual.bg-ice{background:radial-gradient(circle at 50% 35%, #1f6fa8 0%, #0b3260 55%, #041225 100%); box-shadow:inset 0 0 18px rgba(63,196,255,.5);}
   .nft-detail-name{font-size:17px; font-weight:800; margin-bottom:4px;}
   .nft-detail-price{font-size:14px; color:var(--gold); font-weight:700; margin-bottom:16px;}
   .nft-detail-actions{display:flex; flex-direction:column; gap:8px;}
@@ -1688,6 +1696,7 @@
   .nft-win-anim video, .nft-win-anim .lottie-box { width: 100%; height: 100%; }
   .nft-win-anim.bg-onyx_black{background:radial-gradient(circle at 50% 35%, #4a4f57 0%, #23262c 55%, #0e0f12 100%);}
   .nft-win-anim.bg-black{background:radial-gradient(circle at 50% 35%, #2a2a2a 0%, #0a0a0a 60%, #000 100%); box-shadow:inset 0 0 22px rgba(0,0,0,.9);}
+  .nft-win-anim.bg-ice{background:radial-gradient(circle at 50% 35%, #1f6fa8 0%, #0b3260 55%, #041225 100%); box-shadow:inset 0 0 22px rgba(63,196,255,.55);}
   .nft-win-name { font-size: 19px; font-weight: 800; margin-bottom: 6px; }
   .nft-win-desc { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 18px; }
   .nft-win-ok-btn {
@@ -2490,6 +2499,39 @@
     </div>
 
     <div class="case-items-grid" id="blackCaseItemsGrid"></div>
+    <p class="case-odds-note">G'olib gift inventoringizga tushadi — Profil bo'limidan sotishingiz mumkin</p>
+  </section>
+
+  <section class="page" id="page-case-ice">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('cases')">‹</button>
+      <div class="game-number-badge mono">ICE Case</div>
+    </div>
+
+    <div class="case-result-banner" id="iceCaseResultBanner"></div>
+
+    <div class="case-hero">
+      <div class="case-box-icon">❄️</div>
+      <p class="subtitle">Faqat ICE Case'da topiladigan noyob NFT'lar — hammasi muzli fonda</p>
+    </div>
+
+    <div class="case-reel-wrap" id="iceCaseReelWrap" style="display:none;">
+      <div class="case-reel-pointer"></div>
+      <div class="case-reel-viewport">
+        <div class="case-reel-track" id="iceCaseReelTrack"></div>
+      </div>
+    </div>
+
+    <div class="pepe-case-buy-row">
+      <button class="btn" id="iceCaseOpenBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openIceCaseWithCoin()">
+        🎁 <span id="iceCaseCoinPriceLabel">2 500</span> <span class="coin-ico"></span> bilan ochish
+      </button>
+      <button class="btn secondary" id="iceCaseOpenStarsBtn" style="width:100%; padding:14px; font-size:15px; margin-top:10px;" onclick="openIceCaseWithStars()">
+        ⭐ <span id="iceCaseStarsPriceLabel">18</span> Stars bilan ochish <span id="iceCaseStarsOldPrice" class="pepe-case-old-price">20</span>
+      </button>
+    </div>
+
+    <div class="case-items-grid" id="iceCaseItemsGrid"></div>
     <p class="case-odds-note">G'olib gift inventoringizga tushadi — Profil bo'limidan sotishingiz mumkin</p>
   </section>
 
@@ -3754,6 +3796,7 @@ const CASES_CATALOG = [
   { id: 'pepe', name: 'PEPE Case', img: '/case-icons/case_pepe.jpg', badge: 'YANGI', pageId: 'case-pepe' },
   { id: 'fortune', name: 'Omad Case', img: '/case-icons/case_omad.jpg', badge: '15 🪙', pageId: 'case-fortune' },
   { id: 'black', name: 'Black Case', img: '/case-icons/case_black.jpg', badge: '400 🪙', pageId: 'case-black' },
+  { id: 'ice', name: 'ICE Case', img: '/case-icons/case_ice.jpg', badge: '2 500 🪙', pageId: 'case-ice' },
 ];
 
 function renderCasesList() {
@@ -4713,6 +4756,236 @@ function initBlackCasePage() {
   loadBlackCaseItemsCatalog().then(() => { renderBlackCaseItems(); hideAppLoader(); });
 }
 
+// ==================== ICE CASE ====================
+let ICE_CASE_ITEMS = [];
+let ICE_CASE_PRICE_COIN = 2500;
+let ICE_CASE_PRICE_STARS = 20;
+let ICE_CASE_DISCOUNTED_STARS = 18;
+let iceCaseItemsLoaded = false;
+let iceCaseBusy = false;
+
+async function loadIceCaseItemsCatalog() {
+  if (iceCaseItemsLoaded) return;
+  try {
+    const res = await fetch('/api/ice_case_items');
+    const data = await res.json();
+    if (data.ok) {
+      ICE_CASE_ITEMS = data.items;
+      ICE_CASE_PRICE_COIN = data.priceCoin;
+      ICE_CASE_PRICE_STARS = data.priceStars;
+      ICE_CASE_DISCOUNTED_STARS = data.discountedStars;
+      iceCaseItemsLoaded = true;
+    }
+  } catch (e) { console.error("Ice case items yuklanmadi:", e); }
+}
+
+function renderIceCaseItems() {
+  const grid = document.getElementById('iceCaseItemsGrid');
+  if (!grid) return;
+  grid.innerHTML = ICE_CASE_ITEMS.map(item => `
+    <div class="case-item bg-ice">
+      <div class="emoji">${giftIconHTML(item, `iceGridAnim_${item.id}`)}</div>
+      <div class="val">${fmtCoin(item.sell_price)} <span class="coin-ico"></span></div>
+    </div>
+  `).join('');
+  ICE_CASE_ITEMS.forEach(item => {
+    mountAnimatedEmoji(document.getElementById(`iceGridAnim_${item.id}`), item.custom_emoji_id, item.is_video, item.id);
+  });
+  document.getElementById('iceCaseCoinPriceLabel').textContent = fmtCoin(ICE_CASE_PRICE_COIN);
+  document.getElementById('iceCaseStarsPriceLabel').textContent = ICE_CASE_DISCOUNTED_STARS;
+  document.getElementById('iceCaseStarsOldPrice').textContent = ICE_CASE_PRICE_STARS;
+}
+
+function buildIceReelFillerPool() {
+  return ICE_CASE_ITEMS.map(item => ({
+    stars: item.sell_price, itemId: item.id, custom_emoji_id: item.custom_emoji_id,
+    is_video: item.is_video, isGift: true,
+  }));
+}
+
+function iceReelItemHTML(item, extraClass, animId) {
+  const iconHtml = item.isGift ? giftIconHTML(item, animId) : '<span class="coin-ico"></span>';
+  return `<div class="case-reel-item bg-ice ${extraClass || ''}"><div class="emoji">${iconHtml}</div><div class="rv">${fmtCoin(item.stars)} <span class="coin-ico"></span></div></div>`;
+}
+
+function runIceCaseReelAnimation(reward) {
+  return new Promise(resolve => {
+    const wrap = document.getElementById('iceCaseReelWrap');
+    const grid = document.getElementById('iceCaseItemsGrid');
+    const track = document.getElementById('iceCaseReelTrack');
+    if (!wrap || !track) { resolve(); return; }
+
+    const pool = buildIceReelFillerPool();
+    const seq = [];
+    for (let i = 0; i < CASE_REEL_LENGTH; i++) {
+      seq.push(i === CASE_REEL_WIN_INDEX ? reward : pool[Math.floor(Math.random() * pool.length)]);
+    }
+
+    track.style.transition = 'none';
+    track.style.transform = 'translateX(0px)';
+    track.innerHTML = seq.map((it, i) => iceReelItemHTML(it, i === CASE_REEL_WIN_INDEX ? 'win-slot' : '', `iceReelAnim_${i}`)).join('');
+    seq.forEach((it, i) => {
+      if (it.isGift) mountAnimatedEmoji(document.getElementById(`iceReelAnim_${i}`), it.custom_emoji_id, it.is_video, it.itemId || it.id);
+    });
+
+    if (grid) grid.style.display = 'none';
+    wrap.style.display = 'block';
+
+    const viewportWidth = wrap.querySelector('.case-reel-viewport').clientWidth;
+    const jitter = (Math.random() - 0.5) * CASE_REEL_ITEM_W * 0.5;
+    const target = CASE_REEL_WIN_INDEX * CASE_REEL_ITEM_W + CASE_REEL_ITEM_W / 2 - viewportWidth / 2 + jitter;
+    const DURATION_MS = 4200;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        track.style.transition = `transform ${DURATION_MS}ms cubic-bezier(0.1, 0.7, 0.15, 1)`;
+        track.style.transform = `translateX(-${target}px)`;
+      });
+    });
+
+    setTimeout(() => {
+      const winEl = track.querySelector('.win-slot');
+      if (winEl) winEl.classList.add('winning');
+      setTimeout(() => {
+        wrap.style.display = 'none';
+        if (grid) grid.style.display = 'grid';
+        resolve();
+      }, 700);
+    }, DURATION_MS + 100);
+  });
+}
+
+function showIceCaseResult(reward) {
+  const banner = document.getElementById('iceCaseResultBanner');
+  if (!banner) return;
+  banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'iceCaseResultAnim')}</div><div>Siz <b>${reward.name || ''} (${fmtCoin(reward.stars ?? reward.sell_price)} <span class="coin-ico"></span>)</b> lik gift yutdingiz! Inventoringizga tushdi — Profil bo'limidan sotishingiz mumkin.</div>`;
+  mountAnimatedEmoji(document.getElementById('iceCaseResultAnim'), reward.custom_emoji_id, reward.is_video, reward.itemId || reward.id);
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 5000);
+}
+
+function setIceCaseButtonsDisabled(disabled) {
+  const coinBtn = document.getElementById('iceCaseOpenBtn');
+  const starsBtn = document.getElementById('iceCaseOpenStarsBtn');
+  if (coinBtn) coinBtn.disabled = disabled;
+  if (starsBtn) starsBtn.disabled = disabled;
+}
+
+async function openIceCaseWithCoin() {
+  if (iceCaseBusy) return;
+
+  const subscribed = await checkChannelSubscription();
+  if (!subscribed) { caseSubscriptionVerified = false; showCaseSubOverlay(); return; }
+  caseSubscriptionVerified = true;
+
+  if (Number(currentUserData.balance) < ICE_CASE_PRICE_COIN) {
+    alert("Balansingizda yetarli coin yo'q.");
+    return;
+  }
+
+  iceCaseBusy = true;
+  setIceCaseButtonsDisabled(true);
+
+  try {
+    const res = await fetch('/api/open_ice_case', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (data.error === 'INSUFFICIENT_BALANCE') alert("Balansingizda yetarli coin yo'q.");
+      else if (data.error === 'not_subscribed') { caseSubscriptionVerified = false; showCaseSubOverlay(); }
+      else if (data.error === 'invalid_auth') alert("Sessiya tasdiqlanmadi. Ilovani qayta oching.");
+      else alert("Xatolik yuz berdi, qaytadan urinib ko'ring.");
+      return;
+    }
+
+    currentUserData.balance = data.balance;
+    syncBalanceDisplays(currentUserData.balance);
+    await runIceCaseReelAnimation(data.reward);
+    currentUserData.total_won = (currentUserData.total_won || 0) + data.reward.sell_price;
+    showIceCaseResult(data.reward);
+  } catch (e) {
+    console.error(e);
+    alert("Xatolik yuz berdi, qaytadan urinib ko'ring.");
+  } finally {
+    iceCaseBusy = false;
+    setIceCaseButtonsDisabled(false);
+  }
+}
+
+async function pollIceCaseResult(maxTries = 10) {
+  for (let i = 0; i < maxTries; i++) {
+    try {
+      const res = await fetch('/api/ice_case/claim_result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: tg?.initData || '' }),
+      });
+      const data = await res.json();
+      if (data.ok && data.reward) return data.reward;
+    } catch (e) { console.error(e); }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return null;
+}
+
+async function openIceCaseWithStars() {
+  if (iceCaseBusy) return;
+  if (!tg || typeof tg.openInvoice !== 'function') {
+    alert("To'lov faqat Telegram ilovasi ichida ishlaydi. Iltimos, botni Telegram orqali oching.");
+    return;
+  }
+
+  const subscribed = await checkChannelSubscription();
+  if (!subscribed) { caseSubscriptionVerified = false; showCaseSubOverlay(); return; }
+  caseSubscriptionVerified = true;
+
+  iceCaseBusy = true;
+  setIceCaseButtonsDisabled(true);
+
+  let data;
+  try {
+    const res = await fetch('/api/ice_case/create_invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    data = await res.json();
+  } catch (e) { console.error("Ice case invoysini olishda xatolik:", e); }
+
+  if (!data || !data.ok) {
+    alert("Invoys yaratishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
+    iceCaseBusy = false;
+    setIceCaseButtonsDisabled(false);
+    return;
+  }
+
+  tg.openInvoice(data.link, async (status) => {
+    if (status === 'paid') {
+      const reward = await pollIceCaseResult();
+      if (reward) {
+        await runIceCaseReelAnimation(reward);
+        currentUserData.total_won = (currentUserData.total_won || 0) + reward.sell_price;
+        showIceCaseResult(reward);
+      } else {
+        alert("🎉 To'lov muvaffaqiyatli! Sovrin tez orada inventoringizga tushadi.");
+      }
+    } else if (status === 'failed') {
+      alert("To'lov amalga oshmadi. Qayta urinib ko'ring.");
+    }
+    iceCaseBusy = false;
+    setIceCaseButtonsDisabled(false);
+  });
+}
+
+function initIceCasePage() {
+  showAppLoader();
+  loadIceCaseItemsCatalog().then(() => { renderIceCaseItems(); hideAppLoader(); });
+}
+
 // ==================== FIREBASE READ CACHE ====================
 // Sahifalar orasida tez-tez o'tib yurilganda Firestore'dan qayta-qayta
 // o'qish (read) sarflanmasligi uchun natijalar TTL muddatigacha keshda saqlanadi.
@@ -4760,6 +5033,7 @@ function goTo(pageName, presetItemId) {
   if (pageName === 'case-pepe') initPepeCasePage();
   if (pageName === 'case-fortune') initFortuneCasePage();
   if (pageName === 'case-black') initBlackCasePage();
+  if (pageName === 'case-ice') initIceCasePage();
   if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
   if (pageName === 'upgrade') initUpgradePage(presetItemId);
   if (pageName === 'crash') initCrashPage();
@@ -7424,7 +7698,7 @@ function showNftWinModal(wonNft, multiplier) {
 
   const animEl = document.getElementById('nftWinAnim');
   animEl.innerHTML = '';
-  animEl.classList.remove('bg-onyx_black', 'bg-black');
+  animEl.classList.remove('bg-onyx_black', 'bg-black', 'bg-ice');
   if (wonNft.bg) animEl.classList.add('bg-' + wonNft.bg);
   if (wonNft.custom_emoji_id) {
     mountAnimatedEmoji(animEl, wonNft.custom_emoji_id, wonNft.is_video, wonNft.itemId);

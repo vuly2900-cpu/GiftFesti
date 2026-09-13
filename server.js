@@ -70,8 +70,10 @@ const FORTUNE_CASE_PRICE_STARS = 1;
    Narxi 1 Stars = 100 coin nisbatiga mos qilib tanlangan (100 coin YOKI 1
    Stars), cooldown yo'q. NARX/OG'IRLIKLAR HOZIRCHA TAXMINIY — pastdagi
    ICE_CASE_ITEMS'dagi izohga qarang, kerak bo'lsa moslashtiring. ---- */
-const ICE_CASE_PRICE_COIN = 100;
-const ICE_CASE_PRICE_STARS = 1;
+const ICE_CASE_PRICE_COIN = 2500;
+const ICE_CASE_PRICE_STARS = 20;
+const ICE_CASE_DISCOUNT_PERCENT = 10;
+const ICE_CASE_DISCOUNTED_STARS = Math.round(ICE_CASE_PRICE_STARS * (1 - ICE_CASE_DISCOUNT_PERCENT / 100)); // 18
 
 /* ============================================================
    MA'LUMOTLAR BAZASI (in-memory, db.json ga davriy saqlanadi)
@@ -727,11 +729,19 @@ const NFT_CATALOG = [
   // (2) Raketa (crash) o'yinida yutuq sifatida hech qachon tushmaydi —
   // faqat ICE Case ochilganda berilishi mumkin. ----
   { id: 'ice_surge_board', name: 'Surge Board', custom_emoji_id: '5316536953959654293', sell_price: 100, caseExclusive: 'ice' },
-  { id: 'ice_vice_cream', name: 'Vice Cream', custom_emoji_id: '5355272130130911042', sell_price: 50, caseExclusive: 'ice' },
-  { id: 'ice_timeless_book', name: 'Timeless Book', custom_emoji_id: '5334749968936773400', sell_price: 80, caseExclusive: 'ice' },
-  { id: 'ice_bling_binky', name: 'Bling Binky', custom_emoji_id: '5206322453852229205', sell_price: 240, caseExclusive: 'ice' },
-  { id: 'ice_money_pot', name: 'Money Pot', custom_emoji_id: '5203937351138579883', sell_price: 90, caseExclusive: 'ice' },
-  { id: 'ice_spring_basket', name: 'Spring Basket', custom_emoji_id: '5427367528470970247', sell_price: 200, caseExclusive: 'ice' },
+  { id: 'ice_vice_cream', name: 'Vice Cream', custom_emoji_id: '5355272130130911042', sell_price: 500, caseExclusive: 'ice' },
+  { id: 'ice_timeless_book', name: 'Timeless Book', custom_emoji_id: '5334749968936773400', sell_price: 700, caseExclusive: 'ice' },
+  { id: 'ice_bling_binky', name: 'Bling Binky', custom_emoji_id: '5206322453852229205', sell_price: 2400, caseExclusive: 'ice' },
+  { id: 'ice_money_pot', name: 'Money Pot', custom_emoji_id: '5203937351138579883', sell_price: 600, caseExclusive: 'ice' },
+  { id: 'ice_spring_basket', name: 'Spring Basket', custom_emoji_id: '5427367528470970247', sell_price: 900, caseExclusive: 'ice' },
+  { id: 'ice_mousse_cake', name: 'Mousse Cake', custom_emoji_id: '5426885813528985408', sell_price: 1200, caseExclusive: 'ice' },
+  { id: 'ice_faith_amulet', name: 'Faith Amulet', custom_emoji_id: '5427246066795842316', sell_price: 1500, caseExclusive: 'ice' },
+  { id: 'ice_happy_brownie', name: 'Happy Brownie', custom_emoji_id: '5424843788507973785', sell_price: 2000, caseExclusive: 'ice' },
+  { id: 'ice_artisan_brick', name: 'Artisan Brick', custom_emoji_id: '5309924216152295567', sell_price: 15000, caseExclusive: 'ice' },
+  { id: 'ice_mighty_arm', name: 'Mighty Arm', custom_emoji_id: '5310296984953850615', sell_price: 13000, caseExclusive: 'ice' },
+  { id: 'ice_input_key', name: 'Input Key', custom_emoji_id: '5307819016457322931', sell_price: 6000, caseExclusive: 'ice' },
+  { id: 'ice_jolly_chimp', name: 'Jolly Chimp', custom_emoji_id: '5246744199256113186', sell_price: 8000, caseExclusive: 'ice' },
+  { id: 'ice_low_rider', name: 'Low Rider', custom_emoji_id: '5438207652263920932', sell_price: 20000, caseExclusive: 'ice' },
 ];
 const NFT_BY_ID = new Map(NFT_CATALOG.map(i => [i.id, i]));
 const CASE_ITEM_IDS = ['teddy', 'heart_gift', 'gift_box', 'rose', 'cake', 'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond'];
@@ -1167,16 +1177,25 @@ function pickFortuneCaseReward() {
   };
 }
 
-/* ---- ICE Case sovrinlari — 6 ta case-exclusive NFT (ice_ prefiksli).
+/* ---- ICE Case sovrinlari — 14 ta case-exclusive NFT (ice_ prefiksli).
    OG'IRLIKLAR TAXMINIY QO'YILDI (narx qancha qimmat bo'lsa, ehtimol shuncha
-   past): jami 100% ga yig'iladi. Buni ehtiyojga qarab moslang. ---- */
+   past, silliq egri chiziq bo'yicha): jami 100% ga yig'iladi. Buni
+   ehtiyojga qarab moslang. ---- */
 const ICE_CASE_ITEMS = [
-  { baseId: 'ice_vice_cream', weight: 45 },     // 50 coin — eng arzon, eng ko'p tushadi
-  { baseId: 'ice_timeless_book', weight: 25 },  // 80 coin
-  { baseId: 'ice_money_pot', weight: 15 },      // 90 coin
-  { baseId: 'ice_surge_board', weight: 10 },    // 100 coin
-  { baseId: 'ice_spring_basket', weight: 4 },   // 200 coin
-  { baseId: 'ice_bling_binky', weight: 1 },     // 240 coin — eng qimmat, eng kam tushadi
+  { baseId: 'ice_surge_board', weight: 36.472 },   // 100 coin
+  { baseId: 'ice_vice_cream', weight: 11.447 },    // 500 coin
+  { baseId: 'ice_money_pot', weight: 10.039 },     // 600 coin
+  { baseId: 'ice_timeless_book', weight: 8.984 },  // 700 coin
+  { baseId: 'ice_spring_basket', weight: 7.497 },  // 900 coin
+  { baseId: 'ice_mousse_cake', weight: 6.095 },    // 1200 coin
+  { baseId: 'ice_faith_amulet', weight: 5.19 },    // 1500 coin
+  { baseId: 'ice_happy_brownie', weight: 4.219 },  // 2000 coin
+  { baseId: 'ice_bling_binky', weight: 3.7 },      // 2400 coin
+  { baseId: 'ice_input_key', weight: 1.913 },      // 6000 coin
+  { baseId: 'ice_jolly_chimp', weight: 1.555 },    // 8000 coin
+  { baseId: 'ice_mighty_arm', weight: 1.096 },     // 13000 coin
+  { baseId: 'ice_artisan_brick', weight: 0.989 },  // 15000 coin — juda noyob
+  { baseId: 'ice_low_rider', weight: 0.804 },      // 20000 coin — eng noyob
 ];
 function pickIceCaseReward() {
   const totalWeight = ICE_CASE_ITEMS.reduce((s, o) => s + o.weight, 0);
@@ -1188,7 +1207,9 @@ function pickIceCaseReward() {
   }
   const item = NFT_BY_ID.get(picked.baseId);
   return {
-    itemId: item.id, baseId: item.id, bg: null, bgLabel: null,
+    // ICE Case'dagi barcha NFT'lar doim "muz" fonida chiqadi (faqat vizual —
+    // narxga ta'sir qilmaydi, NFT_BG_TYPES/getNftDef orqali o'tmaydi).
+    itemId: item.id, baseId: item.id, bg: 'ice', bgLabel: 'Ice ❄️',
     isGift: true, name: item.name, custom_emoji_id: item.custom_emoji_id, sell_price: item.sell_price, stars: item.sell_price,
   };
 }
@@ -1593,9 +1614,10 @@ app.get('/api/ice_case_items', async (req, res) => {
     items.push({
       id: item.id, baseId: item.id, name: item.name, custom_emoji_id: item.custom_emoji_id,
       sell_price: item.sell_price, weight: o.weight, is_video: meta.is_video,
+      bg: 'ice', bgLabel: 'Ice ❄️',
     });
   }
-  res.json({ ok: true, items, priceCoin: ICE_CASE_PRICE_COIN, priceStars: ICE_CASE_PRICE_STARS });
+  res.json({ ok: true, items, priceCoin: ICE_CASE_PRICE_COIN, priceStars: ICE_CASE_PRICE_STARS, discountedStars: ICE_CASE_DISCOUNTED_STARS, discountPercent: ICE_CASE_DISCOUNT_PERCENT });
 });
 
 app.post('/api/open_ice_case', async (req, res) => {
@@ -1636,12 +1658,12 @@ app.post('/api/ice_case/create_invoice', async (req, res) => {
         description: "ICE Case'ni ochish",
         payload,
         currency: 'XTR',
-        prices: [{ label: 'ICE Case', amount: ICE_CASE_PRICE_STARS }],
+        prices: [{ label: 'ICE Case', amount: ICE_CASE_DISCOUNTED_STARS }],
       }),
     });
     const data = await tgRes.json();
     if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
-    res.json({ ok: true, link: data.result, stars: ICE_CASE_PRICE_STARS });
+    res.json({ ok: true, link: data.result, stars: ICE_CASE_DISCOUNTED_STARS });
   } catch (e) {
     console.error('ICE case invoysi yaratishda xatolik:', e.message);
     res.status(500).json({ error: 'server_error' });
@@ -1660,8 +1682,8 @@ app.post('/api/internal_ice_case_credit', (req, res) => {
   const m = /^icecase:(\d+):/.exec(String(payload || ''));
   if (!m) return res.status(400).json({ error: 'INVALID_PAYLOAD' });
   const userId = m[1];
-  if (Number(totalAmount) !== ICE_CASE_PRICE_STARS) {
-    console.error(`ICE case: to'lov summasi mos kelmadi (kutilgan ${ICE_CASE_PRICE_STARS}, kelgan ${totalAmount})`);
+  if (Number(totalAmount) !== ICE_CASE_DISCOUNTED_STARS) {
+    console.error(`ICE case: to'lov summasi mos kelmadi (kutilgan ${ICE_CASE_DISCOUNTED_STARS}, kelgan ${totalAmount})`);
   }
 
   let user = users.get(userId);

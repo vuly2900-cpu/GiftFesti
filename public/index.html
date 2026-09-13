@@ -995,18 +995,16 @@
   .dice-winner-banner .dice-winner-name{font-size:16px; font-weight:800; margin-bottom:4px;}
   .dice-winner-banner .dice-winner-amount{font-size:19px; font-weight:800; color:var(--gold);}
 
-  /* ---- Case'lar ro'yxati sahifasi (kunlik case + kelajakda qo'shiladigan boshqa case'lar) ---- */
-  .cases-list{display:flex; flex-direction:column; gap:12px;}
-  .cases-list .game-card{
-    flex-direction:row; align-items:center; justify-content:flex-start; gap:12px;
-    min-height:auto; padding:14px 16px; margin-bottom:0;
+  /* ---- Case'lar ro'yxati sahifasi — PVP/SOLO uslubidagi 2 ustunli kvadrat kartochkalar ---- */
+  .cases-list.tile-grid{ /* .tile-grid asosiy qoidalarini meros oladi (2 ustun, gap) */ }
+  .game-card.tile.case-tile{ background:linear-gradient(160deg,#2A2410,#15120A); border:1px solid var(--border); }
+  .case-tile-badge{position:absolute; top:10px; left:10px; z-index:1;}
+  .case-tile-img{
+    position:absolute; left:50%; top:38%; transform:translate(-50%,-50%);
+    width:78%; max-width:140px; object-fit:contain; border-radius:10px;
+    filter:drop-shadow(0 6px 14px rgba(0,0,0,.5));
   }
-  .cases-list .game-card .mini-icon-visual{margin-top:0; width:40px; height:40px; flex-shrink:0;}
-  .cases-list .game-card .mini-icon-visual .fallback-emoji{font-size:34px;}
-  .cases-list .case-list-info{display:flex; flex-direction:column; gap:4px; align-items:flex-start;}
-  .cases-list .case-list-info .game-name{margin-top:0;}
-  .cases-list .case-list-arrow{margin-left:auto; color:var(--text-dim); font-size:20px; flex-shrink:0;}
-  .cases-list .game-card.case-locked{opacity:.55;}
+  .game-card.tile.case-locked{opacity:.55; pointer-events:none;}
 
   /* ---- UPGRADE mini-karta ikonkasi: pastga/tepaga (qizil/yashil) ikkita NFT emoji ---- */
   .upg-duo-visual{
@@ -2211,7 +2209,7 @@
       <div class="game-number-badge mono">Case'lar</div>
       <span style="width:34px;"></span>
     </div>
-    <div class="cases-list" id="casesList"></div>
+    <div class="cases-list tile-grid" id="casesList"></div>
   </section>
 
   <section class="page" id="page-case">
@@ -3535,22 +3533,19 @@ async function rewardReferrer(referrerId) {
 // shu ro'yxatga qo'shiladi — har biri o'z sahifasi (pageId) va, agar band
 // bo'lsa, "locked: true" bilan belgilanadi.
 const CASES_CATALOG = [
-  { id: 'daily', name: 'Kunlik Case', icon: '🏅', badge: 'FREE 24H', pageId: 'case' },
-  { id: 'pepe', name: 'PEPE Case', icon: '🐸', badge: 'YANGI', pageId: 'case-pepe' },
-  { id: 'fortune', name: 'Omad Case', icon: '🍀', badge: '15 🪙', pageId: 'case-fortune' },
+  { id: 'daily', name: 'Kunlik Case', img: '/case-icons/case_free24h.jpg', badge: 'FREE 24H', pageId: 'case' },
+  { id: 'pepe', name: 'PEPE Case', img: '/case-icons/case_pepe.jpg', badge: 'YANGI', pageId: 'case-pepe' },
+  { id: 'fortune', name: 'Omad Case', img: '/case-icons/case_omad.jpg', badge: '15 🪙', pageId: 'case-fortune' },
 ];
 
 function renderCasesList() {
   const list = document.getElementById('casesList');
   if (!list) return;
   list.innerHTML = CASES_CATALOG.map(c => `
-    <div class="game-card case-mini${c.locked ? ' case-locked' : ''}" onclick="${c.locked ? '' : `goTo('${c.pageId}')`}">
-      <div class="mini-icon-visual"><span class="fallback-emoji">${c.icon}</span></div>
-      <div class="case-list-info">
-        <span class="mini-badge">${c.locked ? "Tez kunda" : c.badge}</span>
-        <span class="game-name">${c.name}</span>
-      </div>
-      <span class="case-list-arrow">›</span>
+    <div class="game-card tile case-tile${c.locked ? ' case-locked' : ''}" onclick="${c.locked ? '' : `goTo('${c.pageId}')`}">
+      <span class="mini-badge case-tile-badge">${c.locked ? "Tez kunda" : c.badge}</span>
+      <img class="case-tile-img" src="${c.img}" alt="${c.name}">
+      <span class="game-name">${c.name}</span>
     </div>
   `).join('');
 }

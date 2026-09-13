@@ -604,13 +604,26 @@
       radial-gradient(110px 100px at 85% 12%, rgba(60,230,140,.4), transparent 70%),
       linear-gradient(135deg,#123524,#0d211a);
   }
-  .game-card.upgrade .game-card-visual{filter:drop-shadow(0 8px 16px rgba(60,230,140,.55));}
   .game-card.wheel{
     background:
       radial-gradient(110px 100px at 85% 12%, rgba(180,110,255,.4), transparent 70%),
       linear-gradient(135deg,#2A1B3A,#180f21);
   }
-  .game-card.wheel .game-card-visual{filter:drop-shadow(0 8px 16px rgba(180,110,255,.55));}
+
+  /* ---- UPGRADE / WHEEL — rasm kartaning butun yuzasini egallaydi ---- */
+  .game-card.tile.upgrade, .game-card.tile.wheel{padding:0; background:#0B0B12;}
+  .game-card.tile.upgrade .game-card-visual.gc-static,
+  .game-card.tile.wheel .game-card-visual.gc-static{
+    position:absolute; inset:0; margin:0; width:100%; height:100%;
+    transform:none; filter:none; animation:none;
+  }
+  .game-card.tile.upgrade .gc-static-img,
+  .game-card.tile.wheel .gc-static-img{width:100%; height:100%; object-fit:cover; display:block;}
+  .game-card.tile.upgrade .game-name,
+  .game-card.tile.wheel .game-name{
+    position:absolute; left:0; right:0; bottom:0; z-index:2; margin:0; width:auto;
+    padding:22px 8px 12px; background:linear-gradient(to top, rgba(0,0,0,.78), transparent);
+  }
 
   /* ---- PVP / SOLO bo'limlaridagi 2 ustunli kvadrat kartochkalar ---- */
   .tile-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}

@@ -65,6 +65,14 @@ const PEPE_CASE_DISCOUNTED_STARS = Math.round(PEPE_CASE_PRICE_STARS * (1 - PEPE_
 const FORTUNE_CASE_PRICE_COIN = 15;
 const FORTUNE_CASE_PRICE_STARS = 1;
 
+/* ---- ICE Case: 5-case. Faqat shu case ichida topiladigan 6 ta noyob NFT
+   (yuqoridagi NFT_CATALOG'da `caseExclusive: 'ice'` bilan belgilangan).
+   Narxi 1 Stars = 100 coin nisbatiga mos qilib tanlangan (100 coin YOKI 1
+   Stars), cooldown yo'q. NARX/OG'IRLIKLAR HOZIRCHA TAXMINIY — pastdagi
+   ICE_CASE_ITEMS'dagi izohga qarang, kerak bo'lsa moslashtiring. ---- */
+const ICE_CASE_PRICE_COIN = 100;
+const ICE_CASE_PRICE_STARS = 1;
+
 /* ============================================================
    MA'LUMOTLAR BAZASI (in-memory, db.json ga davriy saqlanadi)
    ============================================================ */
@@ -102,6 +110,7 @@ function createUser(id, username) {
     nftInitialized: false, // starter (tekin) NFT'lar berilganmi
     pendingPepeCaseReward: null, // PEPE Case Stars orqali sotib olinganda, to'lov tasdiqlangач frontend shu yerdan natijani oladi
     pendingFortuneCaseReward: null, // Omad Case Stars orqali sotib olinganda, xuddi shu tarzda
+    pendingIceCaseReward: null, // ICE Case Stars orqali sotib olinganda, xuddi shu tarzda
     vip: { expiresAt: 0 }, // VIP👑: muddati tugagan vaqt (ms, epoch); 0 = hech qachon sotib olinmagan
     dailyTasks: {
       crash: 0,   // oxirgi marta "raketa o'ynash" vazifasi uchun coin olingan vaqt (ms)
@@ -712,6 +721,17 @@ const NFT_CATALOG = [
   { id: 'homemade_cake', name: 'Homemade Cake', custom_emoji_id: '5278571719395679509', sell_price: 4.61 },
   { id: 'desk_calendar', name: 'Desk Calendar', custom_emoji_id: '5278471895765782217', sell_price: 4.78 },
   { id: 'b_day_candle', name: 'B-Day Candle', custom_emoji_id: '5278743445073070036', sell_price: 4.74 },
+
+  // ---- ICE CASE — faqat shu case'dan tushadigan NFT'lar. `caseExclusive`
+  // belgisi bor NFT'lar: (1) admin panelidan "give_nft" orqali berilmaydi,
+  // (2) Raketa (crash) o'yinida yutuq sifatida hech qachon tushmaydi —
+  // faqat ICE Case ochilganda berilishi mumkin. ----
+  { id: 'ice_surge_board', name: 'Surge Board', custom_emoji_id: '5316536953959654293', sell_price: 100, caseExclusive: 'ice' },
+  { id: 'ice_vice_cream', name: 'Vice Cream', custom_emoji_id: '5355272130130911042', sell_price: 50, caseExclusive: 'ice' },
+  { id: 'ice_timeless_book', name: 'Timeless Book', custom_emoji_id: '5334749968936773400', sell_price: 80, caseExclusive: 'ice' },
+  { id: 'ice_bling_binky', name: 'Bling Binky', custom_emoji_id: '5206322453852229205', sell_price: 240, caseExclusive: 'ice' },
+  { id: 'ice_money_pot', name: 'Money Pot', custom_emoji_id: '5203937351138579883', sell_price: 90, caseExclusive: 'ice' },
+  { id: 'ice_spring_basket', name: 'Spring Basket', custom_emoji_id: '5427367528470970247', sell_price: 200, caseExclusive: 'ice' },
 ];
 const NFT_BY_ID = new Map(NFT_CATALOG.map(i => [i.id, i]));
 const CASE_ITEM_IDS = ['teddy', 'heart_gift', 'gift_box', 'rose', 'cake', 'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond'];
@@ -760,6 +780,7 @@ function getNftDef(key) {
     custom_emoji_id: base.custom_emoji_id,
     sell_price: round2(base.sell_price * mult),
     tier: base.tier,
+    caseExclusive: base.caseExclusive || null,
   };
 }
 
@@ -1101,26 +1122,67 @@ function pickPepeCaseReward() {
   };
 }
 
-/* ---- Omad (Fortune) Case sovrinlari — 2 ta guruh (10 coindan past, 10-50
-   coin oralig'i) + 4 ta noyob dona (Peach, Durov's Cap, Heart Locked, Pepe).
-   Guruh ichidagi og'irlik guruh ulushiga (masalan 70) teng bo'linadi, shu
-   bilan "70% past narxlilardan birortasi tushadi" mantig'i saqlanadi. ---- */
-const FORTUNE_CASE_LOW_IDS = ['pool_float', 'lunar_snake', 'ice_cream', 'easter_egg', 'spiced_wine', 'mood_pack', 'clover_pin', 'bow_tie', 'light_sword', 'hanging_star'];
-const FORTUNE_CASE_MID_IDS = ['sakura_flower', 'top_hat', 'valentine_box', 'crystal_ball', 'love_potion', 'sky_stilettos', 'bling_binky', 'diamond_ring', 'genie_lamp', 'swiss_watch'];
-const FORTUNE_CASE_GROUP_WEIGHT = { low: 70, mid: 20 };
+/* ---- Omad (Fortune) Case sovrinlari — har bir NFT uchun aniq (narxga qarab
+   qo'lda belgilangan) foiz ehtimollik, jami = 100%. Qimmat/noyob NFT'lar
+   (Precious Peach, Durov's Cap, Heart Locked, Plush Pepe) tushish ehtimoli
+   ataylab juda past qilib qo'yilgan. ---- */
 const FORTUNE_CASE_ITEMS = [
-  ...FORTUNE_CASE_LOW_IDS.map(id => ({ baseId: id, weight: FORTUNE_CASE_GROUP_WEIGHT.low / FORTUNE_CASE_LOW_IDS.length })),
-  ...FORTUNE_CASE_MID_IDS.map(id => ({ baseId: id, weight: FORTUNE_CASE_GROUP_WEIGHT.mid / FORTUNE_CASE_MID_IDS.length })),
-  { baseId: 'precious_peach', weight: 5 },
-  { baseId: 'durovs_cap', weight: 4 },
-  { baseId: 'heart_locked', weight: 1 },
-  { baseId: 'plush_pepe', weight: 0.1 },
+  { baseId: 'pool_float', weight: 12 },        // 3.70
+  { baseId: 'lunar_snake', weight: 9.5 },       // 3.80
+  { baseId: 'ice_cream', weight: 8.5 },         // 3.90
+  { baseId: 'easter_egg', weight: 7 },          // 3.95
+  { baseId: 'spiced_wine', weight: 6 },         // 4.07
+  { baseId: 'mood_pack', weight: 5 },           // 4.40
+  { baseId: 'clover_pin', weight: 4 },          // 4.64
+  { baseId: 'bow_tie', weight: 3 },             // 4.90
+  { baseId: 'light_sword', weight: 15 },        // 6.16
+  { baseId: 'hanging_star', weight: 6 },        // 9.49
+  { baseId: 'sakura_flower', weight: 5 },       // 10.17
+  { baseId: 'top_hat', weight: 4 },             // 10.80
+  { baseId: 'valentine_box', weight: 3 },       // 11.35
+  { baseId: 'crystal_ball', weight: 2.5 },      // 12.66
+  { baseId: 'love_potion', weight: 2 },         // 14.68
+  { baseId: 'sky_stilettos', weight: 1.679 },   // 19.31
+  { baseId: 'bling_binky', weight: 2 },         // 24
+  { baseId: 'diamond_ring', weight: 1.5 },      // 29.72
+  { baseId: 'genie_lamp', weight: 1 },          // 33.59
+  { baseId: 'swiss_watch', weight: 1 },         // 49.07
+  { baseId: 'precious_peach', weight: 0.2 },    // 258.03
+  { baseId: 'durovs_cap', weight: 0.1 },        // 398.81
+  { baseId: 'heart_locked', weight: 0.02 },     // 1074.99
+  { baseId: 'plush_pepe', weight: 0.001 },      // 6834
 ];
 function pickFortuneCaseReward() {
   const totalWeight = FORTUNE_CASE_ITEMS.reduce((s, o) => s + o.weight, 0);
   let rand = Math.random() * totalWeight;
   let picked = FORTUNE_CASE_ITEMS[FORTUNE_CASE_ITEMS.length - 1];
   for (const o of FORTUNE_CASE_ITEMS) {
+    if (rand < o.weight) { picked = o; break; }
+    rand -= o.weight;
+  }
+  const item = NFT_BY_ID.get(picked.baseId);
+  return {
+    itemId: item.id, baseId: item.id, bg: null, bgLabel: null,
+    isGift: true, name: item.name, custom_emoji_id: item.custom_emoji_id, sell_price: item.sell_price, stars: item.sell_price,
+  };
+}
+
+/* ---- ICE Case sovrinlari — 6 ta case-exclusive NFT (ice_ prefiksli).
+   OG'IRLIKLAR TAXMINIY QO'YILDI (narx qancha qimmat bo'lsa, ehtimol shuncha
+   past): jami 100% ga yig'iladi. Buni ehtiyojga qarab moslang. ---- */
+const ICE_CASE_ITEMS = [
+  { baseId: 'ice_vice_cream', weight: 45 },     // 50 coin — eng arzon, eng ko'p tushadi
+  { baseId: 'ice_timeless_book', weight: 25 },  // 80 coin
+  { baseId: 'ice_money_pot', weight: 15 },      // 90 coin
+  { baseId: 'ice_surge_board', weight: 10 },    // 100 coin
+  { baseId: 'ice_spring_basket', weight: 4 },   // 200 coin
+  { baseId: 'ice_bling_binky', weight: 1 },     // 240 coin — eng qimmat, eng kam tushadi
+];
+function pickIceCaseReward() {
+  const totalWeight = ICE_CASE_ITEMS.reduce((s, o) => s + o.weight, 0);
+  let rand = Math.random() * totalWeight;
+  let picked = ICE_CASE_ITEMS[ICE_CASE_ITEMS.length - 1];
+  for (const o of ICE_CASE_ITEMS) {
     if (rand < o.weight) { picked = o; break; }
     rand -= o.weight;
   }
@@ -1515,6 +1577,113 @@ app.post('/api/fortune_case/claim_result', async (req, res) => {
   const meta = await getEmojiMeta(reward.custom_emoji_id);
   reward.is_video = meta.is_video;
   user.pendingFortuneCaseReward = null;
+  res.json({ ok: true, reward });
+});
+
+/* ============================================================
+   ICE CASE (5-case) — coin yoki Stars evaziga, cooldownsiz. Faqat shu
+   case'dan tushadigan 6 ta noyob NFT (admin bera olmaydi, raketadan ham
+   chiqmaydi — yuqoridagi `caseExclusive` tekshiruviga qarang).
+   ============================================================ */
+app.get('/api/ice_case_items', async (req, res) => {
+  const items = [];
+  for (const o of ICE_CASE_ITEMS) {
+    const item = NFT_BY_ID.get(o.baseId);
+    const meta = await getEmojiMeta(item.custom_emoji_id);
+    items.push({
+      id: item.id, baseId: item.id, name: item.name, custom_emoji_id: item.custom_emoji_id,
+      sell_price: item.sell_price, weight: o.weight, is_video: meta.is_video,
+    });
+  }
+  res.json({ ok: true, items, priceCoin: ICE_CASE_PRICE_COIN, priceStars: ICE_CASE_PRICE_STARS });
+});
+
+app.post('/api/open_ice_case', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const subscribed = await isSubscribed(user.id, MAIN_CHANNEL);
+  if (!subscribed) return res.status(403).json({ error: 'not_subscribed' });
+
+  ensureNftStarterPack(user);
+  if (Number(user.balance) < ICE_CASE_PRICE_COIN) {
+    return res.status(400).json({ error: 'INSUFFICIENT_BALANCE', required: ICE_CASE_PRICE_COIN });
+  }
+  user.balance = round2(user.balance - ICE_CASE_PRICE_COIN);
+
+  const reward = pickIceCaseReward();
+  const meta = await getEmojiMeta(reward.custom_emoji_id);
+  reward.is_video = meta.is_video;
+  grantNftToUser(user, reward.itemId);
+  user.total_won = round2((user.total_won || 0) + reward.sell_price);
+
+  res.json({ ok: true, reward, balance: user.balance });
+});
+
+/* ---- Stars evaziga: boshqa case'lar bilan bir xil oqim (invoice ->
+   bot.js webhook -> pendingIceCaseReward -> claim_result). ---- */
+app.post('/api/ice_case/create_invoice', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  const subscribed = await isSubscribed(user.id, MAIN_CHANNEL);
+  if (!subscribed) return res.status(403).json({ error: 'not_subscribed' });
+
+  const payload = `icecase:${user.id}:${crypto.randomBytes(4).toString('hex')}`;
+  try {
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'GiftFesti — ICE Case',
+        description: "ICE Case'ni ochish",
+        payload,
+        currency: 'XTR',
+        prices: [{ label: 'ICE Case', amount: ICE_CASE_PRICE_STARS }],
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, link: data.result, stars: ICE_CASE_PRICE_STARS });
+  } catch (e) {
+    console.error('ICE case invoysi yaratishda xatolik:', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/internal_ice_case_credit', (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const { payload, telegramPaymentChargeId, totalAmount } = req.body || {};
+
+  if (telegramPaymentChargeId && processedTopupCharges.has(telegramPaymentChargeId)) {
+    const m0 = /^icecase:(\d+):/.exec(String(payload || ''));
+    const existingUser = m0 ? users.get(m0[1]) : null;
+    return res.json({ ok: true, alreadyProcessed: true, reward: existingUser ? existingUser.pendingIceCaseReward : null });
+  }
+  const m = /^icecase:(\d+):/.exec(String(payload || ''));
+  if (!m) return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+  const userId = m[1];
+  if (Number(totalAmount) !== ICE_CASE_PRICE_STARS) {
+    console.error(`ICE case: to'lov summasi mos kelmadi (kutilgan ${ICE_CASE_PRICE_STARS}, kelgan ${totalAmount})`);
+  }
+
+  let user = users.get(userId);
+  if (!user) { user = createUser(userId, `user${userId}`); users.set(userId, user); }
+  ensureNftStarterPack(user);
+
+  const reward = pickIceCaseReward();
+  grantNftToUser(user, reward.itemId);
+  user.total_won = round2((user.total_won || 0) + reward.sell_price);
+  user.pendingIceCaseReward = reward;
+  if (telegramPaymentChargeId) processedTopupCharges.add(telegramPaymentChargeId);
+
+  res.json({ ok: true, reward });
+});
+
+app.post('/api/ice_case/claim_result', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const reward = user.pendingIceCaseReward || null;
+  if (!reward) return res.json({ ok: true, reward: null });
+  const meta = await getEmojiMeta(reward.custom_emoji_id);
+  reward.is_video = meta.is_video;
+  user.pendingIceCaseReward = null;
   res.json({ ok: true, reward });
 });
 
@@ -2455,6 +2624,7 @@ app.post('/api/admin_action', (req, res) => {
         const key = payload.itemId && payload.itemId.includes(NFT_KEY_SEP) ? payload.itemId : makeNftKey(payload.itemId, bg);
         const item = getNftDef(key);
         if (!item) throw new Error('ITEM_NOT_FOUND');
+        if (item.caseExclusive) throw new Error('CASE_EXCLUSIVE_ITEM'); // admin bera olmaydi — faqat o'z case'idan tushadi
         const amount = Math.max(1, parseInt(payload.amount) || 1);
         for (let i = 0; i < amount; i++) grantNftToUser(target, item.id);
         break;
@@ -3469,6 +3639,7 @@ function findNftMatchForValue(value) {
   let best = null;
   let bestDiff = Infinity;
   for (const item of NFT_CATALOG) {
+    if (item.caseExclusive) continue; // faqat o'ziga tegishli case'dan tushadigan NFT — raketada yutib bo'lmaydi
     for (const bg of [null, ...NFT_BG_LIST]) {
       const price = bg ? round2(item.sell_price * NFT_BG_TYPES[bg].mult) : item.sell_price;
       const tolerance = Math.max(CRASH_NFT_MATCH_MIN_TOLERANCE, price * CRASH_NFT_MATCH_RELATIVE_TOLERANCE);

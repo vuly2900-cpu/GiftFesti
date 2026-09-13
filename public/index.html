@@ -1487,7 +1487,7 @@
   .app-loader-overlay{
     position:fixed; inset:0; z-index:9999;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    background:radial-gradient(ellipse at 50% 20%, #113A2E 0%, #06120D 55%, #020604 100%);
+    background:radial-gradient(ellipse at 50% 20%, #0F2A4A 0%, #060F1E 55%, #020509 100%);
     opacity:0; visibility:hidden; pointer-events:none;
     transition:opacity .25s ease;
   }
@@ -1497,7 +1497,14 @@
     display:flex; align-items:center; justify-content:center;
     animation:appLoaderPulse 1.4s ease-in-out infinite;
   }
-  .app-loader-logo{ width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 0 22px rgba(52,211,153,.45)); }
+  .app-loader-logo{
+    width:100%; height:100%; border-radius:22px; overflow:hidden; position:relative;
+    display:flex; align-items:center; justify-content:center; background:#000;
+    filter:drop-shadow(0 0 22px rgba(56,142,255,.5));
+  }
+  .app-loader-logo video, .app-loader-logo .lottie-box{ position:absolute; inset:0; width:100%; height:100%; }
+  .app-loader-logo-fallback{ width:100%; height:100%; object-fit:contain; }
+  .app-loader-logo.loader-anim-on .app-loader-logo-fallback{ display:none; }
   @keyframes appLoaderPulse{
     0%,100%{ transform:scale(1); opacity:1; }
     50%{ transform:scale(1.05); opacity:.85; }
@@ -1508,8 +1515,8 @@
   }
   .app-loader-bar-fill{
     height:100%; width:0%; border-radius:999px;
-    background:linear-gradient(90deg,#0ED27A,#34D399);
-    box-shadow:0 0 10px rgba(52,211,153,.6);
+    background:linear-gradient(90deg,#1C7ED6,#4DA3FF);
+    box-shadow:0 0 10px rgba(77,163,255,.6);
   }
 
   .lang-onboard-overlay{
@@ -1735,7 +1742,7 @@
 <!-- APP/O'YIN/CASE YUKLANISH EKRANI -->
 <div class="app-loader-overlay" id="appLoaderOverlay">
   <div class="app-loader-logo-wrap">
-    <img class="app-loader-logo" src="/gifts/giftfesti_bot.png" alt="GiftFesti">
+    <div class="app-loader-logo" id="appLoaderLogo"><img class="app-loader-logo-fallback" src="/gifts/giftfesti_bot.png" alt="GiftFesti"></div>
   </div>
   <div class="app-loader-bar-track">
     <div class="app-loader-bar-fill" id="appLoaderBar"></div>
@@ -9371,8 +9378,32 @@ function diceLeaveIfNeededAndGoBack() {
   goTo('play');
 }
 
+/* ---- Yuklanish ekrani (loader) logotipi — premium animatsiyali emoji ---- */
+const loaderAnimState = { ready: false, asset: null, mounted: false };
+async function initLoaderEmoji() {
+  try {
+    const metaRes = await fetch('/api/loader_emoji');
+    if (!metaRes.ok) return; // BOT_TOKEN sozlanmagan bo'lsa — statik logo qoladi
+    const meta = await metaRes.json();
+    loaderAnimState.asset = await loadEmojiAsset(meta.custom_emoji_id, meta.is_video);
+    loaderAnimState.ready = true;
+    mountLoaderEmoji();
+  } catch (e) {
+    console.error('Loader animatsiyasi yuklanmadi:', e.message);
+  }
+}
+function mountLoaderEmoji() {
+  if (!loaderAnimState.ready || loaderAnimState.mounted) return;
+  const el = document.getElementById('appLoaderLogo');
+  if (!el) return;
+  loaderAnimState.mounted = true;
+  el.classList.add('loader-anim-on');
+  mountEmojiAsset(el, loaderAnimState.asset);
+}
+
 // Botga kirganda 2 sekundlik yuklanish ekrani chiqadi
 showAppLoaderTimed(2000);
+initLoaderEmoji();
 // Boshlanishida captcha tekshiriladi
 checkCaptchaRequirement();
 // Coin logotipini premium animatsiyali emoji bilan almashtiramiz

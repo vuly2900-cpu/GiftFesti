@@ -801,6 +801,7 @@ function resetRetiredStarterNfts() {
 
 /* ---- Coin logotipi uchun premium animatsiyali emoji ---- */
 const COIN_CUSTOM_EMOJI_ID = '5397902064250545379';
+const LOADER_CUSTOM_EMOJI_ID = '5454286330487922571';
 
 /* ---- Raketa (Crash) o'yini uchun premium animatsiyali emojilar
    (har bir raundda ikkalasi navbat bilan almashib turadi) ---- */
@@ -1885,6 +1886,23 @@ app.get('/api/coin_emoji', async (req, res) => {
     res.json({ custom_emoji_id: COIN_CUSTOM_EMOJI_ID, is_video: meta.is_video, is_animated: meta.is_animated });
   } catch (e) {
     console.error('coin_emoji xatolik:', e.message);
+    res.status(500).json({ error: 'SERVER_ERROR' });
+  }
+});
+
+/* ---- Yuklanish ekrani (loader) logotipi uchun animatsiya metadatasi ---- */
+app.get('/api/loader_emoji', async (req, res) => {
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  try {
+    const sticker = await fetchCustomEmojiSticker(LOADER_CUSTOM_EMOJI_ID);
+    if (!sticker) {
+      console.error(`loader_emoji: ID topilmadi yoki bot uchun mavjud emas -> ${LOADER_CUSTOM_EMOJI_ID}`);
+      return res.status(404).json({ error: 'EMOJI_NOT_FOUND' });
+    }
+    const meta = await getEmojiMeta(LOADER_CUSTOM_EMOJI_ID);
+    res.json({ custom_emoji_id: LOADER_CUSTOM_EMOJI_ID, is_video: meta.is_video, is_animated: meta.is_animated });
+  } catch (e) {
+    console.error('loader_emoji xatolik:', e.message);
     res.status(500).json({ error: 'SERVER_ERROR' });
   }
 });

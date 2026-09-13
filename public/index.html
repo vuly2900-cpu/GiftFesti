@@ -2224,15 +2224,15 @@
       <p class="subtitle">Har 24 soatda 1 marta bepul case oching</p>
     </div>
 
-    <div class="case-timer" id="caseTimer" style="display:none;"></div>
-    <button class="btn" id="caseOpenBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openDailyCase()">🎁 Caseni ochish</button>
-
     <div class="case-reel-wrap" id="caseReelWrap" style="display:none;">
       <div class="case-reel-pointer"></div>
       <div class="case-reel-viewport">
         <div class="case-reel-track" id="caseReelTrack"></div>
       </div>
     </div>
+
+    <div class="case-timer" id="caseTimer" style="display:none;"></div>
+    <button class="btn" id="caseOpenBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openDailyCase()">🎁 Caseni ochish</button>
 
     <div class="case-items-grid" id="caseItemsGrid"></div>
 
@@ -2252,6 +2252,13 @@
       <p class="subtitle">Heart Locked va Plush Pepe — oddiy, Onyx Black yoki Black fon bilan chiqishi mumkin</p>
     </div>
 
+    <div class="case-reel-wrap" id="pepeCaseReelWrap" style="display:none;">
+      <div class="case-reel-pointer"></div>
+      <div class="case-reel-viewport">
+        <div class="case-reel-track" id="pepeCaseReelTrack"></div>
+      </div>
+    </div>
+
     <div class="pepe-case-buy-row">
       <button class="btn" id="pepeCaseOpenCoinBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openPepeCaseWithCoin()">
         🎁 <span id="pepeCaseCoinPriceLabel">10 000</span> <span class="coin-ico"></span> bilan ochish
@@ -2259,13 +2266,6 @@
       <button class="btn secondary" id="pepeCaseOpenStarsBtn" style="width:100%; padding:14px; font-size:15px; margin-top:10px;" onclick="openPepeCaseWithStars()">
         ⭐ <span id="pepeCaseStarsPriceLabel">36</span> Stars bilan ochish <span id="pepeCaseStarsOldPrice" class="pepe-case-old-price">40</span>
       </button>
-    </div>
-
-    <div class="case-reel-wrap" id="pepeCaseReelWrap" style="display:none;">
-      <div class="case-reel-pointer"></div>
-      <div class="case-reel-viewport">
-        <div class="case-reel-track" id="pepeCaseReelTrack"></div>
-      </div>
     </div>
 
     <div class="case-items-grid" id="pepeCaseItemsGrid"></div>
@@ -2286,6 +2286,13 @@
       <p class="subtitle">Kichik gift'lardan tortib Peach, Durov's Cap, Heart Locked va Pepe'gacha — hammasi bitta case'da</p>
     </div>
 
+    <div class="case-reel-wrap" id="fortuneCaseReelWrap" style="display:none;">
+      <div class="case-reel-pointer"></div>
+      <div class="case-reel-viewport">
+        <div class="case-reel-track" id="fortuneCaseReelTrack"></div>
+      </div>
+    </div>
+
     <div class="pepe-case-buy-row">
       <button class="btn" id="fortuneCaseOpenBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openFortuneCaseWithCoin()">
         🎁 <span id="fortuneCaseCoinPriceLabel">15</span> <span class="coin-ico"></span> bilan ochish
@@ -2295,14 +2302,40 @@
       </button>
     </div>
 
-    <div class="case-reel-wrap" id="fortuneCaseReelWrap" style="display:none;">
+    <div class="case-items-grid" id="fortuneCaseItemsGrid"></div>
+    <p class="case-odds-note">G'olib gift inventoringizga tushadi — Profil bo'limidan sotishingiz mumkin</p>
+  </section>
+
+  <section class="page" id="page-case-black">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('cases')">‹</button>
+      <div class="game-number-badge mono">Black Case</div>
+    </div>
+
+    <div class="case-result-banner" id="blackCaseResultBanner"></div>
+
+    <div class="case-hero">
+      <div class="case-box-icon">⬛</div>
+      <p class="subtitle">Arzon, o'rtacha va qimmatroq NFT'lardan tortib Heart Locked va Pepe'gacha — hammasi Black fonda</p>
+    </div>
+
+    <div class="case-reel-wrap" id="blackCaseReelWrap" style="display:none;">
       <div class="case-reel-pointer"></div>
       <div class="case-reel-viewport">
-        <div class="case-reel-track" id="fortuneCaseReelTrack"></div>
+        <div class="case-reel-track" id="blackCaseReelTrack"></div>
       </div>
     </div>
 
-    <div class="case-items-grid" id="fortuneCaseItemsGrid"></div>
+    <div class="pepe-case-buy-row">
+      <button class="btn" id="blackCaseOpenBtn" style="width:100%; padding:14px; font-size:15px;" onclick="openBlackCaseWithCoin()">
+        🎁 <span id="blackCaseCoinPriceLabel">400</span> <span class="coin-ico"></span> bilan ochish
+      </button>
+      <button class="btn secondary" id="blackCaseOpenStarsBtn" style="width:100%; padding:14px; font-size:15px; margin-top:10px;" onclick="openBlackCaseWithStars()">
+        ⭐ <span id="blackCaseStarsPriceLabel">4</span> Stars bilan ochish
+      </button>
+    </div>
+
+    <div class="case-items-grid" id="blackCaseItemsGrid"></div>
     <p class="case-odds-note">G'olib gift inventoringizga tushadi — Profil bo'limidan sotishingiz mumkin</p>
   </section>
 
@@ -3535,6 +3568,7 @@ const CASES_CATALOG = [
   { id: 'daily', name: 'Kunlik Case', img: '/case-icons/case_free24h.jpg', badge: 'FREE 24H', pageId: 'case' },
   { id: 'pepe', name: 'PEPE Case', img: '/case-icons/case_pepe.jpg', badge: 'YANGI', pageId: 'case-pepe' },
   { id: 'fortune', name: 'Omad Case', img: '/case-icons/case_omad.jpg', badge: '15 🪙', pageId: 'case-fortune' },
+  { id: 'black', name: 'Black Case', img: '/case-icons/case_black.jpg', badge: '400 🪙', pageId: 'case-black' },
 ];
 
 function renderCasesList() {
@@ -4263,6 +4297,233 @@ function initFortuneCasePage() {
   loadFortuneCaseItemsCatalog().then(renderFortuneCaseItems);
 }
 
+// ==================== BLACK CASE ====================
+// Coin yoki Stars evaziga, cooldownsiz — Omad Case bilan bir xil oqim.
+let BLACK_CASE_ITEMS = [];
+let BLACK_CASE_PRICE_COIN = 400;
+let BLACK_CASE_PRICE_STARS = 4;
+let blackCaseItemsLoaded = false;
+let blackCaseBusy = false;
+
+async function loadBlackCaseItemsCatalog() {
+  if (blackCaseItemsLoaded) return;
+  try {
+    const res = await fetch('/api/black_case_items');
+    const data = await res.json();
+    if (data.ok) {
+      BLACK_CASE_ITEMS = data.items;
+      BLACK_CASE_PRICE_COIN = data.priceCoin;
+      BLACK_CASE_PRICE_STARS = data.priceStars;
+      blackCaseItemsLoaded = true;
+    }
+  } catch (e) { console.error("Black case items yuklanmadi:", e); }
+}
+
+function renderBlackCaseItems() {
+  const grid = document.getElementById('blackCaseItemsGrid');
+  if (!grid) return;
+  grid.innerHTML = BLACK_CASE_ITEMS.map(item => `
+    <div class="case-item">
+      <div class="emoji">${giftIconHTML(item, `blackGridAnim_${item.id}`)}</div>
+      <div class="val">${fmtCoin(item.sell_price)} <span class="coin-ico"></span></div>
+    </div>
+  `).join('');
+  BLACK_CASE_ITEMS.forEach(item => {
+    mountAnimatedEmoji(document.getElementById(`blackGridAnim_${item.id}`), item.custom_emoji_id, item.is_video, item.id);
+  });
+  document.getElementById('blackCaseCoinPriceLabel').textContent = fmtCoin(BLACK_CASE_PRICE_COIN);
+  document.getElementById('blackCaseStarsPriceLabel').textContent = BLACK_CASE_PRICE_STARS;
+}
+
+function buildBlackReelFillerPool() {
+  return BLACK_CASE_ITEMS.map(item => ({
+    stars: item.sell_price, itemId: item.id, custom_emoji_id: item.custom_emoji_id,
+    is_video: item.is_video, isGift: true,
+  }));
+}
+
+function blackReelItemHTML(item, extraClass, animId) {
+  const iconHtml = item.isGift ? giftIconHTML(item, animId) : '<span class="coin-ico"></span>';
+  return `<div class="case-reel-item ${extraClass || ''}"><div class="emoji">${iconHtml}</div><div class="rv">${fmtCoin(item.stars)} <span class="coin-ico"></span></div></div>`;
+}
+
+function runBlackCaseReelAnimation(reward) {
+  return new Promise(resolve => {
+    const wrap = document.getElementById('blackCaseReelWrap');
+    const grid = document.getElementById('blackCaseItemsGrid');
+    const track = document.getElementById('blackCaseReelTrack');
+    if (!wrap || !track) { resolve(); return; }
+
+    const pool = buildBlackReelFillerPool();
+    const seq = [];
+    for (let i = 0; i < CASE_REEL_LENGTH; i++) {
+      seq.push(i === CASE_REEL_WIN_INDEX ? reward : pool[Math.floor(Math.random() * pool.length)]);
+    }
+
+    track.style.transition = 'none';
+    track.style.transform = 'translateX(0px)';
+    track.innerHTML = seq.map((it, i) => blackReelItemHTML(it, i === CASE_REEL_WIN_INDEX ? 'win-slot' : '', `blackReelAnim_${i}`)).join('');
+    seq.forEach((it, i) => {
+      if (it.isGift) mountAnimatedEmoji(document.getElementById(`blackReelAnim_${i}`), it.custom_emoji_id, it.is_video, it.itemId || it.id);
+    });
+
+    if (grid) grid.style.display = 'none';
+    wrap.style.display = 'block';
+
+    const viewportWidth = wrap.querySelector('.case-reel-viewport').clientWidth;
+    const jitter = (Math.random() - 0.5) * CASE_REEL_ITEM_W * 0.5;
+    const target = CASE_REEL_WIN_INDEX * CASE_REEL_ITEM_W + CASE_REEL_ITEM_W / 2 - viewportWidth / 2 + jitter;
+    const DURATION_MS = 4200;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        track.style.transition = `transform ${DURATION_MS}ms cubic-bezier(0.1, 0.7, 0.15, 1)`;
+        track.style.transform = `translateX(-${target}px)`;
+      });
+    });
+
+    setTimeout(() => {
+      const winEl = track.querySelector('.win-slot');
+      if (winEl) winEl.classList.add('winning');
+      setTimeout(() => {
+        wrap.style.display = 'none';
+        if (grid) grid.style.display = 'grid';
+        resolve();
+      }, 700);
+    }, DURATION_MS + 100);
+  });
+}
+
+function showBlackCaseResult(reward) {
+  const banner = document.getElementById('blackCaseResultBanner');
+  if (!banner) return;
+  banner.innerHTML = `<div class="case-result-emoji">${giftIconHTML(reward, 'blackCaseResultAnim')}</div><div>Siz <b>${reward.name || ''} (${fmtCoin(reward.stars ?? reward.sell_price)} <span class="coin-ico"></span>)</b> lik gift yutdingiz! Inventoringizga tushdi — Profil bo'limidan sotishingiz mumkin.</div>`;
+  mountAnimatedEmoji(document.getElementById('blackCaseResultAnim'), reward.custom_emoji_id, reward.is_video, reward.itemId || reward.id);
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 5000);
+}
+
+function setBlackCaseButtonsDisabled(disabled) {
+  const coinBtn = document.getElementById('blackCaseOpenBtn');
+  const starsBtn = document.getElementById('blackCaseOpenStarsBtn');
+  if (coinBtn) coinBtn.disabled = disabled;
+  if (starsBtn) starsBtn.disabled = disabled;
+}
+
+async function openBlackCaseWithCoin() {
+  if (blackCaseBusy) return;
+
+  const subscribed = await checkChannelSubscription();
+  if (!subscribed) { caseSubscriptionVerified = false; showCaseSubOverlay(); return; }
+  caseSubscriptionVerified = true;
+
+  if (Number(currentUserData.balance) < BLACK_CASE_PRICE_COIN) {
+    alert("Balansingizda yetarli coin yo'q.");
+    return;
+  }
+
+  blackCaseBusy = true;
+  setBlackCaseButtonsDisabled(true);
+
+  try {
+    const res = await fetch('/api/open_black_case', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (data.error === 'INSUFFICIENT_BALANCE') alert("Balansingizda yetarli coin yo'q.");
+      else if (data.error === 'not_subscribed') { caseSubscriptionVerified = false; showCaseSubOverlay(); }
+      else if (data.error === 'invalid_auth') alert("Sessiya tasdiqlanmadi. Ilovani qayta oching.");
+      else alert("Xatolik yuz berdi, qaytadan urinib ko'ring.");
+      return;
+    }
+
+    currentUserData.balance = data.balance;
+    syncBalanceDisplays(currentUserData.balance);
+    await runBlackCaseReelAnimation(data.reward);
+    currentUserData.total_won = (currentUserData.total_won || 0) + data.reward.sell_price;
+    showBlackCaseResult(data.reward);
+  } catch (e) {
+    console.error(e);
+    alert("Xatolik yuz berdi, qaytadan urinib ko'ring.");
+  } finally {
+    blackCaseBusy = false;
+    setBlackCaseButtonsDisabled(false);
+  }
+}
+
+async function pollBlackCaseResult(maxTries = 10) {
+  for (let i = 0; i < maxTries; i++) {
+    try {
+      const res = await fetch('/api/black_case/claim_result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: tg?.initData || '' }),
+      });
+      const data = await res.json();
+      if (data.ok && data.reward) return data.reward;
+    } catch (e) { console.error(e); }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return null;
+}
+
+async function openBlackCaseWithStars() {
+  if (blackCaseBusy) return;
+  if (!tg || typeof tg.openInvoice !== 'function') {
+    alert("To'lov faqat Telegram ilovasi ichida ishlaydi. Iltimos, botni Telegram orqali oching.");
+    return;
+  }
+
+  const subscribed = await checkChannelSubscription();
+  if (!subscribed) { caseSubscriptionVerified = false; showCaseSubOverlay(); return; }
+  caseSubscriptionVerified = true;
+
+  blackCaseBusy = true;
+  setBlackCaseButtonsDisabled(true);
+
+  let data;
+  try {
+    const res = await fetch('/api/black_case/create_invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    data = await res.json();
+  } catch (e) { console.error("Black case invoysini olishda xatolik:", e); }
+
+  if (!data || !data.ok) {
+    alert("Invoys yaratishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
+    blackCaseBusy = false;
+    setBlackCaseButtonsDisabled(false);
+    return;
+  }
+
+  tg.openInvoice(data.link, async (status) => {
+    if (status === 'paid') {
+      const reward = await pollBlackCaseResult();
+      if (reward) {
+        await runBlackCaseReelAnimation(reward);
+        currentUserData.total_won = (currentUserData.total_won || 0) + reward.sell_price;
+        showBlackCaseResult(reward);
+      } else {
+        alert("🎉 To'lov muvaffaqiyatli! Sovrin tez orada inventoringizga tushadi.");
+      }
+    } else if (status === 'failed') {
+      alert("To'lov amalga oshmadi. Qayta urinib ko'ring.");
+    }
+    blackCaseBusy = false;
+    setBlackCaseButtonsDisabled(false);
+  });
+}
+
+function initBlackCasePage() {
+  loadBlackCaseItemsCatalog().then(renderBlackCaseItems);
+}
+
 // ==================== FIREBASE READ CACHE ====================
 // Sahifalar orasida tez-tez o'tib yurilganda Firestore'dan qayta-qayta
 // o'qish (read) sarflanmasligi uchun natijalar TTL muddatigacha keshda saqlanadi.
@@ -4309,6 +4570,7 @@ function goTo(pageName, presetItemId) {
   if (pageName === 'case') initCasePage();
   if (pageName === 'case-pepe') initPepeCasePage();
   if (pageName === 'case-fortune') initFortuneCasePage();
+  if (pageName === 'case-black') initBlackCasePage();
   if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
   if (pageName === 'upgrade') initUpgradePage(presetItemId);
   if (pageName === 'crash') initCrashPage();

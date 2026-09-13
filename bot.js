@@ -390,6 +390,27 @@ async function handleSuccessfulPayment(msg) {
     return sendMessage(chatId, `🐸 PEPE Case ochildi! Sizga *${r.name || ''}* tushdi. Inventoringizga tushdi — ilovadan tekshiring.`, { parse_mode: 'Markdown' });
   }
 
+  // Black Case Stars orqali sotib olingan bo'lsa — alohida ichki API
+  if (payload.startsWith('blackcase:')) {
+    let caseResult;
+    try {
+      caseResult = await internalApiPost('/api/internal_black_case_credit', {
+        payload,
+        telegramPaymentChargeId: sp.telegram_payment_charge_id,
+        totalAmount: sp.total_amount,
+      });
+    } catch (e) {
+      console.error("Black Case kreditlashda xatolik:", e.message);
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin case ochishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (!caseResult || !caseResult.ok) {
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin case ochishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (caseResult.alreadyProcessed) return;
+    const r3 = caseResult.reward || {};
+    return sendMessage(chatId, `⬛ Black Case ochildi! Sizga *${r3.name || ''}* tushdi. Inventoringizga tushdi — ilovadan tekshiring.`, { parse_mode: 'Markdown' });
+  }
+
   // VIP👑 Stars orqali sotib olingan bo'lsa — alohida ichki API
   if (payload.startsWith('vip:')) {
     let vipResult;

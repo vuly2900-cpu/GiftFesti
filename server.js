@@ -1131,6 +1131,39 @@ function pickFortuneCaseReward() {
 }
 
 /* ============================================================
+   BLACK CASE (4-case) — barcha gift'lar "Black" fon variantida (4x narx).
+   5 ta arzon, 5 ta o'rtacha, 5 ta qimmatroq NFT + Heart Locked (juda kam
+   ehtimol) + Plush Pepe (faqat vitrinada turadi, ehtimoli 0 — hech qachon
+   tushmaydi). Narxi: 400 coin yoki 4 Stars. ---- */
+const BLACK_CASE_PRICE_COIN = 400;
+const BLACK_CASE_PRICE_STARS = 4;
+const BLACK_CASE_LOW_IDS = ['ice_cream', 'easter_egg', 'lunar_snake', 'spiced_wine', 'clover_pin'];
+const BLACK_CASE_MID_IDS = ['top_hat', 'sakura_flower', 'crystal_ball', 'valentine_box', 'record_player'];
+const BLACK_CASE_HIGH_IDS = ['swiss_watch', 'genie_lamp', 'diamond_ring', 'signet_ring', 'perfume_bottle'];
+const BLACK_CASE_GROUP_WEIGHT = { low: 40, mid: 30, high: 25 };
+const BLACK_CASE_ITEMS = [
+  ...BLACK_CASE_LOW_IDS.map(id => ({ baseId: id, bg: 'black', weight: BLACK_CASE_GROUP_WEIGHT.low / BLACK_CASE_LOW_IDS.length })),
+  ...BLACK_CASE_MID_IDS.map(id => ({ baseId: id, bg: 'black', weight: BLACK_CASE_GROUP_WEIGHT.mid / BLACK_CASE_MID_IDS.length })),
+  ...BLACK_CASE_HIGH_IDS.map(id => ({ baseId: id, bg: 'black', weight: BLACK_CASE_GROUP_WEIGHT.high / BLACK_CASE_HIGH_IDS.length })),
+  { baseId: 'heart_locked', bg: 'black', weight: 0.1 },
+  { baseId: 'plush_pepe', bg: 'black', weight: 0 },
+];
+function pickBlackCaseReward() {
+  const totalWeight = BLACK_CASE_ITEMS.reduce((s, o) => s + o.weight, 0);
+  let rand = Math.random() * totalWeight;
+  let picked = BLACK_CASE_ITEMS[BLACK_CASE_ITEMS.length - 1];
+  for (const o of BLACK_CASE_ITEMS) {
+    if (rand < o.weight) { picked = o; break; }
+    rand -= o.weight;
+  }
+  const def = getNftDef(makeNftKey(picked.baseId, picked.bg));
+  return {
+    itemId: def.id, baseId: picked.baseId, bg: picked.bg, bgLabel: def.bgLabel,
+    isGift: true, name: def.name, custom_emoji_id: def.custom_emoji_id, sell_price: def.sell_price, stars: def.sell_price,
+  };
+}
+
+/* ============================================================
    EXPRESS + SOCKET.IO SETUP
    ============================================================ */
 /* ---- Coin miqdorlarini 2 xonagacha yaxlitlash (float xatoliklarining oldini olish uchun) ---- */
@@ -1477,6 +1510,113 @@ app.post('/api/fortune_case/claim_result', async (req, res) => {
   const meta = await getEmojiMeta(reward.custom_emoji_id);
   reward.is_video = meta.is_video;
   user.pendingFortuneCaseReward = null;
+  res.json({ ok: true, reward });
+});
+
+/* ============================================================
+   BLACK CASE (4-case) — coin yoki Stars evaziga, cooldownsiz.
+   Barcha gift'lar "Black" fon variantida (4x narx) chiqadi.
+   ============================================================ */
+app.get('/api/black_case_items', async (req, res) => {
+  const items = [];
+  for (const o of BLACK_CASE_ITEMS) {
+    const def = getNftDef(makeNftKey(o.baseId, o.bg));
+    const meta = await getEmojiMeta(def.custom_emoji_id);
+    items.push({
+      id: def.id, baseId: o.baseId, bg: o.bg, bgLabel: def.bgLabel,
+      name: def.name, custom_emoji_id: def.custom_emoji_id,
+      sell_price: def.sell_price, weight: o.weight, is_video: meta.is_video,
+    });
+  }
+  res.json({ ok: true, items, priceCoin: BLACK_CASE_PRICE_COIN, priceStars: BLACK_CASE_PRICE_STARS });
+});
+
+app.post('/api/open_black_case', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const subscribed = await isSubscribed(user.id, MAIN_CHANNEL);
+  if (!subscribed) return res.status(403).json({ error: 'not_subscribed' });
+
+  ensureNftStarterPack(user);
+  if (Number(user.balance) < BLACK_CASE_PRICE_COIN) {
+    return res.status(400).json({ error: 'INSUFFICIENT_BALANCE', required: BLACK_CASE_PRICE_COIN });
+  }
+  user.balance = round2(user.balance - BLACK_CASE_PRICE_COIN);
+
+  const reward = pickBlackCaseReward();
+  const meta = await getEmojiMeta(reward.custom_emoji_id);
+  reward.is_video = meta.is_video;
+  grantNftToUser(user, reward.itemId);
+  user.total_won = round2((user.total_won || 0) + reward.sell_price);
+
+  res.json({ ok: true, reward, balance: user.balance });
+});
+
+/* ---- Stars evaziga: boshqa case'lar bilan bir xil oqim (invoice -> bot.js
+   webhook -> pendingBlackCaseReward -> claim_result). ---- */
+app.post('/api/black_case/create_invoice', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  const subscribed = await isSubscribed(user.id, MAIN_CHANNEL);
+  if (!subscribed) return res.status(403).json({ error: 'not_subscribed' });
+
+  const payload = `blackcase:${user.id}:${crypto.randomBytes(4).toString('hex')}`;
+  try {
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'GiftFesti — Black Case',
+        description: "Black Case'ni ochish",
+        payload,
+        currency: 'XTR',
+        prices: [{ label: 'Black Case', amount: BLACK_CASE_PRICE_STARS }],
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, link: data.result, stars: BLACK_CASE_PRICE_STARS });
+  } catch (e) {
+    console.error('Black case invoysi yaratishda xatolik:', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/internal_black_case_credit', (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const { payload, telegramPaymentChargeId, totalAmount } = req.body || {};
+
+  if (telegramPaymentChargeId && processedTopupCharges.has(telegramPaymentChargeId)) {
+    const m0 = /^blackcase:(\d+):/.exec(String(payload || ''));
+    const existingUser = m0 ? users.get(m0[1]) : null;
+    return res.json({ ok: true, alreadyProcessed: true, reward: existingUser ? existingUser.pendingBlackCaseReward : null });
+  }
+  const m = /^blackcase:(\d+):/.exec(String(payload || ''));
+  if (!m) return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+  const userId = m[1];
+  if (Number(totalAmount) !== BLACK_CASE_PRICE_STARS) {
+    console.error(`Black case: to'lov summasi mos kelmadi (kutilgan ${BLACK_CASE_PRICE_STARS}, kelgan ${totalAmount})`);
+  }
+
+  let user = users.get(userId);
+  if (!user) { user = createUser(userId, `user${userId}`); users.set(userId, user); }
+  ensureNftStarterPack(user);
+
+  const reward = pickBlackCaseReward();
+  grantNftToUser(user, reward.itemId);
+  user.total_won = round2((user.total_won || 0) + reward.sell_price);
+  user.pendingBlackCaseReward = reward;
+  if (telegramPaymentChargeId) processedTopupCharges.add(telegramPaymentChargeId);
+
+  res.json({ ok: true, reward });
+});
+
+app.post('/api/black_case/claim_result', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  const reward = user.pendingBlackCaseReward || null;
+  if (!reward) return res.json({ ok: true, reward: null });
+  const meta = await getEmojiMeta(reward.custom_emoji_id);
+  reward.is_video = meta.is_video;
+  user.pendingBlackCaseReward = null;
   res.json({ ok: true, reward });
 });
 

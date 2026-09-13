@@ -728,7 +728,7 @@ const NFT_CATALOG = [
   // belgisi bor NFT'lar: (1) admin panelidan "give_nft" orqali berilmaydi,
   // (2) Raketa (crash) o'yinida yutuq sifatida hech qachon tushmaydi —
   // faqat ICE Case ochilganda berilishi mumkin. ----
-  { id: 'ice_surge_board', name: 'Surge Board', custom_emoji_id: '5316536953959654293', sell_price: 100, caseExclusive: 'ice' },
+  { id: 'ice_surge_board', name: 'Surge Board', custom_emoji_id: '5316536953959654293', sell_price: 1000, caseExclusive: 'ice' },
   { id: 'ice_vice_cream', name: 'Vice Cream', custom_emoji_id: '5355272130130911042', sell_price: 500, caseExclusive: 'ice' },
   { id: 'ice_timeless_book', name: 'Timeless Book', custom_emoji_id: '5334749968936773400', sell_price: 700, caseExclusive: 'ice' },
   { id: 'ice_bling_binky', name: 'Bling Binky', custom_emoji_id: '5206322453852229205', sell_price: 2400, caseExclusive: 'ice' },
@@ -845,8 +845,9 @@ const GAME_CARD_EMOJI_IDS = {
   case: '5203919539909182007',
   hockey: '5415590569231532234',
   drum: '5994377540246966428',
-  upgradeDown: '5231055126105439276',
-  upgradeUp: '5228940017920917247',
+  upgrade2: '5463122435425448565',
+  wheel: '5271663509313173948',
+  solo: '5249053508681883137',
 };
 
 /* ---- Reytingdagi top 1/2/3 medal ikonkalari uchun premium animatsiyali emoji ---- */
@@ -1182,7 +1183,7 @@ function pickFortuneCaseReward() {
    past, silliq egri chiziq bo'yicha): jami 100% ga yig'iladi. Buni
    ehtiyojga qarab moslang. ---- */
 const ICE_CASE_ITEMS = [
-  { baseId: 'ice_surge_board', weight: 36.472 },   // 100 coin
+  { baseId: 'ice_surge_board', weight: 36.472 },   // 1000 coin
   { baseId: 'ice_vice_cream', weight: 11.447 },    // 500 coin
   { baseId: 'ice_money_pot', weight: 10.039 },     // 600 coin
   { baseId: 'ice_timeless_book', weight: 8.984 },  // 700 coin

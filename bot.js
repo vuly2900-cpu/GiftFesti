@@ -369,6 +369,27 @@ async function handleSuccessfulPayment(msg) {
     return sendMessage(chatId, `🍀 Omad Case ochildi! Sizga *${r2.name || ''}* tushdi. Inventoringizga tushdi — ilovadan tekshiring.`, { parse_mode: 'Markdown' });
   }
 
+  // ICE Case Stars orqali sotib olingan bo'lsa — alohida ichki API
+  if (payload.startsWith('icecase:')) {
+    let caseResult;
+    try {
+      caseResult = await internalApiPost('/api/internal_ice_case_credit', {
+        payload,
+        telegramPaymentChargeId: sp.telegram_payment_charge_id,
+        totalAmount: sp.total_amount,
+      });
+    } catch (e) {
+      console.error("ICE Case kreditlashda xatolik:", e.message);
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin case ochishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (!caseResult || !caseResult.ok) {
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin case ochishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (caseResult.alreadyProcessed) return;
+    const r4 = caseResult.reward || {};
+    return sendMessage(chatId, `❄️ ICE Case ochildi! Sizga *${r4.name || ''}* tushdi. Inventoringizga tushdi — ilovadan tekshiring.`, { parse_mode: 'Markdown' });
+  }
+
   // PEPE Case Stars orqali sotib olingan bo'lsa — alohida ichki API
   if (payload.startsWith('pepecase:')) {
     let caseResult;

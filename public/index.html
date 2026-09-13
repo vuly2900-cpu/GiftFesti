@@ -2921,12 +2921,17 @@
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
       <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--success);">🖼️ Foydalanuvchiga NFT berish</p>
       <input type="text" id="a_nftUserTid" placeholder="Foydalanuvchi Telegram ID si">
-      <select id="a_nftSelect" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-        <option value="">Yuklanmoqda...</option>
+      <input type="text" id="a_nftNameInput" list="adminNftBaseDatalist" placeholder="NFT nomini yozing (masalan: Lol Pop)" autocomplete="off" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+      <select id="a_nftBgSelect" style="width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+        <option value="">Oddiy (fonsiz)</option>
+        <option value="onyx_black">Onyx Black (2x narx)</option>
+        <option value="black">Black (4x narx)</option>
       </select>
       <input type="number" id="a_nftAmount" placeholder="Dona soni" value="1" min="1" style="margin-top:8px;">
       <button class="btn" style="width:100%; margin-top:8px;" onclick="adminGiveNft()">NFT Berish</button>
     </div>
+
+    <datalist id="adminNftBaseDatalist"></datalist>
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
       <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">👑 Foydalanuvchiga VIP berish</p>
@@ -2964,10 +2969,16 @@
       <input type="text" id="a_konkursDesc" placeholder="Tavsif (ixtiyoriy)" style="margin-top:8px;">
       <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">🏆 Sovg'alar (har biri bitta g'olibga beriladi — NFT yoki VIP👑 aralash qo'yish mumkin)</p>
       <div id="a_konkursPrizesBox">
-        <select class="a-konkurs-prize-select" style="width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-          <option value="">Yuklanmoqda...</option>
-        </select>
+        <div class="a-konkurs-prize-row" style="margin-top:6px;">
+          <input type="text" class="a-konkurs-prize-name" list="adminKonkursNftDatalist" placeholder="NFT nomi (yoki VIP) — yozib qidiring" autocomplete="off" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+          <select class="a-konkurs-prize-bg" style="width:100%; margin-top:4px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+            <option value="">Oddiy (fonsiz)</option>
+            <option value="onyx_black">Onyx Black (2x narx)</option>
+            <option value="black">Black (4x narx)</option>
+          </select>
+        </div>
       </div>
+      <datalist id="adminKonkursNftDatalist"></datalist>
       <button type="button" class="btn secondary" style="width:100%; margin-top:6px; padding:9px; font-size:12px;" onclick="adminKonkursAddPrizeRow()">+ Yana sovg'a qo'shish</button>
 
       <div class="admin-subbtn-grid" style="margin-top:10px;">
@@ -6870,26 +6881,54 @@ async function ensureNftCatalogLoaded() {
   return nftCatalogLoadPromise;
 }
 
-async function loadAdminNftSelect() {
-  const select = document.getElementById('a_nftSelect');
+/* ---- Admin panelda NFT tanlash uchun: nomi bo'yicha qidirish (datalist)
+   + rangni alohida tanlash (Oddiy/Onyx Black/Black). Har bir bazaviy NFT
+   uchun FAQAT bitta yozuv ko'rsatiladi (ilgari har rang uchun alohida
+   qator bo'lib, ro'yxat 3 barobar uzun va qidirish qiyin edi). ---- */
+let adminNftBaseIndex = {}; // name.toLowerCase() -> baseId
+
+async function loadAdminNftCatalogIndex() {
   try {
     const res = await fetch(NFT_CATALOG_API_URL);
     const data = await res.json();
     if (!data.ok) throw new Error('server_error');
-    select.innerHTML = data.items.map(it =>
-      `<option value="${it.id}">${it.name} (${it.sell_price} ⭐)</option>`
-    ).join('');
+    adminNftBaseIndex = {};
+    const seen = new Set();
+    const options = [];
+    data.items.filter(it => !it.bg).forEach(it => { // faqat "oddiy" (fonsiz) yozuvlar — bazaviy nom
+      adminNftBaseIndex[it.name.toLowerCase()] = it.baseId;
+      if (!seen.has(it.name)) { seen.add(it.name); options.push(it.name); }
+    });
+    const datalist = document.getElementById('adminNftBaseDatalist');
+    if (datalist) datalist.innerHTML = options.map(n => `<option value="${n}"></option>`).join('');
   } catch (e) {
-    console.error(e);
-    select.innerHTML = '<option value="">Yuklab bo\'lmadi</option>';
+    console.error('NFT nomlari yuklanmadi:', e);
   }
+}
+
+/* ---- Ism-input va rang-select'dan haqiqiy NFT itemId'ni hisoblaydi.
+   Topilmasa null qaytaradi (chaqiruvchi xato xabarini ko'rsatsin). ---- */
+function resolveNftPickerValue(nameInputEl, bgSelectEl) {
+  const typed = (nameInputEl.value || '').trim();
+  if (!typed) return '';
+  const baseId = adminNftBaseIndex[typed.toLowerCase()];
+  if (!baseId) return null;
+  const bg = bgSelectEl ? bgSelectEl.value : '';
+  return bg ? `${baseId}::${bg}` : baseId;
+}
+
+async function loadAdminNftSelect() {
+  await loadAdminNftCatalogIndex();
 }
 
 async function adminGiveNft() {
   const id = document.getElementById('a_nftUserTid').value.trim();
-  const itemId = document.getElementById('a_nftSelect').value;
+  const itemId = resolveNftPickerValue(document.getElementById('a_nftNameInput'), document.getElementById('a_nftBgSelect'));
   const amount = parseInt(document.getElementById('a_nftAmount').value) || 1;
-  if (!id || !itemId) { alert("Foydalanuvchi ID va NFT tanlang!"); return; }
+  if (!id || !itemId) {
+    alert(itemId === null ? "Bunday nomli NFT topilmadi! Ro'yxatdan tanlang." : "Foydalanuvchi ID va NFT nomini kiriting!");
+    return;
+  }
   try {
     await callAdminAction('give_nft', { userId: id, itemId, amount });
     alert("NFT berildi!");
@@ -6977,42 +7016,75 @@ function adminKonkursResetChannelRows() {
   box.innerHTML = '<input type="text" class="a-konkurs-channel-input" placeholder="@KanalNomi yoki t.me/..." style="margin-top:6px;">';
 }
 
-let adminKonkursNftOptionsHtml = '<option value="">Yuklab bo\'lmadi</option>';
+/* ---- Generik yordamchi: bazaviy NFT ID + rang(bg)dan haqiqiy itemId
+   hisoblanadi. VIP uchun rang tushunchasi yo'q — har doim 'vip_prize'. ---- */
+function computeNftId(baseId, bg) {
+  if (!baseId) return null;
+  if (baseId === 'vip_prize') return 'vip_prize';
+  return bg ? `${baseId}::${bg}` : baseId;
+}
+function resolveNftPickerValue(nameInputEl, bgSelectEl, indexMap) {
+  const typed = (nameInputEl.value || '').trim();
+  if (!typed) return '';
+  const baseId = (indexMap || adminNftBaseIndex)[typed.toLowerCase()];
+  if (!baseId) return null;
+  return computeNftId(baseId, bgSelectEl ? bgSelectEl.value : '');
+}
+
+let adminKonkursNftBaseIndex = {}; // name.toLowerCase() -> baseId (VIP ham shu yerda)
 
 async function loadAdminKonkursNftSelect() {
   try {
     const res = await fetch(NFT_CATALOG_API_URL);
     const data = await res.json();
     if (!data.ok) throw new Error('server_error');
-    adminKonkursNftOptionsHtml = '<option value="vip_prize">👑 VIP (6 soat)</option>' + data.items.map(it =>
-      `<option value="${it.id}">${it.name} (${it.sell_price} ⭐)</option>`
-    ).join('');
+    adminKonkursNftBaseIndex = { '👑 vip (6 soat)': 'vip_prize' };
+    const seen = new Set(['👑 VIP (6 soat)']);
+    const options = ['👑 VIP (6 soat)'];
+    data.items.filter(it => !it.bg).forEach(it => {
+      adminKonkursNftBaseIndex[it.name.toLowerCase()] = it.baseId;
+      if (!seen.has(it.name)) { seen.add(it.name); options.push(it.name); }
+    });
+    const datalist = document.getElementById('adminKonkursNftDatalist');
+    if (datalist) datalist.innerHTML = options.map(n => `<option value="${n}"></option>`).join('');
   } catch (e) {
-    console.error(e);
-    adminKonkursNftOptionsHtml = '<option value="vip_prize">👑 VIP (6 soat)</option>';
+    console.error('Konkurs NFT nomlari yuklanmadi:', e);
+    adminKonkursNftBaseIndex = { '👑 vip (6 soat)': 'vip_prize' };
   }
-  document.querySelectorAll('.a-konkurs-prize-select').forEach(sel => { sel.innerHTML = adminKonkursNftOptionsHtml; });
 }
 
 function adminKonkursAddPrizeRow() {
   const box = document.getElementById('a_konkursPrizesBox');
-  const sel = document.createElement('select');
-  sel.className = 'a-konkurs-prize-select';
-  sel.style.cssText = 'width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;';
-  sel.innerHTML = adminKonkursNftOptionsHtml;
-  box.appendChild(sel);
+  const row = document.createElement('div');
+  row.className = 'a-konkurs-prize-row';
+  row.style.marginTop = '6px';
+  row.innerHTML = `
+    <input type="text" class="a-konkurs-prize-name" list="adminKonkursNftDatalist" placeholder="NFT nomi (yoki VIP) — yozib qidiring" autocomplete="off" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+    <select class="a-konkurs-prize-bg" style="width:100%; margin-top:4px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+      <option value="">Oddiy (fonsiz)</option>
+      <option value="onyx_black">Onyx Black (2x narx)</option>
+      <option value="black">Black (4x narx)</option>
+    </select>`;
+  box.appendChild(row);
 }
 function adminKonkursResetPrizeRows() {
   const box = document.getElementById('a_konkursPrizesBox');
-  box.innerHTML = `<select class="a-konkurs-prize-select" style="width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">${adminKonkursNftOptionsHtml}</select>`;
+  box.innerHTML = '';
+  adminKonkursAddPrizeRow();
 }
 
 async function adminCreateContest() {
   const title = document.getElementById('a_konkursTitle').value.trim();
   const description = document.getElementById('a_konkursDesc').value.trim();
-  const prizes = Array.from(document.querySelectorAll('.a-konkurs-prize-select'))
-    .map(el => el.value)
-    .filter(Boolean);
+  const prizeRows = Array.from(document.querySelectorAll('.a-konkurs-prize-row'));
+  let hasInvalidPrize = false;
+  const prizes = prizeRows.map(row => {
+    const nameEl = row.querySelector('.a-konkurs-prize-name');
+    const bgEl = row.querySelector('.a-konkurs-prize-bg');
+    const val = resolveNftPickerValue(nameEl, bgEl, adminKonkursNftBaseIndex);
+    if (val === null) hasInvalidPrize = true;
+    return val;
+  }).filter(Boolean);
   const type = adminKonkursType;
   const ticketPrice = type === 'paid' ? parseFloat(document.getElementById('a_konkursTicketPrice').value) : null;
   const requireChannels = Array.from(document.querySelectorAll('.a-konkurs-channel-input'))
@@ -7022,6 +7094,7 @@ async function adminCreateContest() {
   const durationUnit = document.getElementById('a_konkursDurationUnit').value;
   const durationHours = durationRaw > 0 ? (durationUnit === 'days' ? durationRaw * 24 : durationRaw) : 0;
 
+  if (hasInvalidPrize) { alert("Bunday nomli NFT topilmadi! Ro'yxatdan tanlang."); return; }
   if (!title || !prizes.length) { alert("Konkurs nomi va kamida bitta NFT sovg'ani tanlang!"); return; }
   if (type === 'paid' && (!ticketPrice || ticketPrice <= 0)) { alert("Bilet narxini to'g'ri kiriting!"); return; }
 

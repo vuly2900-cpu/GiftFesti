@@ -587,10 +587,30 @@
     min-height:100px; display:flex; flex-direction:column; justify-content:space-between;
     border:1px solid var(--border);
   }
-  .game-card.hockey{background:linear-gradient(135deg,#1B4A6B,#0E2A3D);}
-  .game-card.drum{background:linear-gradient(135deg,#3A2A1B,#211508);}
-  .game-card.upgrade{background:linear-gradient(135deg,#123524,#0d211a);}
-  .game-card.wheel{background:linear-gradient(135deg,#2A1B3A,#180f21);}
+  .game-card.hockey{
+    background:
+      radial-gradient(110px 100px at 85% 12%, rgba(80,190,255,.4), transparent 70%),
+      linear-gradient(135deg,#1B4A6B,#0E2A3D);
+  }
+  .game-card.hockey .game-card-visual{filter:drop-shadow(0 8px 16px rgba(80,190,255,.55));}
+  .game-card.drum{
+    background:
+      radial-gradient(110px 100px at 85% 12%, rgba(255,150,60,.4), transparent 70%),
+      linear-gradient(135deg,#3A2A1B,#211508);
+  }
+  .game-card.drum .game-card-visual{filter:drop-shadow(0 8px 16px rgba(255,150,60,.55));}
+  .game-card.upgrade{
+    background:
+      radial-gradient(110px 100px at 85% 12%, rgba(60,230,140,.4), transparent 70%),
+      linear-gradient(135deg,#123524,#0d211a);
+  }
+  .game-card.upgrade .game-card-visual{filter:drop-shadow(0 8px 16px rgba(60,230,140,.55));}
+  .game-card.wheel{
+    background:
+      radial-gradient(110px 100px at 85% 12%, rgba(180,110,255,.4), transparent 70%),
+      linear-gradient(135deg,#2A1B3A,#180f21);
+  }
+  .game-card.wheel .game-card-visual{filter:drop-shadow(0 8px 16px rgba(180,110,255,.55));}
 
   /* ---- PVP / SOLO bo'limlaridagi 2 ustunli kvadrat kartochkalar ---- */
   .tile-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}
@@ -892,11 +912,49 @@
   .mini-icon-visual .fallback-emoji{
     width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:30px;
   }
-  .game-card.case-mini{background:linear-gradient(135deg,#3A2E12,#1F1706);}
-  .game-card.upgrade-mini{background:linear-gradient(135deg,#123524,#0d211a);}
+  .game-card.case-mini{
+    background:
+      radial-gradient(90px 80px at 82% 10%, rgba(255,196,64,.35), transparent 70%),
+      linear-gradient(135deg,#3A2E12,#1F1706);
+  }
+  .game-card.upgrade-mini{
+    background:
+      radial-gradient(90px 80px at 82% 10%, rgba(60,230,140,.35), transparent 70%),
+      linear-gradient(135deg,#123524,#0d211a);
+  }
   .game-card.upgrade-mini .mini-badge{color:#22C55E;}
-  .game-card.dice-mini{background:linear-gradient(135deg,#3B1730,#1B0A18);}
+  .game-card.upgrade-mini .mini-icon-visual{filter:drop-shadow(0 6px 12px rgba(60,230,140,.5));}
+  .game-card.dice-mini{
+    background:
+      radial-gradient(90px 80px at 82% 10%, rgba(244,114,182,.35), transparent 70%),
+      linear-gradient(135deg,#3B1730,#1B0A18);
+  }
   .game-card.dice-mini .mini-badge{color:#F472B6;}
+  .game-card.dice-mini .mini-icon-visual{filter:drop-shadow(0 6px 12px rgba(244,114,182,.5));}
+
+  /* ---- Kartalar foniga kichik geometrik detallar (to'rtburchak/uchburchak/chiziqchalar) ---- */
+  .game-card.pvp::before,
+  .game-card.hockey::before,
+  .game-card.drum::before,
+  .game-card.upgrade::before,
+  .game-card.wheel::before,
+  .game-card.case-mini::before,
+  .game-card.upgrade-mini::before,
+  .game-card.dice-mini::before{
+    content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+    -webkit-mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20160%20120%27%3E%3Crect%20x%3D%2714%27%20y%3D%2718%27%20width%3D%2714%27%20height%3D%279%27%20rx%3D%272%27%20transform%3D%27rotate%2818%2021%2022%29%27%20fill%3D%27white%27/%3E%3Crect%20x%3D%27118%27%20y%3D%2714%27%20width%3D%2710%27%20height%3D%2710%27%20rx%3D%272%27%20transform%3D%27rotate%28-12%20123%2019%29%27%20fill%3D%27none%27%20stroke%3D%27white%27%20stroke-width%3D%272%27/%3E%3Cpolygon%20points%3D%2740%2C70%2050%2C85%2030%2C85%27%20fill%3D%27white%27/%3E%3Cpolygon%20points%3D%27135%2C75%20145%2C92%20125%2C92%27%20fill%3D%27none%27%20stroke%3D%27white%27%20stroke-width%3D%272%27/%3E%3Crect%20x%3D%2770%27%20y%3D%2730%27%20width%3D%2734%27%20height%3D%272.5%27%20transform%3D%27rotate%2835%2087%2031%29%27%20fill%3D%27white%27/%3E%3Crect%20x%3D%2790%27%20y%3D%2795%27%20width%3D%2724%27%20height%3D%272.5%27%20transform%3D%27rotate%28-25%20102%2096%29%27%20fill%3D%27white%27/%3E%3Crect%20x%3D%2710%27%20y%3D%2790%27%20width%3D%278%27%20height%3D%278%27%20rx%3D%271%27%20transform%3D%27rotate%2845%2014%2094%29%27%20fill%3D%27white%27/%3E%3C/svg%3E");
+    mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20160%20120%27%3E%3Crect%20x%3D%2714%27%20y%3D%2718%27%20width%3D%2714%27%20height%3D%279%27%20rx%3D%272%27%20transform%3D%27rotate%2818%2021%2022%29%27%20fill%3D%27white%27/%3E%3Crect%20x%3D%27118%27%20y%3D%2714%27%20width%3D%2710%27%20height%3D%2710%27%20rx%3D%272%27%20transform%3D%27rotate%28-12%20123%2019%29%27%20fill%3D%27none%27%20stroke%3D%27white%27%20stroke-width%3D%272%27/%3E%3Cpolygon%20points%3D%2740%2C70%2050%2C85%2030%2C85%27%20fill%3D%27white%27/%3E%3Cpolygon%20points%3D%27135%2C75%20145%2C92%20125%2C92%27%20fill%3D%27none%27%20stroke%3D%27white%27%20stroke-width%3D%272%27/%3E%3Crect%20x%3D%2770%27%20y%3D%2730%27%20width%3D%2734%27%20height%3D%272.5%27%20transform%3D%27rotate%2835%2087%2031%29%27%20fill%3D%27white%27/%3E%3Crect%20x%3D%2790%27%20y%3D%2795%27%20width%3D%2724%27%20height%3D%272.5%27%20transform%3D%27rotate%28-25%20102%2096%29%27%20fill%3D%27white%27/%3E%3Crect%20x%3D%2710%27%20y%3D%2790%27%20width%3D%278%27%20height%3D%278%27%20rx%3D%271%27%20transform%3D%27rotate%2845%2014%2094%29%27%20fill%3D%27white%27/%3E%3C/svg%3E");
+    -webkit-mask-repeat:repeat; mask-repeat:repeat;
+    -webkit-mask-size:150px 112px; mask-size:150px 112px;
+  }
+  .game-card.pvp::before{background-color:rgba(255,206,90,.28);}
+  .game-card.hockey::before{background-color:rgba(80,190,255,.26);}
+  .game-card.drum::before{background-color:rgba(255,150,60,.26);}
+  .game-card.upgrade::before{background-color:rgba(60,230,140,.26);}
+  .game-card.wheel::before{background-color:rgba(180,110,255,.26);}
+  .game-card.case-mini::before{background-color:rgba(255,196,64,.26); -webkit-mask-size:110px 82px; mask-size:110px 82px;}
+  .game-card.upgrade-mini::before{background-color:rgba(60,230,140,.26); -webkit-mask-size:110px 82px; mask-size:110px 82px;}
+  .game-card.dice-mini::before{background-color:rgba(244,114,182,.26); -webkit-mask-size:110px 82px; mask-size:110px 82px;}
 
   /* ============================================================
      DICE (tosh) o'yini — xona asosida ko'p o'yinchili

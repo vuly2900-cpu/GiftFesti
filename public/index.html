@@ -6767,6 +6767,9 @@ async function callAdminAction(action, payload = {}) {
       if (msg) msg.style.display = 'block';
       document.getElementById('adminPasswordModal').classList.add('active');
       setTimeout(() => document.getElementById('adminPasswordInput')?.focus(), 100);
+    } else if (data.error === 'locked_out') {
+      adminPasswordCache = '';
+      alert(`Ko'p marta noto'g'ri parol kiritilgani uchun vaqtincha bloklandingiz. ${data.lockedUntil ? new Date(data.lockedUntil).toLocaleTimeString('uz-UZ') + ' gacha' : ''} kuting.`);
     }
     throw new Error(data.error || 'server_error');
   }
@@ -6814,7 +6817,9 @@ async function simpleAdminGiveCoin() {
   } catch (e) {
     console.error(e);
     msg.style.color = "var(--danger)";
-    msg.textContent = "Xatolik: foydalanuvchi topilmadi yoki ruxsat yo'q.";
+    msg.textContent = e.message === 'locked_out'
+      ? "Ko'p marta noto'g'ri parol kiritilgani uchun vaqtincha bloklandingiz."
+      : "Xatolik: foydalanuvchi topilmadi yoki ruxsat yo'q.";
   }
 }
 
@@ -6839,7 +6844,9 @@ async function simpleAdminGiveVip() {
   } catch (e) {
     console.error(e);
     msg.style.color = "var(--danger)";
-    msg.textContent = "Xatolik: foydalanuvchi topilmadi yoki ruxsat yo'q.";
+    msg.textContent = e.message === 'locked_out'
+      ? "Ko'p marta noto'g'ri parol kiritilgani uchun vaqtincha bloklandingiz."
+      : "Xatolik: foydalanuvchi topilmadi yoki ruxsat yo'q.";
   }
 }
 

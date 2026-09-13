@@ -1259,6 +1259,35 @@ function pickBlackCaseReward() {
 function round2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
 
 const app = express();
+
+/* ---- Xavfsizlik HTTP header'lari ----
+   MUHIM: bular <meta> teg orqali emas, HAQIQIY HTTP header sifatida
+   yuborilishi shart — X-Frame-Options va boshqa ko'p header'larni
+   brauzerlar <meta http-equiv> ichida UMUMAN hisobga olmaydi (faqat
+   ba'zi CSP direktivalari meta orqali ishlaydi, qolgani yo'q). Shuning
+   uchun bu himoya bu yerda, serverning o'zida qo'yiladi. Bu esa admin
+   panelga ruxsatsiz kirish/coin o'g'irlash muammosini HAL QILMAYDI —
+   bu boshqa turdagi hujum (clickjacking/XSS)dan himoya qiladi. Coin
+   o'g'irlash muammosi haqida pastdagi requireAdmin/requireSimpleAdmin
+   va admin_action/simple_admin_give_coin qismidagi izohlarga qarang. ---- */
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' https://telegram.org https://cdnjs.cloudflare.com; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "img-src 'self' data: https://*; " +
+    "connect-src 'self' https://telegram.org; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "frame-src 'self' https://telegram.org; " +
+    "frame-ancestors 'none';"
+  );
+  next();
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 const server = http.createServer(app);
@@ -2483,21 +2512,63 @@ function logAdminAction(tgId, action, details) {
     saveDb();
   } catch (e) { console.error('logAdminAction xatolik:', e.message); }
 }
+
+/* ---- Parolni "taxmin qilib topish" (brute-force)dan himoya: ADMIN_IDS/
+   SIMPLE_ADMIN_IDS ro'yxatida bo'lgan, lekin ADMIN_PASSWORD'ni bilmagan
+   kimdir ketma-ket noto'g'ri parol kiritib ko'raversa, uni vaqtincha
+   bloklaymiz. Bu Telegram ID'ni soxtalashtirishga qarshi emas (u allaqachon
+   HMAC bilan himoyalangan), balki xuddi shu ro'yxatdagi ID orqali parolni
+   tinimsiz sinab ko'rishga qarshi. ---- */
+const ADMIN_LOGIN_MAX_ATTEMPTS = 5;
+const ADMIN_LOGIN_WINDOW_MS = 15 * 60 * 1000;   // 15 daqiqa ichida
+const ADMIN_LOGIN_LOCKOUT_MS = 30 * 60 * 1000;  // 30 daqiqaga bloklanadi
+const adminLoginAttempts = new Map(); // tgId -> { count, windowStart, lockedUntil }
+
+function checkAdminLoginLockout(tgId) {
+  const rec = adminLoginAttempts.get(tgId);
+  if (rec && rec.lockedUntil && rec.lockedUntil > Date.now()) return rec.lockedUntil;
+  return null;
+}
+function registerAdminLoginFailure(tgId) {
+  const now = Date.now();
+  let rec = adminLoginAttempts.get(tgId);
+  if (!rec || now - rec.windowStart > ADMIN_LOGIN_WINDOW_MS) {
+    rec = { count: 0, windowStart: now, lockedUntil: 0 };
+  }
+  rec.count += 1;
+  if (rec.count >= ADMIN_LOGIN_MAX_ATTEMPTS) {
+    rec.lockedUntil = now + ADMIN_LOGIN_LOCKOUT_MS;
+    logAdminAction(tgId, 'ADMIN_LOCKED_OUT', { until: rec.lockedUntil });
+  }
+  adminLoginAttempts.set(tgId, rec);
+}
+function clearAdminLoginFailures(tgId) {
+  adminLoginAttempts.delete(tgId);
+}
+
 function requireAdmin(req, res) {
   const tgUser = getTgUserFromInitData(req.body.initData);
   if (!tgUser || !ADMIN_IDS.includes(String(tgUser.id))) {
     res.status(403).json({ error: 'forbidden' });
     return false;
   }
+  const id = String(tgUser.id);
+  const lockedUntil = checkAdminLoginLockout(id);
+  if (lockedUntil) {
+    res.status(403).json({ error: 'locked_out', lockedUntil });
+    return false;
+  }
   // IKKINCHI HIMOYA QATLAMI: ADMIN_PASSWORD sozlangan bo'lsa, so'rovda ham
   // to'g'ri parol kelishi shart — aks holda soxta Telegram ID bilan ham
   // admin amallarini bajarib bo'lmaydi.
   if (ADMIN_PASSWORD && req.body.adminPassword !== ADMIN_PASSWORD) {
-    logAdminAction(tgUser.id, 'FORBIDDEN_WRONG_PASSWORD', { path: req.path });
+    registerAdminLoginFailure(id);
+    logAdminAction(id, 'FORBIDDEN_WRONG_PASSWORD', { path: req.path });
     res.status(403).json({ error: 'wrong_password' });
     return false;
   }
-  logAdminAction(tgUser.id, req.path, req.body);
+  clearAdminLoginFailures(id);
+  logAdminAction(id, req.path, req.body);
   return true;
 }
 /* ---- Oddiy admin: to'liq ADMIN_IDS ro'yxatidagilar ham, alohida
@@ -2512,11 +2583,18 @@ function requireSimpleAdmin(req, res) {
     res.status(403).json({ error: 'forbidden' });
     return false;
   }
+  const lockedUntil = checkAdminLoginLockout(id);
+  if (lockedUntil) {
+    res.status(403).json({ error: 'locked_out', lockedUntil });
+    return false;
+  }
   if (ADMIN_PASSWORD && req.body.adminPassword !== ADMIN_PASSWORD) {
+    registerAdminLoginFailure(id);
     logAdminAction(id, 'FORBIDDEN_WRONG_PASSWORD', { path: req.path });
     res.status(403).json({ error: 'wrong_password' });
     return false;
   }
+  clearAdminLoginFailures(id);
   logAdminAction(id, req.path, req.body);
   return true;
 }

@@ -617,20 +617,8 @@
       linear-gradient(135deg,#2A1B3A,#180f21);
   }
 
-  /* ---- UPGRADE / WHEEL — rasm kartaning butun yuzasini egallaydi ---- */
-  .game-card.tile.upgrade, .game-card.tile.wheel{padding:0; background:#0B0B12;}
-  .game-card.tile.upgrade .game-card-visual.gc-static,
-  .game-card.tile.wheel .game-card-visual.gc-static{
-    position:absolute; inset:0; margin:0; width:100%; height:100%;
-    transform:none; filter:none; animation:none;
-  }
-  .game-card.tile.upgrade .gc-static-img,
-  .game-card.tile.wheel .gc-static-img{width:100%; height:100%; object-fit:cover; display:block;}
-  .game-card.tile.upgrade .game-name,
-  .game-card.tile.wheel .game-name{
-    position:absolute; left:0; right:0; bottom:0; z-index:2; margin:0; width:auto;
-    padding:22px 8px 12px; background:linear-gradient(to top, rgba(0,0,0,.78), transparent);
-  }
+  .game-card.upgrade .game-card-visual{filter:drop-shadow(0 8px 16px rgba(60,230,140,.55));}
+  .game-card.wheel .game-card-visual{filter:drop-shadow(0 8px 16px rgba(180,110,255,.55));}
 
   /* ---- PVP / SOLO bo'limlaridagi 2 ustunli kvadrat kartochkalar ---- */
   .tile-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}
@@ -2080,12 +2068,12 @@
     <div class="tile-grid">
       <div class="game-card tile upgrade" onclick="openGame('upgrade')">
         <span class="game-badge">⬆️ <span data-i18n="badge_new">NEW</span></span>
-        <div class="game-card-visual gc-static" id="gcVisualUpgrade2"><img class="gc-static-img" src="game-icons/upgrade.png" alt="Upgrade"></div>
+        <div class="game-card-visual" id="gcVisualUpgrade2"><span class="fallback-emoji">⬆️</span></div>
         <span class="game-name" data-i18n="game_upgrade">UPGRADE</span>
       </div>
       <div class="game-card tile wheel" onclick="openGame('wheel')">
         <span class="game-badge">🎡 <span data-i18n="badge_hit">Hit</span></span>
-        <div class="game-card-visual gc-static" id="gcVisualWheel"><img class="gc-static-img" src="game-icons/wheel.png" alt="Wheel"></div>
+        <div class="game-card-visual" id="gcVisualWheel"><span class="fallback-emoji">🎡</span></div>
         <span class="game-name" data-i18n="game_wheel">WHEEL</span>
       </div>
     </div>
@@ -5142,10 +5130,6 @@ function avatarWithCrown(photo, username, vip, imgClass) {
   return `<span class="vip-avatar-wrap sm">${img}<span class="vip-crown-overlay">👑</span></span>`;
 }
 
-function lbGiftIconFor(place) {
-  return '/gifts/teddy.png';
-}
-
 function mountLbGiftIcons(placesToMount) {
   const teddyItem = CASE_ITEMS.find(it => it.id === 'teddy');
   placesToMount.forEach(place => {
@@ -5154,7 +5138,7 @@ function mountLbGiftIcons(placesToMount) {
     if (teddyItem) {
       mountAnimatedEmoji(el, teddyItem.custom_emoji_id, teddyItem.is_video, teddyItem.id);
     } else {
-      el.innerHTML = `<img src="/gifts/teddy.png" alt="gift" style="width:100%;height:100%;object-fit:contain;">`;
+      el.innerHTML = `<span class="fallback-emoji">🎁</span>`;
     }
   });
 }
@@ -6275,15 +6259,12 @@ async function buyVip() {
    o'tishi bilan fonda o'nlab-yuzlab animatsiya to'planib, asosiy o'yin
    animatsiyasi (masalan tosh parvozi) bilan protsessor vaqtini talashib,
    zaif telefonlarda "qotib qolish"ga sabab bo'lardi.
-   ENDI: har bir NFT/emoji uchun FAQAT BIR MARTA statik rasm olinadi — asosiy
-   gift'lar uchun tayyor PNG (public/gifts/), qolgan (nodir) NFT'lar uchun esa
-   media birinchi marta o'qilganda uning bitta freymi <canvas> orqali rasmga
-   olinib xotirada keshlanadi — va shundan keyin faqat <img> qo'yiladi. Demak
-   animatsiya HECH QACHON fonda ishlab turmaydi. */
-const NFT_STATIC_PNG_IDS = new Set([
-  'teddy', 'heart_gift', 'gift_box', 'rose', 'cake',
-  'bouquet', 'rocket', 'champagne', 'trophy', 'ring', 'diamond',
-]);
+   ENDI: har bir NFT/emoji uchun FAQAT BIR MARTA statik rasm olinadi — haqiqiy
+   Telegram premium emoji/NFT media birinchi marta o'qilganda uning bitta
+   freymi <canvas> orqali rasmga olinib xotirada keshlanadi — va shundan
+   keyin faqat <img> qo'yiladi. Demak animatsiya HECH QACHON fonda ishlab
+   turmaydi. Alohida tayyor PNG fayllarga (public/gifts/) hojat yo'q — barcha
+   gift'lar haqiqiy premium emoji orqali ko'rsatiladi. */
 const nftSnapshotCache = new Map();   // customEmojiId -> dataURL (yoki null)
 const nftSnapshotPending = new Map(); // customEmojiId -> Promise<dataURL|null>
 
@@ -6376,8 +6357,8 @@ function generateNftSnapshot(customEmojiId, isVideo) {
 
 function getNftStaticSrc(customEmojiId, isVideo, itemId) {
   if (!customEmojiId) {
-    // custom_emoji_id umuman yo'q bo'lsa — faqat shunda tayyor PNG'ga tayanamiz
-    return Promise.resolve(itemId && NFT_STATIC_PNG_IDS.has(itemId) ? `/gifts/${itemId}.png` : null);
+    // custom_emoji_id umuman yo'q bo'lsa — ko'rsatiladigan rasm yo'q
+    return Promise.resolve(null);
   }
   if (nftSnapshotCache.has(customEmojiId)) {
     return Promise.resolve(nftSnapshotCache.get(customEmojiId));
@@ -6386,11 +6367,8 @@ function getNftStaticSrc(customEmojiId, isVideo, itemId) {
   if (!pending) {
     pending = generateNftSnapshot(customEmojiId, isVideo)
       .then(url => {
-        // Haqiqiy emoji rasmi olinmasa (masalan tarmoq xatosi) — faqat shunda
-        // zaxira sifatida tayyor PNG'ga tayanamiz, aks holda doim haqiqiy emoji.
-        const finalUrl = url || (itemId && NFT_STATIC_PNG_IDS.has(itemId) ? `/gifts/${itemId}.png` : null);
-        nftSnapshotCache.set(customEmojiId, finalUrl);
-        return finalUrl;
+        nftSnapshotCache.set(customEmojiId, url);
+        return url;
       })
       .finally(() => nftSnapshotPending.delete(customEmojiId));
     nftSnapshotPending.set(customEmojiId, pending);

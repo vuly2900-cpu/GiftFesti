@@ -84,6 +84,7 @@ let tasks = [];              // [{id, channel_link, channel_title, stars_reward}
 let promos = [];             // [{code, reward, maxUses, used, usedBy:Set}]
 let vouchers = [];           // [{id, reward, maxUses, used, usedBy:Set, requireType, requireTarget, requireLabel, createdAt}]
 let leaderboardEndAt = null; // Reyting tugash vaqti (ms, epoch) — admin panel orqali belgilanadi
+let leaderboardEndNotified = false; // shu tugash vaqti uchun TOP-3'ga xabar allaqachon yuborilganmi
 // Konkurslar: admin tomonidan yaratiladi, NFT sovg'a sifatida beriladi.
 // { id, title, description, itemId, prizeCount, type:'free'|'paid', ticketPrice,
 //   requireChannel, status:'active'|'finished', participants:[{userId,tickets}],
@@ -199,6 +200,7 @@ function serializeState() {
     gameHistory,
     gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number },
     leaderboardEndAt,
+    leaderboardEndNotified,
     processedTopupCharges: Array.from(processedTopupCharges),
     adminAuditLog,
   };
@@ -250,6 +252,7 @@ function loadDb() {
       drumState.game_number = data.gameNumbers.drum || 1;
     }
     leaderboardEndAt = data.leaderboardEndAt || null;
+    leaderboardEndNotified = !!data.leaderboardEndNotified;
     (data.processedTopupCharges || []).forEach(id => processedTopupCharges.add(id));
     adminAuditLog = Array.isArray(data.adminAuditLog) ? data.adminAuditLog : [];
     console.log(`DB yuklandi: ${users.size} foydalanuvchi, ${tasks.length} vazifa, ${promos.length} promo, ${vouchers.length} voucher`);
@@ -497,14 +500,32 @@ function finishContest(c) {
         if (!u.vip) u.vip = { expiresAt: 0 };
         u.vip.expiresAt = Math.max(Date.now(), u.vip.expiresAt || 0) + VIP_DURATION_MS;
       }
-      return { userId: p.userId, username: u ? u.username : `user${p.userId}`, itemId, itemName: `VIP 👑 (${VIP_DURATION_MS / (60 * 60 * 1000)} soat)` };
+      const vipName = `VIP 👑 (${VIP_DURATION_MS / (60 * 60 * 1000)} soat)`;
+      notifyContestWinner(u, c, vipName, true);
+      return { userId: p.userId, username: u ? u.username : `user${p.userId}`, itemId, itemName: vipName };
     }
     if (u) grantNftToUser(u, itemId);
     const item = getNftDef(itemId);
+    notifyContestWinner(u, c, item ? item.name : 'sovg\'a', false);
     return { userId: p.userId, username: u ? u.username : `user${p.userId}`, itemId, itemName: item ? item.name : '' };
   });
   c.status = 'finished';
   c.endedAt = Date.now();
+}
+
+/* ---- Konkurs g'olibiga Telegram orqali shaxsiy tabrik xabari yuborish.
+   MUHIM: konkurs sovg'asi (NFT yoki VIP) yuqorida SINXRON tarzda
+   allaqachon berib bo'lingan — shuning uchun "tez orada yuboriladi" emas,
+   "allaqachon berildi" deb yozamiz. ---- */
+function notifyContestWinner(user, contest, prizeName, isVip) {
+  if (!user) return;
+  const resultLine = isVip
+    ? 'VIP 👑 profilingizga faollashtirildi.'
+    : "Sovg'a NFT Inventaringizga tushdi. 🎁";
+  sendTelegramMessage(
+    user.id,
+    `🎉 Tabriklaymiz! Siz "${contest.title}" konkursida g'olib bo'ldingiz va ${prizeName} yutib oldingiz!\n${resultLine}`
+  ).catch(() => {});
 }
 
 /* ---- Vaqti tugagan (endsAt o'tib ketgan) faol konkurslarni avtomatik
@@ -519,6 +540,36 @@ function autoFinishExpiredContests() {
     }
   });
   if (changed) saveDb();
+}
+
+/* ---- Reyting (leaderboard) muddati tugaganda TOP-3'ga avtomatik xabar
+   yuboradigan fon jarayoni. Faqat xabar yuboradi va sovg'a "tez orada
+   yuboriladi" deb aytadi — haqiqiy NFT/coin sovg'asini admin panel
+   orqali (masalan give_stars/give_nft) qo'lda yuborish kerak, chunki
+   sovg'a turi va miqdori har safar boshqacha bo'lishi mumkin. ---- */
+const LEADERBOARD_PLACE_LABELS = {
+  1: { medal: '🥇', label: '1-o\'rin' },
+  2: { medal: '🥈', label: '2-o\'rin' },
+  3: { medal: '🥉', label: '3-o\'rin' },
+};
+function autoFinishExpiredLeaderboard() {
+  if (!leaderboardEndAt || leaderboardEndNotified) return;
+  if (Date.now() < leaderboardEndAt) return;
+  const top3 = Array.from(users.values())
+    .filter(u => (u.total_won || 0) > 0)
+    .sort((a, b) => (b.total_won || 0) - (a.total_won || 0))
+    .slice(0, 3);
+  top3.forEach((u, i) => {
+    const place = i + 1;
+    const info = LEADERBOARD_PLACE_LABELS[place];
+    sendTelegramMessage(
+      u.id,
+      `${info.medal} Tabriklaymiz! Siz reytingda ${info.label}ni oldingiz va gift yutib oldingiz!\nSovg'a tez orada sizga yuboriladi. 🎁`
+    ).catch(() => {});
+  });
+  leaderboardEndNotified = true;
+  logAdminAction('SYSTEM', 'LEADERBOARD_ENDED_NOTIFIED', { top3: top3.map(u => ({ id: u.id, total_won: u.total_won })) });
+  saveDb();
 }
 
 function voucherRequireLabel(v) {
@@ -2705,6 +2756,7 @@ app.post('/api/admin_action', (req, res) => {
         const endAt = Number(payload.endAt);
         if (!endAt || Number.isNaN(endAt)) throw new Error('INVALID_END_TIME');
         leaderboardEndAt = endAt;
+        leaderboardEndNotified = false; // yangi muddat uchun TOP-3 xabari qayta yuborilishi kerak
         break;
       }
       case 'reset_game': {
@@ -4229,6 +4281,8 @@ setInterval(saveDb, 10000);
 // Vaqti tugagan konkurslarni har 15 soniyada tekshirib, avtomatik yakunlaydi.
 setInterval(autoFinishExpiredContests, 15000);
 autoFinishExpiredContests(); // server qayta ishga tushganda, muddati o'tib ketganlarini darhol yakunlash
+setInterval(autoFinishExpiredLeaderboard, 15000);
+autoFinishExpiredLeaderboard();
 process.on('SIGINT', () => { saveDb(); process.exit(0); });
 process.on('SIGTERM', () => { saveDb(); process.exit(0); });
 

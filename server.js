@@ -197,6 +197,7 @@ function serializeState() {
     promos: promos.map(p => ({ ...p, usedBy: Array.from(p.usedBy) })),
     vouchers: vouchers.map(v => ({ ...v, usedBy: Array.from(v.usedBy) })),
     contests,
+    kothState,
     gameHistory,
     gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number },
     leaderboardEndAt,
@@ -246,6 +247,7 @@ function loadDb() {
       durationHours: c.durationHours || null,
       endsAt: c.endsAt || null,
     }));
+    kothState = data.kothState || null;
     if (data.gameHistory) Object.assign(gameHistory, data.gameHistory);
     if (data.gameNumbers) {
       hockeyState.game_number = data.gameNumbers.hockey || 1;
@@ -2763,6 +2765,35 @@ app.post('/api/admin_action', (req, res) => {
         resetGameState(payload.game);
         break;
       }
+      case 'create_koth': {
+        if (kothState && kothState.status !== 'finished') throw new Error('ALREADY_ACTIVE');
+        const item = getNftDef(String(payload.itemId || '').trim());
+        if (!item) throw new Error('ITEM_NOT_FOUND');
+        const priceCoin = round2(Number(payload.priceCoin));
+        if (!priceCoin || priceCoin < KOTH_MIN_PRICE_COIN) throw new Error('INVALID_PRICE');
+        const holdSeconds = Math.round(Number(payload.holdSeconds));
+        if (!holdSeconds || holdSeconds < KOTH_MIN_HOLD_SECONDS) throw new Error('INVALID_DURATION');
+
+        if (kothTimer) { clearTimeout(kothTimer); kothTimer = null; }
+        kothState = {
+          id: crypto.randomBytes(6).toString('hex'),
+          itemId: item.id, itemName: item.name, itemCustomEmojiId: item.custom_emoji_id,
+          itemSellPrice: item.sell_price,
+          priceCoin, holdSeconds,
+          status: 'waiting',
+          leader: null, leaderSince: null, deadlineAt: null,
+          history: [], winner: null,
+          createdAt: Date.now(), startedAt: null, finishedAt: null,
+        };
+        emitKothState();
+        break;
+      }
+      case 'cancel_koth': {
+        if (kothTimer) { clearTimeout(kothTimer); kothTimer = null; }
+        kothState = null;
+        emitKothState();
+        break;
+      }
       case 'reset_case_cooldowns': {
         users.forEach(u => { u.lastCaseOpenedAt = null; });
         break;
@@ -3453,7 +3484,12 @@ function finalizeRound(game) {
     let wonNftsCount = 0;
     if (wUser) {
       wUser.balance = round2(wUser.balance + coinPot);
-      wUser.total_won = round2((wUser.total_won || 0) + coinPot);
+      // Reytingda FAQAT sof foyda hisoblanadi — g'olibning o'zi tikkan
+      // stavkasi (u pot ichida qaytib kelayotgan bo'lsa ham) hisobga
+      // olinmaydi, faqat boshqalar tikkan qismi (haqiqiy yutuq) qo'shiladi.
+      const ownStake = state.players.find(p => p.id === winner.id)?.stars || 0;
+      const netWin = round2(Math.max(coinPot - ownStake, 0));
+      wUser.total_won = round2((wUser.total_won || 0) + netWin);
       wUser.wins += 1;
       // Barcha o'yinchilar (g'olibning o'zi ham) tikkan NFT'lar — hammasi
       // g'olibning inventoriga o'tadi, narxi ham qulflangan holicha saqlanadi.
@@ -3596,7 +3632,10 @@ function finalizeWheelRound() {
       const u = users.get(String(b.id));
       if (u) {
         u.balance = round2(u.balance + payout);
-        u.total_won = round2((u.total_won || 0) + payout);
+        // Reytingda faqat sof foyda hisoblanadi — o'zi tikkan (qaytib
+        // kelayotgan) stavka summasi chiqarib tashlanadi.
+        const netWin = round2(Math.max(payout - b.amount, 0));
+        u.total_won = round2((u.total_won || 0) + netWin);
         u.wins = (u.wins || 0) + 1;
       }
     }
@@ -4170,7 +4209,10 @@ function diceEvaluateRound(roomId) {
       const wUser = users.get(String(winner.id));
       if (wUser) {
         wUser.balance = round2(wUser.balance + room.pot);
-        wUser.total_won = round2((wUser.total_won || 0) + room.pot);
+        // Reytingda faqat sof foyda hisoblanadi — g'olibning o'zi
+        // to'lagan stavkasi (pot ichida qaytib kelgani) hisobga olinmaydi.
+        const netWin = round2(Math.max(room.pot - room.stake, 0));
+        wUser.total_won = round2((wUser.total_won || 0) + netWin);
         wUser.wins = (wUser.wins || 0) + 1;
       }
     }
@@ -4195,6 +4237,97 @@ function diceEvaluateRound(roomId) {
 }
 
 /* ============================================================
+   YANGI O'YIN: "YUTIB KETISH" (King of the Hill) — Konkurs bo'limida.
+   Admin panel orqali BITTA NFT sovg'a, "lider bo'lish" narxi (coin) va
+   qancha vaqt liderlikda turish kerakligi (soniyada) belgilanadi. Birinchi
+   odam tikkanda (lider bo'lganda) o'yin boshlanadi va vaqt sanog'i ketadi.
+   Agar shu vaqt ichida boshqa odam narxni to'lab liderlikni "sotib olsa" —
+   yangi lider bo'ladi va sanoq qaytadan boshidan boshlanadi. Vaqt tugaguncha
+   hech kim liderlikni sotib olmasa — o'sha paytdagi lider NFT'ni yutadi.
+   ============================================================ */
+const KOTH_MIN_PRICE_COIN = 0.1;
+const KOTH_MIN_HOLD_SECONDS = 10;
+
+// { id, itemId, itemName, itemCustomEmojiId, itemSellPrice, priceCoin, holdSeconds,
+//   status: 'waiting'|'running'|'finished', leader:{id,username,photo}|null,
+//   leaderSince, deadlineAt, history:[{id,username,photo,durationMs}] (eng so'nggisi
+//   birinchi, ko'pi bilan 10 ta), winner:{id,username,photo,durationMs}|null,
+//   createdAt, startedAt, finishedAt }
+let kothState = null;
+let kothTimer = null;
+
+function emitKothState() { io.emit('koth:state', kothState); }
+
+// Lider almashganda yoki o'yin yaratilganda — joriy muddat tugaydigan
+// vaqtga aniq moslab yakunlash taймerini qayta rejalashtiradi.
+function scheduleKothFinalize() {
+  if (kothTimer) { clearTimeout(kothTimer); kothTimer = null; }
+  if (!kothState || kothState.status !== 'running' || !kothState.deadlineAt) return;
+  const id = kothState.id;
+  const delay = Math.max(0, kothState.deadlineAt - Date.now());
+  kothTimer = setTimeout(() => finalizeKoth(id), delay);
+}
+
+// O'yin vaqti tugaganda chaqiriladi: agar shu vaqtgacha hech kim
+// liderlikni "sotib olmagan" bo'lsa, joriy lider NFT'ni yutadi.
+function finalizeKoth(id) {
+  if (!kothState || kothState.id !== id || kothState.status !== 'running') return;
+  // Xavfsizlik: taймer biroz erta ishga tushib qolsa ham, aniq muddatgacha kutamiz.
+  if (Date.now() < kothState.deadlineAt) { scheduleKothFinalize(); return; }
+
+  const leader = kothState.leader;
+  const durationMs = kothState.deadlineAt - kothState.leaderSince;
+  kothState.history.unshift({ id: leader.id, username: leader.username, photo: leader.photo, durationMs });
+  if (kothState.history.length > 10) kothState.history.length = 10;
+  kothState.winner = { id: leader.id, username: leader.username, photo: leader.photo, durationMs };
+  kothState.status = 'finished';
+  kothState.finishedAt = Date.now();
+
+  const wUser = users.get(String(leader.id));
+  if (wUser) {
+    grantNftToUser(wUser, kothState.itemId);
+    sendTelegramMessage(
+      wUser.id,
+      `🏆 Tabriklaymiz! Siz "YUTIB KETISH" o'yinida ${kothState.itemName} yutib oldingiz!\nSovg'a NFT Inventaringizga tushdi. 🎁`
+    ).catch(() => {});
+  }
+  emitKothState();
+  saveDb();
+}
+
+app.get('/api/koth', (req, res) => {
+  res.json({ ok: true, koth: kothState });
+});
+
+app.post('/api/koth/become_leader', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!kothState || kothState.status === 'finished') return res.status(400).json({ error: 'NOT_ACTIVE' });
+  if (kothState.leader && Number(kothState.leader.id) === Number(user.id)) {
+    return res.status(400).json({ error: 'ALREADY_LEADER' });
+  }
+  const price = kothState.priceCoin;
+  if (price > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
+
+  user.balance = round2(user.balance - price);
+
+  const now = Date.now();
+  if (kothState.leader) {
+    const durationMs = now - kothState.leaderSince;
+    kothState.history.unshift({ id: kothState.leader.id, username: kothState.leader.username, photo: kothState.leader.photo, durationMs });
+    if (kothState.history.length > 10) kothState.history.length = 10;
+  }
+  kothState.leader = { id: Number(user.id), username: user.username, photo: user.photo_url };
+  kothState.leaderSince = now;
+  kothState.deadlineAt = now + kothState.holdSeconds * 1000;
+  kothState.status = 'running';
+  if (!kothState.startedAt) kothState.startedAt = now;
+
+  scheduleKothFinalize();
+  emitKothState();
+  res.json({ ok: true, balance: user.balance, koth: kothState });
+});
+
+/* ============================================================
    SOCKET.IO — ulanganda joriy holatni bir marta yuboramiz
    ============================================================ */
 io.on('connection', (socket) => {
@@ -4203,6 +4336,7 @@ io.on('connection', (socket) => {
   socket.emit('crash:state', sanitizeCrashState());
   socket.emit('wheel:state', wheelState);
   socket.emit('dice:state', diceRooms);
+  socket.emit('koth:state', kothState);
 
   // MUHIM (bug fix): yuqoridagi emit faqat socket ULANGAN paytda bir marta
   // yuboriladi. Agar foydalanuvchi keyinroq (masalan, boshqa sahifada bir oz
@@ -4217,6 +4351,7 @@ io.on('connection', (socket) => {
     else if (game === 'crash') socket.emit('crash:state', sanitizeCrashState());
     else if (game === 'wheel') socket.emit('wheel:state', wheelState);
     else if (game === 'dice') socket.emit('dice:state', diceRooms);
+    else if (game === 'koth') socket.emit('koth:state', kothState);
   });
 
   /* -------- RAKETA (CRASH) — "OLISH" real vaqtda, socket orqali -------- */
@@ -4261,7 +4396,10 @@ io.on('connection', (socket) => {
     } else {
       won = wonValue;
       user.balance = round2(user.balance + won);
-      user.total_won = round2((user.total_won || 0) + won);
+      // Reytingda faqat sof foyda hisoblanadi — o'zi tikkan (qaytib
+      // kelayotgan) stavka summasi chiqarib tashlanadi.
+      const netWin = round2(Math.max(won - p.bet, 0));
+      user.total_won = round2((user.total_won || 0) + netWin);
     }
     p.won = won;
     p.wonNft = wonNft;
@@ -4277,6 +4415,10 @@ io.on('connection', (socket) => {
    ============================================================ */
 loadDb();
 resetRetiredStarterNfts();
+// Server o'chib-yonib qolgan bo'lsa: "YUTIB KETISH" o'yini "running"
+// holatida saqlangan bo'lishi mumkin — muddati allaqachon o'tgan bo'lsa
+// darhol yakunlanadi, aks holda qolgan vaqtga moslab taймer qayta tiklanadi.
+if (kothState && kothState.status === 'running') scheduleKothFinalize();
 setInterval(saveDb, 10000);
 // Vaqti tugagan konkurslarni har 15 soniyada tekshirib, avtomatik yakunlaydi.
 setInterval(autoFinishExpiredContests, 15000);

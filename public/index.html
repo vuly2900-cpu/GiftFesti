@@ -282,6 +282,25 @@
   .lb-row img.avatar{width:36px; height:36px; border-radius:50%; object-fit:cover; background:var(--surface-2);}
   .lb-row .uname{flex:1; font-size:14px; font-weight:500;}
   .lb-row .stars{font-size:13px; color:var(--gold); font-weight:600;}
+  .lb-row .duration{font-size:13px; color:var(--gold); font-weight:600; font-family:monospace;}
+
+  /* ---- YUTIB KETISH (King of the Hill) o'yini ---- */
+  .koth-prize-frame{
+    width:150px; height:150px; margin:0 auto; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 30%, rgba(232,185,35,.16), transparent 70%), var(--surface);
+    border:1px solid var(--gold-dim); border-radius:22px; box-shadow:0 6px 18px rgba(0,0,0,.25);
+  }
+  .koth-prize-frame .anim-slot{width:110px; height:110px;}
+  .koth-prize-name{margin-top:10px; font-size:15px; font-weight:700;}
+  .koth-timer{font-size:34px; font-weight:800; letter-spacing:.5px; color:var(--gold);}
+  .koth-timer.urgent{color:#EF4444;}
+  .koth-leader-card{
+    display:flex; align-items:center; gap:10px; justify-content:center;
+    padding:10px 14px; margin:0 0 14px; border:1px solid var(--border); border-radius:14px; background:var(--surface-2);
+  }
+  .koth-leader-card img.avatar{width:40px; height:40px; border-radius:50%; object-fit:cover; background:var(--surface);}
+  .koth-leader-card .koth-leader-name{font-size:14px; font-weight:600;}
+  .koth-leader-card .koth-leader-tag{font-size:11px; color:var(--text-dim);}
 
   .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px;}
   .task-row{display:flex; align-items:center; gap:12px;}
@@ -2286,6 +2305,47 @@
     <div class="hockey-players" id="wheelPlayersList"></div>
   </section>
 
+  <section class="page" id="page-koth">
+    <div class="hockey-topbar">
+      <button class="hockey-back" onclick="goTo('konkurs')">‹</button>
+      <div class="game-number-badge mono">YUTIB KETISH</div>
+      <span style="width:34px;"></span>
+    </div>
+
+    <div style="text-align:center; margin:18px 0 6px;">
+      <div class="koth-prize-frame"><div class="anim-slot" id="kothPrizeAnim"></div></div>
+      <div class="koth-prize-name" id="kothPrizeName">—</div>
+    </div>
+
+    <div class="hockey-bottombar">
+      <div class="hockey-info-pill">
+        <span class="lbl">Holat</span>
+        <span class="val mono" id="kothStatusText">Yuklanmoqda...</span>
+      </div>
+      <div class="hockey-info-pill">
+        <span class="lbl">Narx</span>
+        <span class="val mono"><span class="coin-ico"></span> <span id="kothPriceText">0</span></span>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin:16px 0 12px;">
+      <div class="koth-timer mono" id="kothTimerText">--:--</div>
+    </div>
+
+    <div class="koth-leader-card" id="kothLeaderCard" style="display:none;">
+      <img class="avatar" id="kothLeaderAvatar" src="">
+      <div>
+        <div class="koth-leader-name" id="kothLeaderName"></div>
+        <div class="koth-leader-tag">hozirgi lider</div>
+      </div>
+    </div>
+
+    <button class="crash-big-bet-btn" id="kothBecomeLeaderBtn" onclick="kothBecomeLeader()">Lider bo'lish</button>
+
+    <p style="font-size:12px; font-weight:600; margin:16px 0 6px; color:var(--text-dim);">So'nggi liderlar</p>
+    <div id="kothHistoryList"><p class="empty" style="font-size:12px;">Hali hech kim lider bo'lmagan</p></div>
+  </section>
+
 
   <section class="page" id="page-upgrade">
     <div class="hockey-topbar">
@@ -3010,6 +3070,29 @@
     </div>
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🏆 YUTIB KETISH (King of the Hill) o'yini</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Bitta NFT qo'yiladi. Birinchi lider bo'lgan odamdan boshlab, belgilangan vaqt ichida hech kim liderlikni sotib olmasa — o'sha lider NFT'ni yutadi.</p>
+      <div id="adminKothStatusBox" style="margin-bottom:10px;"><p class="empty" style="font-size:12px;">Yuklash uchun panelni oching...</p></div>
+
+      <input type="text" id="a_kothItemName" list="adminKonkursNftDatalist" placeholder="NFT nomi — yozib qidiring" autocomplete="off" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+      <select id="a_kothItemBg" style="width:100%; margin-top:6px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+        <option value="">Oddiy (fonsiz)</option>
+        <option value="onyx_black">Onyx Black (2x narx)</option>
+        <option value="black">Black (4x narx)</option>
+      </select>
+      <input type="number" id="a_kothPrice" placeholder="Lider bo'lish narxi (coin, masalan 5)" min="0.1" step="0.1" style="margin-top:8px;">
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <input type="number" id="a_kothDuration" placeholder="Miqdor (masalan 2)" min="1" step="1" style="flex:1;">
+        <select id="a_kothDurationUnit" style="flex:1; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+          <option value="minutes">Minut</option>
+          <option value="seconds">Soniya</option>
+        </select>
+      </div>
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateKoth()">O'yinni yaratish va boshlash</button>
+      <button class="btn secondary" style="width:100%; margin-top:8px;" onclick="adminCancelKoth()">Joriy o'yinni bekor qilish</button>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
       <p style="font-size:13px; font-weight:600; margin-bottom:4px;">📋 Yangi vazifa qo'shish</p>
       <select id="a_taskType" style="width:100%; margin-bottom:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
         <option value="channel">📢 Kanal (obuna tekshiriladi)</option>
@@ -3394,6 +3477,8 @@ const CONTEST_TICKET_INVOICE_API_URL = '/api/contest/create_ticket_invoice';
 const CONTEST_CHECK_REQ_API_URL = '/api/contest/check_requirements';
 const CONTEST_SINGLE_API_URL = '/api/contest'; // + /:id
 const CONTEST_PREPARE_SHARE_API_URL = '/api/contest/prepare_share';
+const KOTH_API_URL = '/api/koth';
+const KOTH_BECOME_LEADER_API_URL = '/api/koth/become_leader';
 const VIP_STATUS_API_URL = '/api/vip/status';
 const VIP_CREATE_INVOICE_API_URL = '/api/vip/create_invoice';
 const CHANNEL_URL = 'https://t.me/GiftFesti';
@@ -5030,11 +5115,12 @@ function goTo(pageName, presetItemId) {
   if (pageName === 'case-fortune') initFortuneCasePage();
   if (pageName === 'case-black') initBlackCasePage();
   if (pageName === 'case-ice') initIceCasePage();
-  if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); }
+  if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); loadAdminKothStatus(); }
   if (pageName === 'upgrade') initUpgradePage(presetItemId);
   if (pageName === 'crash') initCrashPage();
   if (pageName === 'wheel') initWheelPage();
   if (pageName === 'dice') initDicePage();
+  if (pageName === 'koth') initKothPage();
 }
 
 function stopAllBackgroundTimers(exceptPage) {
@@ -5093,6 +5179,12 @@ function stopAllBackgroundTimers(exceptPage) {
     if (typeof diceUnsubscribe !== 'undefined' && diceUnsubscribe) { diceUnsubscribe(); diceUnsubscribe = null; }
     if (typeof diceLocalTickInterval !== 'undefined' && diceLocalTickInterval) { clearInterval(diceLocalTickInterval); diceLocalTickInterval = null; }
     if (typeof diceSpinInterval !== 'undefined' && diceSpinInterval) { clearInterval(diceSpinInterval); diceSpinInterval = null; }
+  }
+  // "YUTIB KETISH" sahifasidan chiqilganda socket tinglovchisi va
+  // taймer (qolgan vaqt hisoblagichi) to'xtatiladi.
+  if (exceptPage !== 'koth') {
+    if (typeof kothUnsubscribe !== 'undefined' && kothUnsubscribe) { kothUnsubscribe(); kothUnsubscribe = null; }
+    if (typeof kothCountdownInterval !== 'undefined' && kothCountdownInterval) { clearInterval(kothCountdownInterval); kothCountdownInterval = null; }
   }
 }
 
@@ -5519,15 +5611,20 @@ function normalizeContestPrizeList(c) {
 }
 
 
+let konkursKothState = null;
 async function loadContests() {
   const list = document.getElementById('konkursList');
   list.innerHTML = '<p class="empty">Yuklanmoqda...</p>';
   try {
     const [catalog] = await Promise.all([ensureNftCatalogLoaded()]);
     Object.values(catalog).forEach(it => contestPrizeIconCache.set(it.id, it));
-    const res = await fetch(`${CONTESTS_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`);
+    const [res, kothRes] = await Promise.all([
+      fetch(`${CONTESTS_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`),
+      fetch(KOTH_API_URL).catch(() => null),
+    ]);
     const data = await res.json();
     contestsData = data.contests || [];
+    konkursKothState = kothRes ? (await kothRes.json()).koth : null;
     renderContests();
   } catch (e) {
     console.error(e);
@@ -5535,11 +5632,50 @@ async function loadContests() {
   }
 }
 
+// "YUTIB KETISH" (King of the Hill) o'yini uchun konkurs ro'yxatidagi karta.
+function kothCardHtml() {
+  if (!konkursKothState) return '';
+  const k = konkursKothState;
+  const item = contestPrizeIconCache.get(k.itemId);
+  const statusBadge = k.status === 'finished'
+    ? `<span class="konkurs-badge finished">Yakunlangan</span>`
+    : `<span class="konkurs-badge free">🔥 Jonli</span>`;
+  const sub = k.status === 'finished'
+    ? `G'olib: ${k.winner ? k.winner.username : '—'}`
+    : (k.leader ? `Hozirgi lider: ${k.leader.username}` : "Birinchi bo'lib lider bo'ling!");
+  return `
+    <div class="konkurs-card" onclick="goTo('koth')" style="cursor:pointer;">
+      <div class="k-head">
+        <div class="k-prize-ic"><div class="anim-slot" id="konkursKothIcon"></div></div>
+        <div style="flex:1;">
+          <div class="k-title">YUTIB KETISH</div>
+          <div class="k-sub">${statusBadge} &nbsp; Sovg'a: ${k.itemName}</div>
+        </div>
+      </div>
+      <div class="k-desc">${sub}</div>
+      <div class="konkurs-stats-row">
+        <span>💰 Lider narxi: ${fmtCoin(k.priceCoin)} coin</span>
+        <span>⏱ ${k.holdSeconds}s turish kerak</span>
+      </div>
+    </div>
+  `;
+}
+function mountKothCardIcon() {
+  if (!konkursKothState) return;
+  const el = document.getElementById('konkursKothIcon');
+  if (!el) return;
+  const item = contestPrizeIconCache.get(konkursKothState.itemId);
+  const emojiId = konkursKothState.itemCustomEmojiId || (item && item.custom_emoji_id);
+  const isVideo = item ? item.is_video : false;
+  if (emojiId) mountAnimatedEmoji(el, emojiId, isVideo, `konkurs_koth`);
+}
+
 function renderContests() {
   const list = document.getElementById('konkursList');
-  if (!contestsData.length) { list.innerHTML = '<p class="empty">Hozircha faol konkurslar yo\'q</p>'; return; }
+  const kothHtml = kothCardHtml();
+  if (!contestsData.length && !kothHtml) { list.innerHTML = '<p class="empty">Hozircha faol konkurslar yo\'q</p>'; return; }
 
-  list.innerHTML = contestsData.map(c => {
+  list.innerHTML = kothHtml + contestsData.map(c => {
     const item = contestPrizeIconCache.get(c.itemId);
     const iconAnimId = `konkursIcon_${c.id}`;
     const badge = c.status === 'finished'
@@ -5594,6 +5730,7 @@ function renderContests() {
     `;
   }).join('');
 
+  mountKothCardIcon();
   contestsData.forEach(c => {
     const prizeList = normalizeContestPrizeList(c);
     const useStackCard = new Set(prizeList.map(p => p.itemName)).size > 1;
@@ -7158,6 +7295,68 @@ async function adminDeleteContest(contestId) {
   try {
     await callAdminAction('delete_contest', { contestId });
     loadAdminContestsList();
+  } catch (e) { console.error(e); alert('Xatolik yuz berdi!'); }
+}
+
+/* ---- Admin: "YUTIB KETISH" (King of the Hill) o'yinini boshqarish ---- */
+async function loadAdminKothStatus() {
+  const box = document.getElementById('adminKothStatusBox');
+  if (!box) return;
+  box.innerHTML = '<p class="empty" style="font-size:12px;">Yuklanmoqda...</p>';
+  try {
+    const res = await fetch(KOTH_API_URL);
+    const data = await res.json();
+    const k = data.koth;
+    if (!k) { box.innerHTML = '<p class="empty" style="font-size:12px;">Hozir faol o\'yin yo\'q</p>'; return; }
+    const statusLabel = k.status === 'waiting' ? 'Kutilmoqda (hali lider yo\'q)'
+      : k.status === 'running' ? `Jonli — lider: ${k.leader.username}`
+      : `Yakunlangan — g'olib: ${k.winner ? k.winner.username : '—'}`;
+    box.innerHTML = `
+      <div class="admin-task-row">
+        <div class="info">
+          <div class="ttl">${k.itemName}</div>
+          <div class="rwd">${statusLabel} · 💰 ${fmtCoin(k.priceCoin)} coin · ⏱ ${k.holdSeconds}s</div>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = '<p class="empty" style="font-size:12px;">Yuklab bo\'lmadi</p>';
+  }
+}
+
+async function adminCreateKoth() {
+  const nameEl = document.getElementById('a_kothItemName');
+  const bgEl = document.getElementById('a_kothItemBg');
+  const itemId = resolveNftPickerValue(nameEl, bgEl, adminKonkursNftBaseIndex);
+  const priceCoin = parseFloat(document.getElementById('a_kothPrice').value);
+  const durationRaw = parseFloat(document.getElementById('a_kothDuration').value);
+  const durationUnit = document.getElementById('a_kothDurationUnit').value;
+  const holdSeconds = durationUnit === 'minutes' ? Math.round(durationRaw * 60) : Math.round(durationRaw);
+
+  if (itemId === null || !itemId) { alert("Bunday nomli NFT topilmadi! Ro'yxatdan tanlang."); return; }
+  if (!priceCoin || priceCoin <= 0) { alert("Lider bo'lish narxini to'g'ri kiriting!"); return; }
+  if (!holdSeconds || holdSeconds < 10) { alert("Davomiylikni to'g'ri kiriting (kamida 10 soniya)!"); return; }
+
+  try {
+    await callAdminAction('create_koth', { itemId, priceCoin, holdSeconds });
+    alert("\"YUTIB KETISH\" o'yini yaratildi!");
+    document.getElementById('a_kothItemName').value = '';
+    document.getElementById('a_kothPrice').value = '';
+    document.getElementById('a_kothDuration').value = '';
+    loadAdminKothStatus();
+  } catch (e) {
+    console.error(e);
+    if (e.message === 'ALREADY_ACTIVE') alert("Hozir allaqachon faol \"YUTIB KETISH\" o'yini bor. Avval uni bekor qiling.");
+    else alert('Xatolik yuz berdi!');
+  }
+}
+
+async function adminCancelKoth() {
+  if (!confirm("Joriy \"YUTIB KETISH\" o'yinini bekor qilmoqchimisiz?")) return;
+  try {
+    await callAdminAction('cancel_koth', {});
+    loadAdminKothStatus();
   } catch (e) { console.error(e); alert('Xatolik yuz berdi!'); }
 }
 
@@ -9836,7 +10035,169 @@ function mountLoaderEmoji() {
   mountEmojiAsset(el, loaderAnimState.asset);
 }
 
-// Botga kirganda 2 sekundlik yuklanish ekrani chiqadi
+// ==================== YUTIB KETISH (King of the Hill) ====================
+let kothState = null;
+let kothUnsubscribe = null;
+let kothCountdownInterval = null;
+
+function kothMyId() {
+  return Number(currentUserData?.telegram_id || currentUserData?.id || tgUser?.id || 0);
+}
+
+function kothFmtDuration(ms) {
+  const totalSec = Math.max(0, Math.round(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function initKothPage() {
+  if (kothUnsubscribe) kothUnsubscribe();
+  const handler = (state) => { kothState = state; renderKothState(); };
+  socket.on('koth:state', handler);
+  kothUnsubscribe = () => { socket.off('koth:state', handler); };
+  socket.emit('get_state', 'koth');
+
+  // Boshlang'ich holatni socket ulanishini kutmasdan ham darhol olib kelamiz
+  fetch(KOTH_API_URL).then(r => r.json()).then(data => {
+    if (!kothState) { kothState = data.koth; renderKothState(); }
+  }).catch(() => {});
+
+  if (kothCountdownInterval) clearInterval(kothCountdownInterval);
+  kothCountdownInterval = setInterval(kothTickCountdown, 500);
+  renderKothState();
+}
+
+function kothTickCountdown() {
+  const el = document.getElementById('kothTimerText');
+  if (!el || !kothState) return;
+  if (kothState.status === 'running' && kothState.deadlineAt) {
+    const remain = kothState.deadlineAt - Date.now();
+    if (remain <= 0) {
+      el.textContent = '00:00';
+    } else {
+      el.textContent = kothFmtDuration(remain);
+      el.classList.toggle('urgent', remain < 10000);
+    }
+  }
+}
+
+function renderKothState() {
+  const nameEl = document.getElementById('kothPrizeName');
+  const statusEl = document.getElementById('kothStatusText');
+  const priceEl = document.getElementById('kothPriceText');
+  const timerEl = document.getElementById('kothTimerText');
+  const leaderCard = document.getElementById('kothLeaderCard');
+  const leaderAvatar = document.getElementById('kothLeaderAvatar');
+  const leaderName = document.getElementById('kothLeaderName');
+  const btn = document.getElementById('kothBecomeLeaderBtn');
+  const historyList = document.getElementById('kothHistoryList');
+  if (!nameEl) return;
+
+  if (!kothState) {
+    nameEl.textContent = "Hozircha o'yin yo'q";
+    statusEl.textContent = "Faol emas";
+    priceEl.textContent = '0';
+    timerEl.textContent = '--:--';
+    leaderCard.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = "O'yin mavjud emas";
+    historyList.innerHTML = '<p class="empty" style="font-size:12px;">Hali hech kim lider bo\'lmagan</p>';
+    return;
+  }
+
+  const k = kothState;
+  nameEl.textContent = k.itemName;
+  priceEl.textContent = fmtCoin(k.priceCoin);
+
+  // NFT rasmini (animatsiyali emoji) katalogdan olib joylaymiz.
+  const iconEl = document.getElementById('kothPrizeAnim');
+  if (iconEl && iconEl.dataset.mountedFor !== k.itemId) {
+    ensureNftCatalogLoaded().then(catalog => {
+      const item = catalog && catalog[k.itemId];
+      const emojiId = k.itemCustomEmojiId || (item && item.custom_emoji_id);
+      const isVideo = item ? item.is_video : false;
+      if (emojiId) { mountAnimatedEmoji(iconEl, emojiId, isVideo, `koth_${k.itemId}`); iconEl.dataset.mountedFor = k.itemId; }
+    }).catch(() => {});
+  }
+
+  if (k.status === 'waiting') {
+    statusEl.textContent = 'Kutilmoqda';
+    timerEl.textContent = kothFmtDuration(k.holdSeconds * 1000);
+    leaderCard.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = `Lider bo'lish (${fmtCoin(k.priceCoin)} coin)`;
+  } else if (k.status === 'running') {
+    statusEl.textContent = 'Jonli 🔥';
+    kothTickCountdown();
+    leaderCard.style.display = 'flex';
+    leaderAvatar.src = k.leader.photo || avatarFallback(k.leader.username);
+    leaderAvatar.onerror = () => { leaderAvatar.src = avatarFallback(k.leader.username); };
+    leaderName.textContent = k.leader.username;
+    const amLeader = kothMyId() && Number(k.leader.id) === kothMyId();
+    if (amLeader) {
+      btn.disabled = true;
+      btn.textContent = 'Siz lidersiz 👑';
+    } else {
+      btn.disabled = false;
+      btn.textContent = `Liderlikni sotib olish (${fmtCoin(k.priceCoin)} coin)`;
+    }
+  } else if (k.status === 'finished') {
+    statusEl.textContent = 'Yakunlandi';
+    timerEl.textContent = '00:00';
+    leaderCard.style.display = 'flex';
+    const w = k.winner || k.leader;
+    if (w) {
+      leaderAvatar.src = w.photo || avatarFallback(w.username);
+      leaderAvatar.onerror = () => { leaderAvatar.src = avatarFallback(w.username); };
+      leaderName.textContent = w.username;
+    }
+    btn.disabled = true;
+    btn.textContent = "O'yin yakunlandi";
+  }
+
+  const hist = k.history || [];
+  historyList.innerHTML = hist.length
+    ? hist.map(h => `
+      <div class="lb-row">
+        <img class="avatar" src="${h.photo || avatarFallback(h.username)}" onerror="this.src=avatarFallback('${h.username}')">
+        <div class="uname">${h.username}</div>
+        <div class="duration">${kothFmtDuration(h.durationMs)}</div>
+      </div>
+    `).join('')
+    : '<p class="empty" style="font-size:12px;">Hali hech kim lider bo\'lmagan</p>';
+}
+
+async function kothBecomeLeader() {
+  const btn = document.getElementById('kothBecomeLeaderBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(KOTH_BECOME_LEADER_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'INSUFFICIENT_BALANCE') alert("Balansingizda yetarli coin yo'q!");
+      else if (data.error === 'ALREADY_LEADER') alert('Siz allaqachon lidersiz!');
+      else if (data.error === 'NOT_ACTIVE') alert("Hozir faol o'yin yo'q.");
+      else alert('Xatolik yuz berdi!');
+      renderKothState();
+      return;
+    }
+    if (typeof currentUserData === 'object' && currentUserData) currentUserData.balance = data.balance;
+    syncBalanceDisplays(currentUserData.balance);
+    kothState = data.koth;
+    renderKothState();
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
+    renderKothState();
+  }
+}
+
+
 showAppLoaderTimed(2000);
 initLoaderEmoji();
 // Boshlanishida captcha tekshiriladi

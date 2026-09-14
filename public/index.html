@@ -3102,6 +3102,13 @@
       </div>
       <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">⭐ Stars orqali ham liderlikni sotib olish imkonini yoqish (ixtiyoriy — bo'sh qoldirilsa, faqat coin bilan lider bo'linadi)</p>
       <input type="number" id="a_kothPriceStars" placeholder="Stars bilan liderlik narxi (masalan 20) — ixtiyoriy" min="1" step="1" style="margin-top:6px;">
+
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:12px; color:var(--text-dim); cursor:pointer;">
+        <input type="checkbox" id="a_kothPostToChannel" onchange="adminKothToggleAnnounceBox()" style="width:auto;">
+        📢 Rasmiy kanalga e'lon qilish (@GiftFesti)
+      </label>
+      <textarea id="a_kothAnnounceText" placeholder="Yutuq haqida matn — bu yerga o'zingiz yozing (masalan: Bugun ajoyib NFT sovg'a o'ynaladi! Birinchi bo'lib lider bo'lib qolgan omadli ishtirokchi uni yutib oladi)" style="display:none; width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px; min-height:80px; resize:vertical;"></textarea>
+
       <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateKoth()">O'yinni yaratish va boshlash</button>
       <button class="btn secondary" style="width:100%; margin-top:8px;" onclick="adminCancelKoth()">Joriy o'yinni bekor qilish</button>
     </div>
@@ -3650,6 +3657,8 @@ function checkVoucherStartParam() {
     showVoucherOverlay(sp.slice('voucher_'.length));
   } else if (sp.startsWith('konkurs_')) {
     openContestDetail(sp.slice('konkurs_'.length));
+  } else if (sp.startsWith('koth_')) {
+    goTo('koth');
   }
 }
 
@@ -7448,25 +7457,36 @@ async function adminCreateKoth() {
   const holdSeconds = durationUnit === 'minutes' ? Math.round(durationRaw * 60) : Math.round(durationRaw);
   const priceStarsRaw = document.getElementById('a_kothPriceStars').value;
   const priceStars = priceStarsRaw ? Math.round(parseFloat(priceStarsRaw)) : null;
+  const postToChannel = !!document.getElementById('a_kothPostToChannel').checked;
+  const announceText = document.getElementById('a_kothAnnounceText').value.trim();
 
   if (itemId === null || !itemId) { alert("Bunday nomli NFT topilmadi! Ro'yxatdan tanlang."); return; }
   if (!priceCoin || priceCoin <= 0) { alert("Lider bo'lish narxini to'g'ri kiriting!"); return; }
   if (!holdSeconds || holdSeconds < 10) { alert("Davomiylikni to'g'ri kiriting (kamida 10 soniya)!"); return; }
   if (priceStarsRaw && (!priceStars || priceStars < 1)) { alert("Stars narxini to'g'ri kiriting (yoki bo'sh qoldiring)!"); return; }
+  if (postToChannel && !announceText) { alert("Kanalga e'lon qilish uchun yutuq haqida matn yozing!"); return; }
 
   try {
-    await callAdminAction('create_koth', { itemId, priceCoin, holdSeconds, priceStars });
-    alert("\"YUTIB KETISH\" o'yini yaratildi!");
+    await callAdminAction('create_koth', { itemId, priceCoin, holdSeconds, priceStars, postToChannel, announceText });
+    alert(postToChannel ? "\"YUTIB KETISH\" o'yini yaratildi va @GiftFesti kanaliga joylandi!" : "\"YUTIB KETISH\" o'yini yaratildi!");
     document.getElementById('a_kothItemName').value = '';
     document.getElementById('a_kothPrice').value = '';
     document.getElementById('a_kothDuration').value = '';
     document.getElementById('a_kothPriceStars').value = '';
+    document.getElementById('a_kothPostToChannel').checked = false;
+    document.getElementById('a_kothAnnounceText').value = '';
+    adminKothToggleAnnounceBox();
     loadAdminKothStatus();
   } catch (e) {
     console.error(e);
     if (e.message === 'ALREADY_ACTIVE') alert("Hozir allaqachon faol \"YUTIB KETISH\" o'yini bor. Avval uni bekor qiling.");
     else alert('Xatolik yuz berdi!');
   }
+}
+
+function adminKothToggleAnnounceBox() {
+  const checked = document.getElementById('a_kothPostToChannel').checked;
+  document.getElementById('a_kothAnnounceText').style.display = checked ? 'block' : 'none';
 }
 
 async function adminCancelKoth() {

@@ -623,6 +623,39 @@ async function postVoucherToChannel(voucher) {
   } catch (e) { console.error('Voucherni kanalga post qilishda xatolik:', e.message); }
 }
 
+/* ---- YUTIB KETISH (KOTH) o'yini yaratilganda, admin belgilasa, @GiftFesti
+   rasmiy kanaliga e'lon yuboriladi. Yutuq/sovg'a haqidagi matnni admin
+   o'zi yozadi (announceText) — pastida "O'ynash" tugmasi bosilsa, bot orqali
+   ilova to'g'ridan-to'g'ri YUTIB KETISH sahifasida ochiladi. ---- */
+async function postKothToChannel(koth, announceText) {
+  if (!BOT_TOKEN) { console.error('YUTIB KETISH kanalga post qilinmadi: BOT_TOKEN sozlanmagan'); return; }
+  const username = await getBotUsername();
+  if (!username) { console.error('YUTIB KETISH kanalga post qilinmadi: bot username aniqlanmadi'); return; }
+
+  const deepLink = `https://t.me/${username}?start=koth_${koth.id}`;
+  const starsLine = koth.priceStars ? `\n⭐ Stars bilan: <b>${koth.priceStars} stars</b>` : '';
+  const text =
+    `🏆 <b>YUTIB KETISH — yangi o'yin boshlandi!</b>\n\n` +
+    (announceText ? `${escapeHtml(announceText)}\n\n` : '') +
+    `💰 Lider bo'lish narxi: <b>${koth.priceCoin} coin</b>${starsLine}\n` +
+    `⏱ Liderlikda ${koth.holdSeconds} soniya turib qolsa — sovg'a yutiladi!`;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: MAIN_CHANNEL,
+        text,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: [[{ text: "🎮 O'ynash", url: deepLink }]] },
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) console.error('YUTIB KETISHni kanalga post qilishda Telegram xatoligi:', data.description);
+  } catch (e) { console.error('YUTIB KETISHni kanalga post qilishda xatolik:', e.message); }
+}
+
 /* ---- Telegram profil rasmini olish (fon rejimida, bloklamaydi) ---- */
 async function fetchTelegramPhoto(userId) {
   if (!BOT_TOKEN) return null;
@@ -2832,6 +2865,13 @@ app.post('/api/admin_action', (req, res) => {
           createdAt: Date.now(), startedAt: null, finishedAt: null,
         };
         emitKothState();
+
+        // Admin "rasmiy kanalga e'lon qilish"ni belgilagan bo'lsa — @GiftFesti
+        // kanaliga o'yin haqida xabar yuboriladi (yutuq matnini admin o'zi yozadi).
+        if (payload.postToChannel) {
+          const announceText = String(payload.announceText || '').trim();
+          postKothToChannel(kothState, announceText).catch(e => console.error('postKothToChannel xatolik:', e.message));
+        }
         break;
       }
       case 'cancel_koth': {

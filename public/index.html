@@ -2341,6 +2341,7 @@
     </div>
 
     <button class="crash-big-bet-btn" id="kothBecomeLeaderBtn" onclick="kothBecomeLeader()">Lider bo'lish</button>
+    <button class="crash-big-bet-btn secondary" id="kothBecomeLeaderStarsBtn" style="display:none; margin-top:8px;" onclick="kothBecomeLeaderStars()">⭐ Stars bilan lider bo'lish</button>
 
     <p style="font-size:12px; font-weight:600; margin:16px 0 6px; color:var(--text-dim);">So'nggi liderlar</p>
     <div id="kothHistoryList"><p class="empty" style="font-size:12px;">Hali hech kim lider bo'lmagan</p></div>
@@ -3047,6 +3048,17 @@
       </div>
       <input type="number" id="a_konkursTicketPrice" placeholder="Bitta bilet narxi (coin)" style="display:none; margin-top:8px;" min="0.1" step="0.1">
 
+      <div id="a_konkursStarsRateBox" style="display:none; margin-top:10px; padding:10px; border-radius:10px; background:var(--surface-2);">
+        <p style="font-size:11px; color:var(--text-dim); margin-bottom:6px;">⭐ Pullik konkursda foydalanuvchi Telegram Stars evaziga to'g'ridan-to'g'ri bilet sotib olishi mumkin. 1 Stars evaziga necha ta bilet berilishini shu yerda belgilang (barcha pullik konkurslar uchun umumiy sozlama).</p>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span style="font-size:12px; color:var(--text-dim);">Joriy kurs: 1 ⭐ = <b id="a_konkursStarsRateCurrent">100</b> ta bilet</span>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <input type="number" id="a_konkursStarsRateInput" placeholder="Yangi kurs (masalan 100)" min="1" step="1" style="flex:1;">
+          <button class="btn secondary" style="flex:1;" onclick="adminSetContestTicketStarsRate()">O'rnatish</button>
+        </div>
+      </div>
+
       <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">⏱ Konkurs davomiyligi (vaqti tugasa, g'oliblarga NFT avtomatik beriladi)</p>
       <div style="display:flex; gap:8px; margin-top:6px;">
         <input type="number" id="a_konkursDuration" placeholder="Miqdor (masalan 24)" min="0" step="1" style="flex:1;">
@@ -3088,6 +3100,8 @@
           <option value="seconds">Soniya</option>
         </select>
       </div>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">⭐ Stars orqali ham liderlikni sotib olish imkonini yoqish (ixtiyoriy — bo'sh qoldirilsa, faqat coin bilan lider bo'linadi)</p>
+      <input type="number" id="a_kothPriceStars" placeholder="Stars bilan liderlik narxi (masalan 20) — ixtiyoriy" min="1" step="1" style="margin-top:6px;">
       <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateKoth()">O'yinni yaratish va boshlash</button>
       <button class="btn secondary" style="width:100%; margin-top:8px;" onclick="adminCancelKoth()">Joriy o'yinni bekor qilish</button>
     </div>
@@ -3487,6 +3501,7 @@ const CONTEST_SINGLE_API_URL = '/api/contest'; // + /:id
 const CONTEST_PREPARE_SHARE_API_URL = '/api/contest/prepare_share';
 const KOTH_API_URL = '/api/koth';
 const KOTH_BECOME_LEADER_API_URL = '/api/koth/become_leader';
+const KOTH_LEADER_INVOICE_API_URL = '/api/koth/create_leader_invoice';
 const VIP_STATUS_API_URL = '/api/vip/status';
 const VIP_CREATE_INVOICE_API_URL = '/api/vip/create_invoice';
 const CHANNEL_URL = 'https://t.me/GiftFesti';
@@ -5124,7 +5139,7 @@ function goTo(pageName, presetItemId) {
   if (pageName === 'case-fortune') initFortuneCasePage();
   if (pageName === 'case-black') initBlackCasePage();
   if (pageName === 'case-ice') initIceCasePage();
-  if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); loadAdminLeaderboardPrizeDisplay(); loadAdminKothStatus(); }
+  if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); loadAdminLeaderboardPrizeDisplay(); loadAdminKothStatus(); loadAdminTicketStarsRate(); }
   if (pageName === 'upgrade') initUpgradePage(presetItemId);
   if (pageName === 'crash') initCrashPage();
   if (pageName === 'wheel') initWheelPage();
@@ -5636,6 +5651,7 @@ async function loadContests() {
     ]);
     const data = await res.json();
     contestsData = data.contests || [];
+    if (data.ticketStarsRate) CONTEST_TICKET_STARS_RATE_DISPLAY = data.ticketStarsRate;
     konkursKothState = kothRes ? (await kothRes.json()).koth : null;
     renderContests();
   } catch (e) {
@@ -5669,6 +5685,7 @@ function kothCardHtml() {
         <span>💰 Lider narxi: ${fmtCoin(k.priceCoin)} coin</span>
         <span>⏱ ${k.holdSeconds}s turish kerak</span>
       </div>
+      ${k.priceStars ? `<div class="konkurs-stats-row"><span>⭐ Stars bilan: ${k.priceStars} stars</span></div>` : ''}
     </div>
   `;
 }
@@ -6110,7 +6127,7 @@ async function buyContestTickets(contestId, btn) {
   }
 }
 
-const CONTEST_TICKET_STARS_RATE_DISPLAY = 100; // faqat ko'rsatish uchun; haqiqiy hisob-kitob serverda
+let CONTEST_TICKET_STARS_RATE_DISPLAY = 100; // server tomonidan yuboriladi (admin o'zgartirishi mumkin); haqiqiy hisob-kitob serverda
 
 async function buyContestTicketsStars(contestId, btn) {
   const input = document.getElementById(`konkursStarsInput_${contestId}`);
@@ -7200,6 +7217,36 @@ function adminKonkursSetType(type) {
   document.getElementById('a_konkursTypeFreeBtn').classList.toggle('active', type === 'free');
   document.getElementById('a_konkursTypePaidBtn').classList.toggle('active', type === 'paid');
   document.getElementById('a_konkursTicketPrice').style.display = type === 'paid' ? 'block' : 'none';
+  const starsBox = document.getElementById('a_konkursStarsRateBox');
+  if (starsBox) starsBox.style.display = type === 'paid' ? 'block' : 'none';
+}
+
+async function adminSetContestTicketStarsRate() {
+  const rate = parseInt(document.getElementById('a_konkursStarsRateInput').value);
+  if (!rate || rate < 1) { alert("Kursni to'g'ri kiriting!"); return; }
+  try {
+    await callAdminAction('set_contest_ticket_stars_rate', { rate });
+    document.getElementById('a_konkursStarsRateCurrent').textContent = rate;
+    document.getElementById('a_konkursStarsRateInput').value = '';
+    CONTEST_TICKET_STARS_RATE_DISPLAY = rate;
+    alert(`✅ Kurs o'rnatildi: 1 ⭐ = ${rate} ta bilet`);
+  } catch (e) {
+    console.error(e);
+    alert('Xatolik yuz berdi!');
+  }
+}
+
+async function loadAdminTicketStarsRate() {
+  const el = document.getElementById('a_konkursStarsRateCurrent');
+  if (!el) return;
+  try {
+    const res = await fetch(`${CONTESTS_API_URL}?initData=${encodeURIComponent(tg?.initData || '')}`);
+    const data = await res.json();
+    if (data.ticketStarsRate) {
+      el.textContent = data.ticketStarsRate;
+      CONTEST_TICKET_STARS_RATE_DISPLAY = data.ticketStarsRate;
+    }
+  } catch (e) { console.error(e); }
 }
 
 function adminKonkursAddChannelRow() {
@@ -7381,7 +7428,7 @@ async function loadAdminKothStatus() {
       <div class="admin-task-row">
         <div class="info">
           <div class="ttl">${k.itemName}</div>
-          <div class="rwd">${statusLabel} · 💰 ${fmtCoin(k.priceCoin)} coin · ⏱ ${k.holdSeconds}s</div>
+          <div class="rwd">${statusLabel} · 💰 ${fmtCoin(k.priceCoin)} coin · ⏱ ${k.holdSeconds}s${k.priceStars ? ` · ⭐ ${k.priceStars} stars` : ''}</div>
         </div>
       </div>
     `;
@@ -7399,17 +7446,21 @@ async function adminCreateKoth() {
   const durationRaw = parseFloat(document.getElementById('a_kothDuration').value);
   const durationUnit = document.getElementById('a_kothDurationUnit').value;
   const holdSeconds = durationUnit === 'minutes' ? Math.round(durationRaw * 60) : Math.round(durationRaw);
+  const priceStarsRaw = document.getElementById('a_kothPriceStars').value;
+  const priceStars = priceStarsRaw ? Math.round(parseFloat(priceStarsRaw)) : null;
 
   if (itemId === null || !itemId) { alert("Bunday nomli NFT topilmadi! Ro'yxatdan tanlang."); return; }
   if (!priceCoin || priceCoin <= 0) { alert("Lider bo'lish narxini to'g'ri kiriting!"); return; }
   if (!holdSeconds || holdSeconds < 10) { alert("Davomiylikni to'g'ri kiriting (kamida 10 soniya)!"); return; }
+  if (priceStarsRaw && (!priceStars || priceStars < 1)) { alert("Stars narxini to'g'ri kiriting (yoki bo'sh qoldiring)!"); return; }
 
   try {
-    await callAdminAction('create_koth', { itemId, priceCoin, holdSeconds });
+    await callAdminAction('create_koth', { itemId, priceCoin, holdSeconds, priceStars });
     alert("\"YUTIB KETISH\" o'yini yaratildi!");
     document.getElementById('a_kothItemName').value = '';
     document.getElementById('a_kothPrice').value = '';
     document.getElementById('a_kothDuration').value = '';
+    document.getElementById('a_kothPriceStars').value = '';
     loadAdminKothStatus();
   } catch (e) {
     console.error(e);
@@ -10160,6 +10211,7 @@ function renderKothState() {
   const leaderAvatar = document.getElementById('kothLeaderAvatar');
   const leaderName = document.getElementById('kothLeaderName');
   const btn = document.getElementById('kothBecomeLeaderBtn');
+  const starsBtn = document.getElementById('kothBecomeLeaderStarsBtn');
   const historyList = document.getElementById('kothHistoryList');
   if (!nameEl) return;
 
@@ -10171,6 +10223,7 @@ function renderKothState() {
     leaderCard.style.display = 'none';
     btn.disabled = true;
     btn.textContent = "O'yin mavjud emas";
+    if (starsBtn) starsBtn.style.display = 'none';
     historyList.innerHTML = '<p class="empty" style="font-size:12px;">Hali hech kim lider bo\'lmagan</p>';
     return;
   }
@@ -10178,6 +10231,17 @@ function renderKothState() {
   const k = kothState;
   nameEl.textContent = k.itemName;
   priceEl.textContent = fmtCoin(k.priceCoin);
+
+  if (starsBtn) {
+    if (k.priceStars && k.status !== 'finished') {
+      starsBtn.style.display = 'block';
+      const amLeaderStars = kothMyId() && k.leader && Number(k.leader.id) === kothMyId();
+      starsBtn.disabled = !!amLeaderStars;
+      starsBtn.textContent = amLeaderStars ? 'Siz lidersiz 👑' : `⭐ Stars bilan lider bo'lish (${k.priceStars})`;
+    } else {
+      starsBtn.style.display = 'none';
+    }
+  }
 
   // NFT rasmini (animatsiyali emoji) katalogdan olib joylaymiz.
   const iconEl = document.getElementById('kothPrizeAnim');
@@ -10264,6 +10328,45 @@ async function kothBecomeLeader() {
     alert('Xatolik yuz berdi!');
     renderKothState();
   }
+}
+
+async function kothBecomeLeaderStars() {
+  if (!kothState || !kothState.priceStars) return;
+  if (!tg || typeof tg.openInvoice !== 'function') {
+    alert("To'lov faqat Telegram ilovasi ichida ishlaydi. Iltimos, botni Telegram orqali oching.");
+    return;
+  }
+  const btn = document.getElementById('kothBecomeLeaderStarsBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  let data;
+  try {
+    const res = await fetch(KOTH_LEADER_INVOICE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg?.initData || '' }),
+    });
+    data = await res.json();
+  } catch (e) {
+    console.error(e);
+  }
+  if (!data || !data.ok) {
+    if (data && data.error === 'ALREADY_LEADER') alert('Siz allaqachon lidersiz!');
+    else if (data && data.error === 'NOT_ACTIVE') alert("Hozir faol o'yin yo'q.");
+    else alert("To'lov havolasini yaratishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.");
+    renderKothState();
+    return;
+  }
+  tg.openInvoice(data.link, (status) => {
+    if (status === 'paid') {
+      setTimeout(() => { fetch(KOTH_API_URL).then(r => r.json()).then(d => { kothState = d.koth; renderKothState(); }); }, 1000);
+      alert('🏆 To\'lov muvaffaqiyatli! Siz lider bo\'ldingiz.');
+    } else if (status === 'failed') {
+      alert("To'lov amalga oshmadi. Qayta urinib ko'ring.");
+      renderKothState();
+    } else {
+      renderKothState();
+    }
+  });
 }
 
 

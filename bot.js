@@ -348,6 +348,30 @@ async function handleSuccessfulPayment(msg) {
       { parse_mode: 'Markdown' });
   }
 
+  // "YUTIB KETISH" (KOTH) o'yinida liderlik Stars orqali sotib olingan bo'lsa
+  if (payload.startsWith('kothleader:')) {
+    let kothResult;
+    try {
+      kothResult = await internalApiPost('/api/internal_koth_leader_credit', {
+        payload,
+        telegramPaymentChargeId: sp.telegram_payment_charge_id,
+        totalAmount: sp.total_amount,
+      });
+    } catch (e) {
+      console.error("YUTIB KETISH liderlikni kreditlashda xatolik:", e.message);
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin liderlikni berishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (!kothResult) {
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin liderlikni berishda xatolik yuz berdi. Iltimos, admin bilan bog'laning.");
+    }
+    if (kothResult.alreadyProcessed) return;
+    if (!kothResult.ok) {
+      return sendMessage(chatId, "⚠️ To'lovingiz qabul qilindi, lekin o'yin allaqachon yakunlangan edi. Stars miqdoringiz bo'yicha admin bilan bog'laning.");
+    }
+    return sendMessage(chatId,
+      `🏆 To'lov muvaffaqiyatli! Siz "${kothResult.itemName}" o'yinida yangi lider bo'ldingiz.\n⏱ Endi ${kothResult.holdSeconds} soniya davomida hech kim liderlikni sotib olmasa — sovg'a sizga tegishli bo'ladi!`);
+  }
+
   // Omad Case Stars orqali sotib olingan bo'lsa — alohida ichki API
   if (payload.startsWith('fortunecase:')) {
     let caseResult;

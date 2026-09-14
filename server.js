@@ -34,7 +34,7 @@ const DAILY_GAME_TASK_REWARD = 15;
 const DAILY_INVITE_TASK_REWARD = 15;
 const DAILY_INVITE_TARGET = 3;
 const COINS_PER_STAR = 100; // Balansni to'ldirish narxi: 1 Telegram Stars = 100 coin
-const CONTEST_TICKET_STARS_RATE = 100; // Konkurs: 1 Telegram Stars = 100 ta bilet
+let CONTEST_TICKET_STARS_RATE = 100; // Konkurs: 1 Telegram Stars = necha ta bilet — admin panel orqali o'zgartiriladi
 
 /* ---- VIP👑: Profil bo'limidan Telegram Stars evaziga sotib olinadigan
    vaqtinchalik maqom. Narxi 10 ta stars, 10% chegirma bilan 9 ta stars
@@ -204,6 +204,7 @@ function serializeState() {
     leaderboardEndAt,
     leaderboardEndNotified,
     leaderboardPrizeItemId,
+    contestTicketStarsRate: CONTEST_TICKET_STARS_RATE,
     processedTopupCharges: Array.from(processedTopupCharges),
     adminAuditLog,
   };
@@ -258,6 +259,9 @@ function loadDb() {
     leaderboardEndAt = data.leaderboardEndAt || null;
     leaderboardEndNotified = !!data.leaderboardEndNotified;
     leaderboardPrizeItemId = data.leaderboardPrizeItemId || null;
+    if (data.contestTicketStarsRate && Number(data.contestTicketStarsRate) > 0) {
+      CONTEST_TICKET_STARS_RATE = Math.round(Number(data.contestTicketStarsRate));
+    }
     (data.processedTopupCharges || []).forEach(id => processedTopupCharges.add(id));
     adminAuditLog = Array.isArray(data.adminAuditLog) ? data.adminAuditLog : [];
     console.log(`DB yuklandi: ${users.size} foydalanuvchi, ${tasks.length} vazifa, ${promos.length} promo, ${vouchers.length} voucher`);
@@ -2303,7 +2307,7 @@ app.get('/api/contests', (req, res) => {
     if (tgUser) user = users.get(String(tgUser.id));
   }
   const list = contests.slice().sort((a, b) => b.createdAt - a.createdAt).map(c => serializeContest(c, user));
-  res.json({ contests: list });
+  res.json({ contests: list, ticketStarsRate: CONTEST_TICKET_STARS_RATE });
 });
 
 // Bitta konkursning eng so'nggi holatini olish (ishtirokchilar soni, mening
@@ -2790,6 +2794,13 @@ app.post('/api/admin_action', (req, res) => {
         leaderboardPrizeItemId = item.id;
         break;
       }
+      case 'set_contest_ticket_stars_rate': {
+        // Konkursda 1 Telegram Stars evaziga necha ta bilet berilishini admin o'zi belgilaydi
+        const rate = Math.round(Number(payload.rate));
+        if (!rate || rate < 1) throw new Error('INVALID_RATE');
+        CONTEST_TICKET_STARS_RATE = rate;
+        break;
+      }
       case 'reset_game': {
         resetGameState(payload.game);
         break;
@@ -2804,12 +2815,17 @@ app.post('/api/admin_action', (req, res) => {
         const holdSeconds = Math.round(Number(payload.holdSeconds));
         if (!holdSeconds || holdSeconds < KOTH_MIN_HOLD_SECONDS) throw new Error('INVALID_DURATION');
 
+        // Stars orqali liderlik — ixtiyoriy. Admin narx kiritmasa (0/bo'sh),
+        // bu variant o'chirilgan hisoblanadi va faqat coin bilan lider bo'lish mumkin.
+        let priceStars = Math.round(Number(payload.priceStars));
+        if (!priceStars || priceStars < KOTH_MIN_PRICE_STARS) priceStars = null;
+
         if (kothTimer) { clearTimeout(kothTimer); kothTimer = null; }
         kothState = {
           id: crypto.randomBytes(6).toString('hex'),
           itemId: item.id, itemName: item.name, itemCustomEmojiId: item.custom_emoji_id,
           itemSellPrice: item.sell_price,
-          priceCoin, holdSeconds,
+          priceCoin, holdSeconds, priceStars,
           status: 'waiting',
           leader: null, leaderSince: null, deadlineAt: null,
           history: [], winner: null,
@@ -4285,6 +4301,7 @@ function diceEvaluateRound(roomId) {
    ============================================================ */
 const KOTH_MIN_PRICE_COIN = 0.1;
 const KOTH_MIN_HOLD_SECONDS = 10;
+const KOTH_MIN_PRICE_STARS = 1;
 
 // { id, itemId, itemName, itemCustomEmojiId, itemSellPrice, priceCoin, holdSeconds,
 //   status: 'waiting'|'running'|'finished', leader:{id,username,photo}|null,
@@ -4337,17 +4354,9 @@ app.get('/api/koth', (req, res) => {
   res.json({ ok: true, koth: kothState });
 });
 
-app.post('/api/koth/become_leader', (req, res) => {
-  const user = requireUser(req, res); if (!user) return;
-  if (!kothState || kothState.status === 'finished') return res.status(400).json({ error: 'NOT_ACTIVE' });
-  if (kothState.leader && Number(kothState.leader.id) === Number(user.id)) {
-    return res.status(400).json({ error: 'ALREADY_LEADER' });
-  }
-  const price = kothState.priceCoin;
-  if (price > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
-
-  user.balance = round2(user.balance - price);
-
+// Liderlik almashinuvining umumiy qismi (coin bilan ham, Stars bilan ham
+// to'langandan keyin xuddi shu funksiya orqali yangi lider tayinlanadi).
+function assignKothLeader(user) {
   const now = Date.now();
   if (kothState.leader) {
     const durationMs = now - kothState.leaderSince;
@@ -4362,7 +4371,85 @@ app.post('/api/koth/become_leader', (req, res) => {
 
   scheduleKothFinalize();
   emitKothState();
+}
+
+app.post('/api/koth/become_leader', (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!kothState || kothState.status === 'finished') return res.status(400).json({ error: 'NOT_ACTIVE' });
+  if (kothState.leader && Number(kothState.leader.id) === Number(user.id)) {
+    return res.status(400).json({ error: 'ALREADY_LEADER' });
+  }
+  const price = kothState.priceCoin;
+  if (price > user.balance) return res.status(400).json({ error: 'INSUFFICIENT_BALANCE' });
+
+  user.balance = round2(user.balance - price);
+  assignKothLeader(user);
   res.json({ ok: true, balance: user.balance, koth: kothState });
+});
+
+/* ---- Stars orqali liderlikni "sotib olish" uchun to'lov havolasi yaratish
+   (admin priceStars belgilagan bo'lsagina ishlaydi) — balans to'ldirish
+   bilan bir xil oqim: Telegram invoice -> bot.js successful_payment -> ichki API ---- */
+app.post('/api/koth/create_leader_invoice', async (req, res) => {
+  const user = requireUser(req, res); if (!user) return;
+  if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN_MISSING' });
+  if (!kothState || kothState.status === 'finished') return res.status(400).json({ error: 'NOT_ACTIVE' });
+  if (!kothState.priceStars) return res.status(400).json({ error: 'STARS_DISABLED' });
+  if (kothState.leader && Number(kothState.leader.id) === Number(user.id)) {
+    return res.status(400).json({ error: 'ALREADY_LEADER' });
+  }
+  const starsAmount = kothState.priceStars;
+  const payload = `kothleader:${kothState.id}:${user.id}:${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `YUTIB KETISH: ${kothState.itemName}`.slice(0, 32),
+        description: `Liderlikni Stars evaziga sotib olasiz — "${kothState.itemName}" o'yini`,
+        payload,
+        currency: 'XTR',
+        prices: [{ label: "Liderlik", amount: starsAmount }],
+      }),
+    });
+    const data = await tgRes.json();
+    if (!data.ok) return res.status(400).json({ error: data.description || 'TELEGRAM_ERROR' });
+    res.json({ ok: true, link: data.result, stars: starsAmount });
+  } catch (e) {
+    console.error("YUTIB KETISH liderlik invoysi yaratishda xatolik:", e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+/* ---- bot.js uchun ichki API: Stars orqali liderlik to'lovi muvaffaqiyatli
+   bo'lgach chaqiriladi ---- */
+app.post('/api/internal_koth_leader_credit', (req, res) => {
+  if (!requireInternal(req, res)) return;
+  const { payload, telegramPaymentChargeId, totalAmount } = req.body || {};
+
+  if (telegramPaymentChargeId && processedTopupCharges.has(telegramPaymentChargeId)) {
+    return res.json({ ok: true, alreadyProcessed: true });
+  }
+  const m = /^kothleader:([a-f0-9]+):(\d+):/.exec(String(payload || ''));
+  if (!m) return res.status(400).json({ error: 'INVALID_PAYLOAD' });
+  const kothId = m[1], userId = m[2];
+
+  if (telegramPaymentChargeId) processedTopupCharges.add(telegramPaymentChargeId);
+
+  if (!kothState || kothState.id !== kothId || kothState.status === 'finished') {
+    return res.json({ ok: false, error: 'GAME_FINISHED' });
+  }
+  let user = users.get(userId);
+  if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+  const expectedStars = kothState.priceStars;
+  if (Number(totalAmount) !== expectedStars) {
+    console.error(`YUTIB KETISH liderlik: to'lov summasi mos kelmadi (kutilgan ${expectedStars}, kelgan ${totalAmount})`);
+  }
+
+  assignKothLeader(user);
+  res.json({ ok: true, itemName: kothState.itemName, holdSeconds: kothState.holdSeconds });
 });
 
 /* ============================================================

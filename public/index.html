@@ -3129,6 +3129,14 @@
       <p style="font-size:11px; color:var(--text-dim); margin-top:6px;" id="a_lbEndCurrent"></p>
     </div>
 
+    <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🏆 TOP-3 sovg'a ikonkasini tanlash</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Reyting sahifasidagi podium (1-2-3 o'rin)da ko'rsatiladigan sovg'a shu yerda tanlanadi.</p>
+      <input type="text" id="a_lbPrizeName" list="adminKonkursNftDatalist" placeholder="NFT nomini yozing (masalan: Teddy Bear)" autocomplete="off" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminSetLeaderboardPrize()">Sovg'ani saqlash</button>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:6px;" id="a_lbPrizeCurrent"></p>
+    </div>
+
     <div>
       <p style="font-size:13px; font-weight:600; margin-bottom:4px; color:var(--danger);">⚠️ Tizimni tozalash</p>
       <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Hamma narsa (balanslar, reytinglar, NFT inventarlar, o'yinlar) 0 dan boshlanadi.</p>
@@ -3896,6 +3904,7 @@ const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 let caseCountdownInterval = null;
 let lbCountdownInterval = null;
 let currentLeaderboardEndAt = null; // Backend/admin tomonidan belgilangan tugash vaqti (ms)
+let currentLeaderboardPrize = null; // { itemId, name, custom_emoji_id } — admin TOP-3 uchun tanlagan sovg'a
 
 // Case'dagi gift'lar endi backend'dan (custom emoji + tier/narx bilan) olinadi —
 // shu bilan birga qanday og'irlik (weight) bilan tushishi ham backend bilan bir xil.
@@ -5115,7 +5124,7 @@ function goTo(pageName, presetItemId) {
   if (pageName === 'case-fortune') initFortuneCasePage();
   if (pageName === 'case-black') initBlackCasePage();
   if (pageName === 'case-ice') initIceCasePage();
-  if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); loadAdminKothStatus(); }
+  if (pageName === 'admin') { loadAdminTasksList(); loadAdminNftSelect(); loadAdminKonkursNftSelect(); loadAdminContestsList(); loadAdminLeaderboardEndDisplay(); loadAdminLeaderboardPrizeDisplay(); loadAdminKothStatus(); }
   if (pageName === 'upgrade') initUpgradePage(presetItemId);
   if (pageName === 'crash') initCrashPage();
   if (pageName === 'wheel') initWheelPage();
@@ -5230,20 +5239,23 @@ function avatarWithCrown(photo, username, vip, imgClass) {
   return `<span class="vip-avatar-wrap sm">${img}<span class="vip-crown-overlay">👑</span></span>`;
 }
 
-function mountLbGiftIcons(placesToMount) {
+function mountLbGiftIcons(placesToMount, prize) {
   const teddyItem = CASE_ITEMS.find(it => it.id === 'teddy');
+  // Admin panelda tanlangan sovg'a bo'lsa o'shani, bo'lmasa standart
+  // Teddy Bear'ni, u ham topilmasa oddiy 🎁 emoji'ni ko'rsatamiz.
+  const icon = prize || teddyItem;
   placesToMount.forEach(place => {
     const el = document.getElementById(`lbGiftAnim_${place}`);
     if (!el) return;
-    if (teddyItem) {
-      mountAnimatedEmoji(el, teddyItem.custom_emoji_id, teddyItem.is_video, teddyItem.id);
+    if (icon) {
+      mountAnimatedEmoji(el, icon.custom_emoji_id, icon.is_video, icon.itemId || icon.id);
     } else {
       el.innerHTML = `<span class="fallback-emoji">🎁</span>`;
     }
   });
 }
 
-function renderLeaderboard(leaderboard) {
+function renderLeaderboard(leaderboard, prize) {
   const podium = document.getElementById('podium');
   const list = document.getElementById('lbList');
   const top3 = leaderboard.slice(0, 3);
@@ -5261,9 +5273,9 @@ function renderLeaderboard(leaderboard) {
       <div class="podium-block"><span class="rank-num">${u.place}</span></div>
     </div>
   `).join('');
-  // Ayiqcha ikonkasi ham case sahifasidagi kabi haqiqiy Telegram premium
+  // Sovg'a ikonkasi ham case sahifasidagi kabi haqiqiy Telegram premium
   // animatsion emoji'dan (custom_emoji_id) olinadi — oddiy statik rasm emas.
-  loadCaseItemsCatalog().then(() => mountLbGiftIcons(top3.map(u => u.place)));
+  loadCaseItemsCatalog().then(() => mountLbGiftIcons(top3.map(u => u.place), prize));
   list.innerHTML = rest.map(u => `
     <div class="lb-row">
       <div class="place">${u.place}</div>
@@ -5312,7 +5324,7 @@ async function loadLeaderboard(force = false) {
   // Kesh hali muddati o'tmagan bo'lsa, Firestore'ga murojaat qilmasdan
   // saqlangan natijani darhol ko'rsatamiz — ortiqcha read sarflanmaydi.
   if (!force && isCacheFresh('leaderboard')) {
-    renderLeaderboard(dataCache.leaderboard.data);
+    renderLeaderboard(dataCache.leaderboard.data, dataCache.leaderboard.prize || null);
     currentLeaderboardEndAt = dataCache.leaderboard.endAt || null;
     updateLeaderboardCountdown();
     return;
@@ -5323,9 +5335,9 @@ async function loadLeaderboard(force = false) {
     const res = await fetch(LEADERBOARD_API_URL);
     const data = await res.json();
     const leaderboard = data.leaderboard || [];
-    dataCache.leaderboard = { data: leaderboard, ts: Date.now(), endAt: data.endAt || null };
+    dataCache.leaderboard = { data: leaderboard, ts: Date.now(), endAt: data.endAt || null, prize: data.prize || null };
     currentLeaderboardEndAt = data.endAt || null;
-    renderLeaderboard(leaderboard);
+    renderLeaderboard(leaderboard, data.prize || null);
     updateLeaderboardCountdown();
   } catch (e) { list.innerHTML = '<p class="empty">Xatolik yuz berdi</p>'; }
 }
@@ -5680,7 +5692,7 @@ function renderContests() {
     const iconAnimId = `konkursIcon_${c.id}`;
     const badge = c.status === 'finished'
       ? `<span class="konkurs-badge finished">Yakunlangan</span>`
-      : (c.type === 'paid' ? `<span class="konkurs-badge paid">💰 Pullik</span>` : `<span class="konkurs-badge free">🎁 Bepul</span>`);
+      : (c.type === 'paid' ? `<span class="konkurs-badge paid">💰 Pullik — ${c.ticketPrice} coin/bilet</span>` : `<span class="konkurs-badge free">🎁 Bepul</span>`);
 
     let body = '';
     if (c.status === 'finished') {
@@ -5867,10 +5879,12 @@ function renderContestDetail(c) {
       actionHtml = `
         <div class="kd-success-banner">✅ Siz konkursda qatnashyapsiz! Endi bilet sotib olishingiz mumkin.</div>
         <button class="btn secondary" id="kdShareBtn" style="width:100%; margin-top:10px;" onclick="shareContest('${c.id}')">📤 Do'stlarga ulashish</button>
+        <p class="konkurs-req" style="color:var(--gold);">💰 1 bilet narxi: <b>${c.ticketPrice} coin</b></p>
         <div class="konkurs-ticket-row" style="margin-top:12px;">
-          <input type="number" min="1" value="1" id="konkursTicketInput_${c.id}" placeholder="Bilet soni">
+          <input type="number" min="1" value="1" id="konkursTicketInput_${c.id}" placeholder="Bilet soni" oninput="updateKonkursTicketCost('${c.id}', ${c.ticketPrice})">
           <button class="btn" onclick="buyContestTickets('${c.id}', this)">💰 Coin bilan olish</button>
         </div>
+        <p class="konkurs-req" id="konkursTicketCost_${c.id}">Jami: ${c.ticketPrice} coin</p>
         <div class="konkurs-stars-row">
           <input type="number" min="1" value="1" id="konkursStarsInput_${c.id}" placeholder="⭐ Stars soni">
           <button class="btn secondary" onclick="buyContestTicketsStars('${c.id}', this)">⭐ Stars bilan olish</button>
@@ -6043,6 +6057,18 @@ async function revealPaidTickets(contestId) {
     alert('Xatolik yuz berdi!');
     if (btn) { btn.disabled = false; btn.textContent = '🎉 Qatnashish'; }
   }
+}
+
+function updateKonkursTicketCost(contestId, ticketPrice) {
+  const input = document.getElementById(`konkursTicketInput_${contestId}`);
+  const label = document.getElementById(`konkursTicketCost_${contestId}`);
+  if (!input || !label) return;
+  const count = Math.max(1, parseInt(input.value) || 0);
+  const total = round2ForDisplay(ticketPrice * count);
+  label.textContent = `Jami: ${total} coin`;
+}
+function round2ForDisplay(n) {
+  return Math.round(n * 100) / 100;
 }
 
 async function buyContestTickets(contestId, btn) {
@@ -6732,6 +6758,40 @@ async function loadAdminLeaderboardEndDisplay() {
   }
 }
 
+async function loadAdminLeaderboardPrizeDisplay() {
+  const el = document.getElementById('a_lbPrizeCurrent');
+  const input = document.getElementById('a_lbPrizeName');
+  if (!currentLeaderboardPrize) {
+    try {
+      const res = await fetch(LEADERBOARD_API_URL);
+      const data = await res.json();
+      currentLeaderboardPrize = data.prize || null;
+    } catch (e) { /* jim */ }
+  }
+  if (currentLeaderboardPrize) {
+    if (el) el.textContent = `Hozirgi sovg'a: ${currentLeaderboardPrize.name}`;
+    if (input) input.value = currentLeaderboardPrize.name;
+  } else if (el) {
+    el.textContent = "Hozircha belgilanmagan (standart: Teddy Bear).";
+  }
+}
+
+async function adminSetLeaderboardPrize() {
+  const input = document.getElementById('a_lbPrizeName');
+  const itemId = resolveNftPickerValue(input, null, adminKonkursNftBaseIndex);
+  if (itemId === null) { alert("Bunday nomli NFT topilmadi! Ro'yxatdan tanlang."); return; }
+  try {
+    await callAdminAction('set_leaderboard_prize', { itemId });
+    currentLeaderboardPrize = null; // keyingi chaqiruvda serverdan to'liq (nom bilan) qayta olinsin
+    dataCache.leaderboard = { data: null, ts: 0 }; // kesh eskirdi, keyingi ochilishda yangi sovg'a keladi
+    await loadAdminLeaderboardPrizeDisplay();
+    alert("TOP-3 sovg'asi saqlandi!");
+  } catch (e) {
+    console.error(e);
+    alert("Xatolik yuz berdi!");
+  }
+}
+
 // MUHIM: tarix faqat O'QISH uchun ishlatiladi (Firestore Rules'da
 // game_history_hockey / game_history_drum uchun `read: if true` bor,
 // yozish esa faqat backend orqali, resolve_round() ichida amalga oshadi).
@@ -7032,7 +7092,11 @@ async function loadAdminNftCatalogIndex() {
     adminNftBaseIndex = {};
     const seen = new Set();
     const options = [];
-    data.items.filter(it => !it.bg).forEach(it => { // faqat "oddiy" (fonsiz) yozuvlar — bazaviy nom
+    // caseExclusive (masalan Ice Case) NFT'lar bu yerdan chiqarib tashlanadi —
+    // admin ularni hech qachon qo'lda bera olmasligi kerak, shu bilan birga
+    // nomi bir xil bo'lgan oddiy NFT bilan to'qnashib, xato itemId tanlanishining
+    // oldi olinadi (masalan "Jolly Chimp" — oddiysi ham, Ice Case'niki ham bor edi).
+    data.items.filter(it => !it.bg && !it.caseExclusive).forEach(it => { // faqat "oddiy" (fonsiz) yozuvlar — bazaviy nom
       adminNftBaseIndex[it.name.toLowerCase()] = it.baseId;
       if (!seen.has(it.name)) { seen.add(it.name); options.push(it.name); }
     });
@@ -7178,7 +7242,9 @@ async function loadAdminKonkursNftSelect() {
     adminKonkursNftBaseIndex = { '👑 vip (6 soat)': 'vip_prize' };
     const seen = new Set(['👑 VIP (6 soat)']);
     const options = ['👑 VIP (6 soat)'];
-    data.items.filter(it => !it.bg).forEach(it => {
+    // caseExclusive (Ice Case) NFT'lar konkurs/KOTH sovg'asi sifatida ham
+    // tanlanmasligi kerak — faqat shu case'ni ochib tushirish orqali olinadi.
+    data.items.filter(it => !it.bg && !it.caseExclusive).forEach(it => {
       adminKonkursNftBaseIndex[it.name.toLowerCase()] = it.baseId;
       if (!seen.has(it.name)) { seen.add(it.name); options.push(it.name); }
     });
@@ -9333,7 +9399,9 @@ async function initUpgradePage(presetItemId) {
       fetch(NFT_CATALOG_API_URL),
     ]);
     upgState.inventory = (await invRes.json()).items || [];
-    upgState.catalog = (await catRes.json()).items || [];
+    // Ice Case (caseExclusive) NFT'lar Upgrade'da target sifatida tanlanmasin —
+    // ular faqat Ice Case'ni ochib tushiriladi.
+    upgState.catalog = ((await catRes.json()).items || []).filter(it => !it.caseExclusive);
   } catch (e) {
     console.error("Upgrade ma'lumotlari yuklanmadi:", e.message);
   }
@@ -9436,7 +9504,8 @@ function renderUpgradePickerList() {
   const list = document.getElementById('upgPickerGrid');
   let items;
   if (upgState.picking === 'your') {
-    items = upgState.inventory.slice();
+    // Ice Case NFT'lari Upgrade'ga tikilmaydi — faqat PvP (Xokkey/Baraban)da ishlatiladi.
+    items = upgState.inventory.filter(it => !it.caseExclusive);
   } else {
     const minPrice = upgState.yourItem ? upgState.yourItem.sell_price : 0;
     items = upgState.catalog.filter(it => it.sell_price > minPrice);

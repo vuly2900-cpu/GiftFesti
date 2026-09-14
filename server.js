@@ -85,6 +85,7 @@ let promos = [];             // [{code, reward, maxUses, used, usedBy:Set}]
 let vouchers = [];           // [{id, reward, maxUses, used, usedBy:Set, requireType, requireTarget, requireLabel, createdAt}]
 let leaderboardEndAt = null; // Reyting tugash vaqti (ms, epoch) — admin panel orqali belgilanadi
 let leaderboardEndNotified = false; // shu tugash vaqti uchun TOP-3'ga xabar allaqachon yuborilganmi
+let leaderboardPrizeItemId = null; // TOP-3 podiumida ko'rsatiladigan sovg'a ikonkasi — admin panel orqali tanlanadi (masalan "teddy" yoki istalgan NFT)
 // Konkurslar: admin tomonidan yaratiladi, NFT sovg'a sifatida beriladi.
 // { id, title, description, itemId, prizeCount, type:'free'|'paid', ticketPrice,
 //   requireChannel, status:'active'|'finished', participants:[{userId,tickets}],
@@ -202,6 +203,7 @@ function serializeState() {
     gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number },
     leaderboardEndAt,
     leaderboardEndNotified,
+    leaderboardPrizeItemId,
     processedTopupCharges: Array.from(processedTopupCharges),
     adminAuditLog,
   };
@@ -255,6 +257,7 @@ function loadDb() {
     }
     leaderboardEndAt = data.leaderboardEndAt || null;
     leaderboardEndNotified = !!data.leaderboardEndNotified;
+    leaderboardPrizeItemId = data.leaderboardPrizeItemId || null;
     (data.processedTopupCharges || []).forEach(id => processedTopupCharges.add(id));
     adminAuditLog = Array.isArray(data.adminAuditLog) ? data.adminAuditLog : [];
     console.log(`DB yuklandi: ${users.size} foydalanuvchi, ${tasks.length} vazifa, ${promos.length} promo, ${vouchers.length} voucher`);
@@ -561,12 +564,14 @@ function autoFinishExpiredLeaderboard() {
     .filter(u => (u.total_won || 0) > 0)
     .sort((a, b) => (b.total_won || 0) - (a.total_won || 0))
     .slice(0, 3);
+  const prizeItem = leaderboardPrizeItemId ? getNftDef(leaderboardPrizeItemId) : null;
+  const prizeLabel = prizeItem ? ` (${prizeItem.name})` : '';
   top3.forEach((u, i) => {
     const place = i + 1;
     const info = LEADERBOARD_PLACE_LABELS[place];
     sendTelegramMessage(
       u.id,
-      `${info.medal} Tabriklaymiz! Siz reytingda ${info.label}ni oldingiz va gift yutib oldingiz!\nSovg'a tez orada sizga yuboriladi. 🎁`
+      `${info.medal} Tabriklaymiz! Siz reytingda ${info.label}ni oldingiz va gift${prizeLabel} yutib oldingiz!\nSovg'a tez orada sizga yuboriladi. 🎁`
     ).catch(() => {});
   });
   leaderboardEndNotified = true;
@@ -1994,6 +1999,7 @@ app.get('/api/inventory', async (req, res) => {
         custom_emoji_id: def.custom_emoji_id,
         sell_price: instancePrice,
         is_video: meta.is_video,
+        caseExclusive: def.caseExclusive || null,
       });
     }
   }
@@ -2014,6 +2020,7 @@ app.get('/api/nft_catalog', async (req, res) => {
         id: def.id, baseId: item.id, bg: def.bg, bgLabel: def.bgLabel,
         name: def.name, sell_price: def.sell_price,
         custom_emoji_id: def.custom_emoji_id, is_video: meta.is_video,
+        caseExclusive: def.caseExclusive || null,
       });
     }
   }
@@ -2101,6 +2108,10 @@ app.post('/api/upgrade/spin', (req, res) => {
   const targetItem = getNftDef(targetItemId);
   if (!yourItem || !targetItem) return res.status(404).json({ error: 'NOT_FOUND' });
   if (yourItemId === targetItemId) return res.status(400).json({ error: 'SAME_ITEM' });
+  // Ice Case (caseExclusive) NFT'lar SOLO/Upgrade o'yinida na tikilishi,
+  // na yutib olinishi mumkin — faqat shu case'ni ochib tushiriladi,
+  // va faqat PvP (Xokkey/Baraban)da tikiladi.
+  if (yourItem.caseExclusive || targetItem.caseExclusive) return res.status(400).json({ error: 'CASE_EXCLUSIVE_ITEM' });
 
   ensureNftStarterPack(user);
   const have = user.nftInventory[yourItemId] || 0;
@@ -2230,13 +2241,19 @@ app.get('/api/nft_media/:customEmojiId', async (req, res) => {
 /* ============================================================
    REYTING / DO'STLAR
    ============================================================ */
-app.get('/api/leaderboard', (req, res) => {
+app.get('/api/leaderboard', async (req, res) => {
   const list = Array.from(users.values())
     .filter(u => u.username !== 'demo_user')
     .sort((a, b) => b.total_won - a.total_won)
     .slice(0, 50)
     .map((u, i) => ({ place: i + 1, username: u.username, stars: u.total_won, photo_url: u.photo_url }));
-  res.json({ leaderboard: list, endAt: leaderboardEndAt });
+  const prizeDef = leaderboardPrizeItemId ? getNftDef(leaderboardPrizeItemId) : null;
+  let prize = null;
+  if (prizeDef) {
+    const meta = await getEmojiMeta(prizeDef.custom_emoji_id);
+    prize = { itemId: prizeDef.id, name: prizeDef.name, custom_emoji_id: prizeDef.custom_emoji_id, is_video: meta.is_video };
+  }
+  res.json({ leaderboard: list, endAt: leaderboardEndAt, prize });
 });
 
 app.get('/api/friends', (req, res) => {
@@ -2761,6 +2778,18 @@ app.post('/api/admin_action', (req, res) => {
         leaderboardEndNotified = false; // yangi muddat uchun TOP-3 xabari qayta yuborilishi kerak
         break;
       }
+      case 'set_leaderboard_prize': {
+        // TOP-3 podiumida ko'rsatiladigan sovg'a ikonkasini admin tanlaydi
+        // (masalan "teddy" yoki istalgan boshqa NFT). Ice Case (caseExclusive)
+        // NFT'lar bu yerga ham qo'yilmaydi — faqat o'z case'idan tushadi.
+        const raw = String(payload.itemId || '').trim();
+        if (!raw) { leaderboardPrizeItemId = null; break; }
+        const item = getNftDef(raw);
+        if (!item) throw new Error('ITEM_NOT_FOUND');
+        if (item.caseExclusive) throw new Error('CASE_EXCLUSIVE_ITEM');
+        leaderboardPrizeItemId = item.id;
+        break;
+      }
       case 'reset_game': {
         resetGameState(payload.game);
         break;
@@ -2769,6 +2798,7 @@ app.post('/api/admin_action', (req, res) => {
         if (kothState && kothState.status !== 'finished') throw new Error('ALREADY_ACTIVE');
         const item = getNftDef(String(payload.itemId || '').trim());
         if (!item) throw new Error('ITEM_NOT_FOUND');
+        if (item.caseExclusive) throw new Error('CASE_EXCLUSIVE_ITEM'); // faqat o'z case'idan tushadi — admin KOTH sovg'asi qilib bera olmaydi
         const priceCoin = round2(Number(payload.priceCoin));
         if (!priceCoin || priceCoin < KOTH_MIN_PRICE_COIN) throw new Error('INVALID_PRICE');
         const holdSeconds = Math.round(Number(payload.holdSeconds));
@@ -2832,7 +2862,12 @@ app.post('/api/admin_action', (req, res) => {
           : (payload.itemId ? Array(Math.max(1, parseInt(payload.prizeCount) || 1)).fill(payload.itemId) : []);
         const prizes = rawPrizes.map(id => String(id || '').trim()).filter(Boolean);
         if (!prizes.length) throw new Error('ITEM_NOT_FOUND');
-        for (const id of prizes) { if (id !== VIP_PRIZE_ID && !getNftDef(id)) throw new Error('ITEM_NOT_FOUND'); }
+        for (const id of prizes) {
+          if (id === VIP_PRIZE_ID) continue;
+          const prizeItem = getNftDef(id);
+          if (!prizeItem) throw new Error('ITEM_NOT_FOUND');
+          if (prizeItem.caseExclusive) throw new Error('CASE_EXCLUSIVE_ITEM'); // faqat o'z case'idan tushadi — admin konkurs sovg'asi qilib bera olmaydi
+        }
         const type = payload.type === 'paid' ? 'paid' : 'free';
         const ticketPrice = type === 'paid' ? Math.max(0.1, Number(payload.ticketPrice) || 1) : 0;
         // requireChannels: bir nechta majburiy kanal/guruh (massiv) qabul qilinadi.
@@ -4022,6 +4057,9 @@ app.post('/api/crash/bet_nft', (req, res) => {
   for (const [id, need] of Object.entries(needCounts)) {
     const item = getNftDef(id);
     if (!item) return res.status(404).json({ error: 'ITEM_NOT_FOUND' });
+    // Ice Case (caseExclusive) NFT'lar raketaga tikilmaydi — faqat PvP
+    // (Xokkey/Baraban)da tikilishi mumkin.
+    if (item.caseExclusive) return res.status(400).json({ error: 'CASE_EXCLUSIVE_ITEM' });
     if ((user.nftInventory[id] || 0) < need) return res.status(400).json({ error: 'NOT_ENOUGH_NFT' });
   }
 

@@ -85,7 +85,7 @@ let promos = [];             // [{code, reward, maxUses, used, usedBy:Set}]
 let vouchers = [];           // [{id, reward, maxUses, used, usedBy:Set, requireType, requireTarget, requireLabel, createdAt}]
 let leaderboardEndAt = null; // Reyting tugash vaqti (ms, epoch) — admin panel orqali belgilanadi
 let leaderboardEndNotified = false; // shu tugash vaqti uchun TOP-3'ga xabar allaqachon yuborilganmi
-let leaderboardPrizeItemId = null; // TOP-3 podiumida ko'rsatiladigan sovg'a ikonkasi — admin panel orqali tanlanadi (masalan "teddy" yoki istalgan NFT)
+let leaderboardPrizes = { 1: null, 2: null, 3: null }; // TOP-3 podiumida har bir o'rin uchun alohida sovg'a ikonkasi — admin panel orqali tanlanadi
 // Konkurslar: admin tomonidan yaratiladi, NFT sovg'a sifatida beriladi.
 // { id, title, description, itemId, prizeCount, type:'free'|'paid', ticketPrice,
 //   requireChannel, status:'active'|'finished', participants:[{userId,tickets}],
@@ -203,7 +203,7 @@ function serializeState() {
     gameNumbers: { hockey: hockeyState.game_number, drum: drumState.game_number },
     leaderboardEndAt,
     leaderboardEndNotified,
-    leaderboardPrizeItemId,
+    leaderboardPrizes,
     contestTicketStarsRate: CONTEST_TICKET_STARS_RATE,
     processedTopupCharges: Array.from(processedTopupCharges),
     adminAuditLog,
@@ -258,7 +258,16 @@ function loadDb() {
     }
     leaderboardEndAt = data.leaderboardEndAt || null;
     leaderboardEndNotified = !!data.leaderboardEndNotified;
-    leaderboardPrizeItemId = data.leaderboardPrizeItemId || null;
+    if (data.leaderboardPrizes) {
+      leaderboardPrizes = {
+        1: data.leaderboardPrizes[1] || null,
+        2: data.leaderboardPrizes[2] || null,
+        3: data.leaderboardPrizes[3] || null,
+      };
+    } else if (data.leaderboardPrizeItemId) {
+      // Eski formatdan migratsiya: avval barcha o'rinlar uchun bitta umumiy sovg'a bor edi
+      leaderboardPrizes = { 1: data.leaderboardPrizeItemId, 2: data.leaderboardPrizeItemId, 3: data.leaderboardPrizeItemId };
+    }
     if (data.contestTicketStarsRate && Number(data.contestTicketStarsRate) > 0) {
       CONTEST_TICKET_STARS_RATE = Math.round(Number(data.contestTicketStarsRate));
     }
@@ -568,11 +577,11 @@ function autoFinishExpiredLeaderboard() {
     .filter(u => (u.total_won || 0) > 0)
     .sort((a, b) => (b.total_won || 0) - (a.total_won || 0))
     .slice(0, 3);
-  const prizeItem = leaderboardPrizeItemId ? getNftDef(leaderboardPrizeItemId) : null;
-  const prizeLabel = prizeItem ? ` (${prizeItem.name})` : '';
   top3.forEach((u, i) => {
     const place = i + 1;
     const info = LEADERBOARD_PLACE_LABELS[place];
+    const prizeItem = leaderboardPrizes[place] ? getNftDef(leaderboardPrizes[place]) : null;
+    const prizeLabel = prizeItem ? ` (${prizeItem.name})` : '';
     sendTelegramMessage(
       u.id,
       `${info.medal} Tabriklaymiz! Siz reytingda ${info.label}ni oldingiz va gift${prizeLabel} yutib oldingiz!\nSovg'a tez orada sizga yuboriladi. 🎁`
@@ -2284,13 +2293,17 @@ app.get('/api/leaderboard', async (req, res) => {
     .sort((a, b) => b.total_won - a.total_won)
     .slice(0, 50)
     .map((u, i) => ({ place: i + 1, username: u.username, stars: u.total_won, photo_url: u.photo_url }));
-  const prizeDef = leaderboardPrizeItemId ? getNftDef(leaderboardPrizeItemId) : null;
-  let prize = null;
-  if (prizeDef) {
-    const meta = await getEmojiMeta(prizeDef.custom_emoji_id);
-    prize = { itemId: prizeDef.id, name: prizeDef.name, custom_emoji_id: prizeDef.custom_emoji_id, is_video: meta.is_video };
+  const prizes = {};
+  for (const place of [1, 2, 3]) {
+    const def = leaderboardPrizes[place] ? getNftDef(leaderboardPrizes[place]) : null;
+    if (def) {
+      const meta = await getEmojiMeta(def.custom_emoji_id);
+      prizes[place] = { itemId: def.id, name: def.name, custom_emoji_id: def.custom_emoji_id, is_video: meta.is_video };
+    } else {
+      prizes[place] = null;
+    }
   }
-  res.json({ leaderboard: list, endAt: leaderboardEndAt, prize });
+  res.json({ leaderboard: list, endAt: leaderboardEndAt, prizes, prize: prizes[1] || null });
 });
 
 app.get('/api/friends', (req, res) => {
@@ -2816,15 +2829,17 @@ app.post('/api/admin_action', (req, res) => {
         break;
       }
       case 'set_leaderboard_prize': {
-        // TOP-3 podiumida ko'rsatiladigan sovg'a ikonkasini admin tanlaydi
-        // (masalan "teddy" yoki istalgan boshqa NFT). Ice Case (caseExclusive)
-        // NFT'lar bu yerga ham qo'yilmaydi — faqat o'z case'idan tushadi.
+        // TOP-3 podiumida ko'rsatiladigan sovg'a ikonkasini admin har bir o'rin
+        // (1, 2, 3) uchun alohida tanlaydi. Ice Case (caseExclusive) NFT'lar bu
+        // yerga ham qo'yilmaydi — faqat o'z case'idan tushadi.
+        const place = Number(payload.place);
+        if (![1, 2, 3].includes(place)) throw new Error('INVALID_PLACE');
         const raw = String(payload.itemId || '').trim();
-        if (!raw) { leaderboardPrizeItemId = null; break; }
+        if (!raw) { leaderboardPrizes[place] = null; break; }
         const item = getNftDef(raw);
         if (!item) throw new Error('ITEM_NOT_FOUND');
         if (item.caseExclusive) throw new Error('CASE_EXCLUSIVE_ITEM');
-        leaderboardPrizeItemId = item.id;
+        leaderboardPrizes[place] = item.id;
         break;
       }
       case 'set_contest_ticket_stars_rate': {

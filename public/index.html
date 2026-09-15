@@ -3110,7 +3110,7 @@
       <textarea id="a_kothAnnounceText" placeholder="Yutuq haqida matn — bu yerga o'zingiz yozing (masalan: Bugun ajoyib NFT sovg'a o'ynaladi! Birinchi bo'lib lider bo'lib qolgan omadli ishtirokchi uni yutib oladi)" style="display:none; width:100%; margin-top:8px; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px; min-height:80px; resize:vertical;"></textarea>
 
       <button class="btn" style="width:100%; margin-top:8px;" onclick="adminCreateKoth()">O'yinni yaratish va boshlash</button>
-      <button class="btn secondary" style="width:100%; margin-top:8px;" onclick="adminCancelKoth()">Joriy o'yinni bekor qilish</button>
+      <button class="btn secondary" style="width:100%; margin-top:8px;" id="a_kothCancelBtn" onclick="adminCancelKoth()">Joriy o'yinni bekor qilish</button>
     </div>
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
@@ -3151,11 +3151,23 @@
     </div>
 
     <div style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px;">
-      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🏆 TOP-3 sovg'a ikonkasini tanlash</p>
-      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Reyting sahifasidagi podium (1-2-3 o'rin)da ko'rsatiladigan sovg'a shu yerda tanlanadi.</p>
-      <input type="text" id="a_lbPrizeName" list="adminKonkursNftDatalist" placeholder="NFT nomini yozing (masalan: Teddy Bear)" autocomplete="off" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
-      <button class="btn" style="width:100%; margin-top:8px;" onclick="adminSetLeaderboardPrize()">Sovg'ani saqlash</button>
-      <p style="font-size:11px; color:var(--text-dim); margin-top:6px;" id="a_lbPrizeCurrent"></p>
+      <p style="font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gold);">🏆 TOP-3 sovg'a ikonkalarini tanlash</p>
+      <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Reyting sahifasidagi podium (1-2-3 o'rin)da ko'rsatiladigan sovg'ani har bir o'rin uchun alohida tanlashingiz mumkin.</p>
+
+      <p style="font-size:12px; font-weight:600; margin:8px 0 4px;">🥇 1-o'rin sovg'asi</p>
+      <input type="text" id="a_lbPrizeName1" list="adminKonkursNftDatalist" placeholder="NFT nomini yozing (masalan: Teddy Bear)" autocomplete="off" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+      <button class="btn" style="width:100%; margin-top:6px;" onclick="adminSetLeaderboardPrize(1)">1-o'rin sovg'asini saqlash</button>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:4px;" id="a_lbPrizeCurrent1"></p>
+
+      <p style="font-size:12px; font-weight:600; margin:14px 0 4px;">🥈 2-o'rin sovg'asi</p>
+      <input type="text" id="a_lbPrizeName2" list="adminKonkursNftDatalist" placeholder="NFT nomini yozing (masalan: Teddy Bear)" autocomplete="off" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+      <button class="btn" style="width:100%; margin-top:6px;" onclick="adminSetLeaderboardPrize(2)">2-o'rin sovg'asini saqlash</button>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:4px;" id="a_lbPrizeCurrent2"></p>
+
+      <p style="font-size:12px; font-weight:600; margin:14px 0 4px;">🥉 3-o'rin sovg'asi</p>
+      <input type="text" id="a_lbPrizeName3" list="adminKonkursNftDatalist" placeholder="NFT nomini yozing (masalan: Teddy Bear)" autocomplete="off" style="width:100%; padding:11px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:13px;">
+      <button class="btn" style="width:100%; margin-top:6px;" onclick="adminSetLeaderboardPrize(3)">3-o'rin sovg'asini saqlash</button>
+      <p style="font-size:11px; color:var(--text-dim); margin-top:4px;" id="a_lbPrizeCurrent3"></p>
     </div>
 
     <div>
@@ -3928,7 +3940,7 @@ const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 let caseCountdownInterval = null;
 let lbCountdownInterval = null;
 let currentLeaderboardEndAt = null; // Backend/admin tomonidan belgilangan tugash vaqti (ms)
-let currentLeaderboardPrize = null; // { itemId, name, custom_emoji_id } — admin TOP-3 uchun tanlagan sovg'a
+let currentLeaderboardPrizes = null; // { 1: {itemId,name,...}, 2: {...}, 3: {...} } — admin TOP-3 uchun har bir o'rinda tanlagan sovg'a
 
 // Case'dagi gift'lar endi backend'dan (custom emoji + tier/narx bilan) olinadi —
 // shu bilan birga qanday og'irlik (weight) bilan tushishi ham backend bilan bir xil.
@@ -5263,14 +5275,14 @@ function avatarWithCrown(photo, username, vip, imgClass) {
   return `<span class="vip-avatar-wrap sm">${img}<span class="vip-crown-overlay">👑</span></span>`;
 }
 
-function mountLbGiftIcons(placesToMount, prize) {
+function mountLbGiftIcons(placesToMount, prizes) {
   const teddyItem = CASE_ITEMS.find(it => it.id === 'teddy');
-  // Admin panelda tanlangan sovg'a bo'lsa o'shani, bo'lmasa standart
-  // Teddy Bear'ni, u ham topilmasa oddiy 🎁 emoji'ni ko'rsatamiz.
-  const icon = prize || teddyItem;
+  // Har bir o'rin uchun admin panelda alohida tanlangan sovg'a bo'lsa o'shani,
+  // bo'lmasa standart Teddy Bear'ni, u ham topilmasa oddiy 🎁 emoji'ni ko'rsatamiz.
   placesToMount.forEach(place => {
     const el = document.getElementById(`lbGiftAnim_${place}`);
     if (!el) return;
+    const icon = (prizes && prizes[place]) || teddyItem;
     if (icon) {
       mountAnimatedEmoji(el, icon.custom_emoji_id, icon.is_video, icon.itemId || icon.id);
     } else {
@@ -5279,7 +5291,7 @@ function mountLbGiftIcons(placesToMount, prize) {
   });
 }
 
-function renderLeaderboard(leaderboard, prize) {
+function renderLeaderboard(leaderboard, prizes) {
   const podium = document.getElementById('podium');
   const list = document.getElementById('lbList');
   const top3 = leaderboard.slice(0, 3);
@@ -5299,7 +5311,7 @@ function renderLeaderboard(leaderboard, prize) {
   `).join('');
   // Sovg'a ikonkasi ham case sahifasidagi kabi haqiqiy Telegram premium
   // animatsion emoji'dan (custom_emoji_id) olinadi — oddiy statik rasm emas.
-  loadCaseItemsCatalog().then(() => mountLbGiftIcons(top3.map(u => u.place), prize));
+  loadCaseItemsCatalog().then(() => mountLbGiftIcons(top3.map(u => u.place), prizes));
   list.innerHTML = rest.map(u => `
     <div class="lb-row">
       <div class="place">${u.place}</div>
@@ -5348,7 +5360,7 @@ async function loadLeaderboard(force = false) {
   // Kesh hali muddati o'tmagan bo'lsa, Firestore'ga murojaat qilmasdan
   // saqlangan natijani darhol ko'rsatamiz — ortiqcha read sarflanmaydi.
   if (!force && isCacheFresh('leaderboard')) {
-    renderLeaderboard(dataCache.leaderboard.data, dataCache.leaderboard.prize || null);
+    renderLeaderboard(dataCache.leaderboard.data, dataCache.leaderboard.prizes || null);
     currentLeaderboardEndAt = dataCache.leaderboard.endAt || null;
     updateLeaderboardCountdown();
     return;
@@ -5359,9 +5371,9 @@ async function loadLeaderboard(force = false) {
     const res = await fetch(LEADERBOARD_API_URL);
     const data = await res.json();
     const leaderboard = data.leaderboard || [];
-    dataCache.leaderboard = { data: leaderboard, ts: Date.now(), endAt: data.endAt || null, prize: data.prize || null };
+    dataCache.leaderboard = { data: leaderboard, ts: Date.now(), endAt: data.endAt || null, prizes: data.prizes || null };
     currentLeaderboardEndAt = data.endAt || null;
-    renderLeaderboard(leaderboard, data.prize || null);
+    renderLeaderboard(leaderboard, data.prizes || null);
     updateLeaderboardCountdown();
   } catch (e) { list.innerHTML = '<p class="empty">Xatolik yuz berdi</p>'; }
 }
@@ -6785,33 +6797,37 @@ async function loadAdminLeaderboardEndDisplay() {
 }
 
 async function loadAdminLeaderboardPrizeDisplay() {
-  const el = document.getElementById('a_lbPrizeCurrent');
-  const input = document.getElementById('a_lbPrizeName');
-  if (!currentLeaderboardPrize) {
+  if (!currentLeaderboardPrizes) {
     try {
       const res = await fetch(LEADERBOARD_API_URL);
       const data = await res.json();
-      currentLeaderboardPrize = data.prize || null;
-    } catch (e) { /* jim */ }
+      currentLeaderboardPrizes = data.prizes || {};
+    } catch (e) { currentLeaderboardPrizes = {}; }
   }
-  if (currentLeaderboardPrize) {
-    if (el) el.textContent = `Hozirgi sovg'a: ${currentLeaderboardPrize.name}`;
-    if (input) input.value = currentLeaderboardPrize.name;
-  } else if (el) {
-    el.textContent = "Hozircha belgilanmagan (standart: Teddy Bear).";
-  }
+  [1, 2, 3].forEach(place => {
+    const el = document.getElementById(`a_lbPrizeCurrent${place}`);
+    const input = document.getElementById(`a_lbPrizeName${place}`);
+    const p = currentLeaderboardPrizes ? currentLeaderboardPrizes[place] : null;
+    if (p) {
+      if (el) el.textContent = `Hozirgi sovg'a: ${p.name}`;
+      if (input) input.value = p.name;
+    } else {
+      if (el) el.textContent = "Hozircha belgilanmagan (standart: Teddy Bear).";
+      if (input) input.value = '';
+    }
+  });
 }
 
-async function adminSetLeaderboardPrize() {
-  const input = document.getElementById('a_lbPrizeName');
+async function adminSetLeaderboardPrize(place) {
+  const input = document.getElementById(`a_lbPrizeName${place}`);
   const itemId = resolveNftPickerValue(input, null, adminKonkursNftBaseIndex);
   if (itemId === null) { alert("Bunday nomli NFT topilmadi! Ro'yxatdan tanlang."); return; }
   try {
-    await callAdminAction('set_leaderboard_prize', { itemId });
-    currentLeaderboardPrize = null; // keyingi chaqiruvda serverdan to'liq (nom bilan) qayta olinsin
+    await callAdminAction('set_leaderboard_prize', { place, itemId });
+    currentLeaderboardPrizes = null; // keyingi chaqiruvda serverdan to'liq (nom bilan) qayta olinsin
     dataCache.leaderboard = { data: null, ts: 0 }; // kesh eskirdi, keyingi ochilishda yangi sovg'a keladi
     await loadAdminLeaderboardPrizeDisplay();
-    alert("TOP-3 sovg'asi saqlandi!");
+    alert(`${place}-o'rin sovg'asi saqlandi!`);
   } catch (e) {
     console.error(e);
     alert("Xatolik yuz berdi!");
@@ -7423,13 +7439,18 @@ async function adminDeleteContest(contestId) {
 /* ---- Admin: "YUTIB KETISH" (King of the Hill) o'yinini boshqarish ---- */
 async function loadAdminKothStatus() {
   const box = document.getElementById('adminKothStatusBox');
+  const cancelBtn = document.getElementById('a_kothCancelBtn');
   if (!box) return;
   box.innerHTML = '<p class="empty" style="font-size:12px;">Yuklanmoqda...</p>';
   try {
     const res = await fetch(KOTH_API_URL);
     const data = await res.json();
     const k = data.koth;
-    if (!k) { box.innerHTML = '<p class="empty" style="font-size:12px;">Hozir faol o\'yin yo\'q</p>'; return; }
+    if (!k) {
+      box.innerHTML = '<p class="empty" style="font-size:12px;">Hozir faol o\'yin yo\'q</p>';
+      if (cancelBtn) { cancelBtn.style.display = 'none'; }
+      return;
+    }
     const statusLabel = k.status === 'waiting' ? 'Kutilmoqda (hali lider yo\'q)'
       : k.status === 'running' ? `Jonli — lider: ${k.leader.username}`
       : `Yakunlangan — g'olib: ${k.winner ? k.winner.username : '—'}`;
@@ -7441,6 +7462,12 @@ async function loadAdminKothStatus() {
         </div>
       </div>
     `;
+    // O'yin yakunlangan bo'lsa, tugma "Konkurs bo'limidan o'chirish"ga aylanadi —
+    // bosilsa, "YUTIB KETISH" kartochkasi konkurslar ro'yxatidan butunlay yo'qoladi.
+    if (cancelBtn) {
+      cancelBtn.style.display = 'block';
+      cancelBtn.textContent = k.status === 'finished' ? "🗑 Konkurs bo'limidan o'chirish" : "Joriy o'yinni bekor qilish";
+    }
   } catch (e) {
     console.error(e);
     box.innerHTML = '<p class="empty" style="font-size:12px;">Yuklab bo\'lmadi</p>';
@@ -7490,7 +7517,12 @@ function adminKothToggleAnnounceBox() {
 }
 
 async function adminCancelKoth() {
-  if (!confirm("Joriy \"YUTIB KETISH\" o'yinini bekor qilmoqchimisiz?")) return;
+  const cancelBtn = document.getElementById('a_kothCancelBtn');
+  const isFinished = cancelBtn && cancelBtn.textContent.includes("o'chirish");
+  const confirmMsg = isFinished
+    ? "\"YUTIB KETISH\" o'yinini konkurs bo'limidan o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi."
+    : "Joriy \"YUTIB KETISH\" o'yinini bekor qilmoqchimisiz?";
+  if (!confirm(confirmMsg)) return;
   try {
     await callAdminAction('cancel_koth', {});
     loadAdminKothStatus();

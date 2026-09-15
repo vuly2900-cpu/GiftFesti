@@ -11,6 +11,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const sharp = require('sharp');
+const { MongoClient } = require('mongodb');
 
 const PORT = process.env.PORT || 3000;
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
@@ -26,7 +27,16 @@ const SIMPLE_ADMIN_IDS = (process.env.SIMPLE_ADMIN_IDS || '').split(',').map(s =
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const INTERNAL_KEY = process.env.INTERNAL_KEY || '';
 const WEBAPP_URL = (process.env.WEBAPP_URL || '').replace(/\/$/, '');
-const DB_FILE = path.join(__dirname, 'db.json');
+// MUHIM: ilgari ma'lumotlar shu papkadagi db.json fayliga yozilardi. Ko'p
+// hosting xizmatlari (Railway, Render va h.k.) har safar deploy/restart
+// qilinganda diskni tozalab tashlaydi — shu sabab restart'dan keyin barcha
+// ma'lumot (foydalanuvchilar, balans, NFT) yo'qolib qolardi. Shuning uchun
+// endi butun holat (avvalgi db.json bilan bir xil format) MongoDB'dagi bitta
+// hujjatga saqlanadi — MongoDB Atlas'ning bepul tarifi ham disk restart'idan
+// mutlaqo ta'sirlanmaydi.
+const MONGODB_URI = process.env.MONGODB_URI || '';
+const DB_FILE = path.join(__dirname, 'db.json'); // faqat MONGODB_URI sozlanmagan holatlar uchun zaxira (dev/test)
+let mongoCollection = null; // ulanish muvaffaqiyatli bo'lsa shu yerga o'rnatiladi
 const REFERRAL_REWARD = 50;
 const CASE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const DAILY_TASK_MS = 24 * 60 * 60 * 1000;
@@ -209,14 +219,65 @@ function serializeState() {
     adminAuditLog,
   };
 }
-function saveDb() {
-  try { fs.writeFileSync(DB_FILE, JSON.stringify(serializeState(), null, 2)); }
-  catch (e) { console.error('DB saqlashda xatolik:', e.message); }
-}
-function loadDb() {
-  if (!fs.existsSync(DB_FILE)) return;
+/* ---- MongoDB'ga ulanish: bitta "state" nomli collection, ichida bitta
+   hujjat (_id: 'state') — butun serializeState() natijasi shu yerda
+   saqlanadi. Bu eski db.json formatini deyarli o'zgarishsiz Mongo'ga
+   ko'chiradi, shuning uchun qolgan barcha kod (createUser, o'yin mantig'i
+   va h.k.) o'zgarishsiz qoladi. ---- */
+async function connectMongo() {
+  if (!MONGODB_URI) {
+    console.warn("OGOHLANTIRISH: MONGODB_URI sozlanmagan — ma'lumotlar faqat local db.json fayliga saqlanadi (hosting restart qilinganda YO'QOLADI). Doimiy saqlash uchun MongoDB Atlas'da bepul cluster yaratib, MONGODB_URI'ni Railway/Render Variables'ga qo'shing.");
+    return;
+  }
   try {
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    const client = new MongoClient(MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
+    await client.connect();
+    const dbName = process.env.MONGODB_DB || 'giftfesti';
+    mongoCollection = client.db(dbName).collection('state');
+    console.log(`MongoDB'ga ulandi (db: ${dbName})`);
+  } catch (e) {
+    console.error("MongoDB'ga ulanishda xatolik, local db.json ishlatiladi:", e.message);
+    mongoCollection = null;
+  }
+}
+let savingInProgress = false;
+let saveAgainAfter = false;
+async function saveDb() {
+  // Bir vaqtning o'zida bir nechta saveDb() chaqiruvi (masalan 10 soniyalik
+  // taймer + biror amaldan keyingi darhol saqlash) bir-birining ustidan
+  // yozib yubormasligi uchun navbatga qo'yamiz.
+  if (savingInProgress) { saveAgainAfter = true; return; }
+  savingInProgress = true;
+  const state = serializeState();
+  try {
+    if (mongoCollection) {
+      await mongoCollection.updateOne({ _id: 'state' }, { $set: state }, { upsert: true });
+    } else {
+      fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2));
+    }
+  } catch (e) {
+    console.error('DB saqlashda xatolik:', e.message);
+  } finally {
+    savingInProgress = false;
+    if (saveAgainAfter) { saveAgainAfter = false; saveDb(); }
+  }
+}
+async function loadDb() {
+  let data = null;
+  try {
+    if (mongoCollection) {
+      data = await mongoCollection.findOne({ _id: 'state' });
+      if (data) console.log("DB MongoDB'dan yuklandi.");
+      else console.log("MongoDB bo'sh — birinchi marta ishga tushayotgan bo'lishi mumkin.");
+    } else if (fs.existsSync(DB_FILE)) {
+      data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    }
+  } catch (e) {
+    console.error('DB yuklashda xatolik:', e.message);
+    return;
+  }
+  if (!data) return;
+  try {
     (data.users || []).forEach(u => {
       users.set(String(u.id), {
         ...u,
@@ -665,22 +726,67 @@ async function postKothToChannel(koth, announceText) {
   } catch (e) { console.error('YUTIB KETISHni kanalga post qilishda xatolik:', e.message); }
 }
 
-/* ---- Telegram profil rasmini olish (fon rejimida, bloklamaydi) ---- */
-async function fetchTelegramPhoto(userId) {
+/* ---- Telegram profil rasmini olish ----
+   XAVFSIZLIK: bu funksiya ENDI hech qachon BOT_TOKEN yozilgan Telegram URL'ni
+   qaytarmaydi / frontendga yubormaydi. Avvalgi versiyada bu yerda
+   `https://api.telegram.org/file/bot${BOT_TOKEN}/...` ko'rinishidagi URL
+   to'g'ridan-to'g'ri user.photo_url'ga yozilib, keyin leaderboard/o'yin
+   javoblari orqali HAR BIR tashrif buyuruvchiga (Network tab / View Source
+   orqali) BOT_TOKEN oshkor bo'lardi. Endi rasm serverda yuklab olinib
+   diskka keshlanadi, frontendga esa faqat bizning o'z proksi manzilimiz
+   (`/api/avatar/:userId`) beriladi — u yerda token umuman ishtirok etmaydi. */
+const AVATAR_CACHE_DIR = path.join(__dirname, 'avatar_cache');
+if (!fs.existsSync(AVATAR_CACHE_DIR)) fs.mkdirSync(AVATAR_CACHE_DIR, { recursive: true });
+const AVATAR_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 soatdan keyin qayta tekshiramiz
+
+function cachedAvatarPath(userId) {
+  const found = fs.readdirSync(AVATAR_CACHE_DIR).find(f => f.startsWith(String(userId) + '.'));
+  return found ? path.join(AVATAR_CACHE_DIR, found) : null;
+}
+
+// Foydalanuvchida rasm yo'qligini eslab qolish uchun (har so'rovda Telegramga
+// bekorga murojaat qilmaslik uchun) vaqtinchalik xotira keshi:
+const noPhotoCache = new Map(); // userId(string) -> checkedAt(ms)
+
+/* ---- Telegram'dan profil rasmini yuklab, diskka keshlaydi. HECH QACHON
+   BOT_TOKEN qatnashgan URL'ni qaytarmaydi — faqat local fayl yo'lini. ---- */
+async function downloadAndCacheAvatar(userId) {
   if (!BOT_TOKEN) return null;
   try {
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${userId}&limit=1`);
     const data = await res.json();
-    if (!data.ok || !data.result || !data.result.total_count) return null;
+    if (!data.ok || !data.result || !data.result.total_count) {
+      noPhotoCache.set(String(userId), Date.now());
+      return null;
+    }
     const fileId = data.result.photos[0][0].file_id;
     const fRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
     const fData = await fRes.json();
     if (!fData.ok) return null;
-    return `https://api.telegram.org/file/bot${BOT_TOKEN}/${fData.result.file_path}`;
+    // Diqqat: bu URL faqat SERVER ICHIDA, bir martalik fetch uchun ishlatiladi
+    // va hech qachon response sifatida clientga qaytarilmaydi.
+    const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fData.result.file_path}`;
+    const mediaRes = await fetch(fileUrl);
+    if (!mediaRes.ok) return null;
+    const buffer = Buffer.from(await mediaRes.arrayBuffer());
+    const ext = path.extname(fData.result.file_path) || '.jpg';
+    // Eski keshni tozalab, yangisini yozamiz (foydalanuvchi rasmini o'zgartirgan bo'lishi mumkin)
+    const old = cachedAvatarPath(userId);
+    if (old) { try { fs.unlinkSync(old); } catch (e) {} }
+    const outPath = path.join(AVATAR_CACHE_DIR, String(userId) + ext);
+    fs.writeFileSync(outPath, buffer);
+    noPhotoCache.delete(String(userId));
+    return outPath;
   } catch (e) { return null; }
 }
+
+/* ---- Fon rejimida (bloklamaydi): user.photo_url'ni faqat bizning xavfsiz
+   proksi manzilimizga o'rnatadi. Haqiqiy yuklab olish keshlanadi va
+   /api/avatar/:userId so'ralganda amalga oshadi. ---- */
 function refreshPhotoAsync(user) {
-  fetchTelegramPhoto(user.id).then(url => { if (url) user.photo_url = url; }).catch(() => {});
+  downloadAndCacheAvatar(user.id).then(filePath => {
+    user.photo_url = filePath ? `/api/avatar/${user.id}` : null;
+  }).catch(() => {});
 }
 
 /* ============================================================
@@ -2281,6 +2387,29 @@ app.get('/api/nft_media/:customEmojiId', async (req, res) => {
   } catch (e) {
     console.error('nft_media xatolik:', e.message);
     res.status(500).json({ error: 'SERVER_ERROR' });
+  }
+});
+
+/* ---- Foydalanuvchi avatarini xavfsiz proksi qilish orqali berish.
+   BOT_TOKEN bu yerda HECH QACHON javobga chiqmaydi: fayl serverda
+   allaqachon (yoki shu so'rov paytida) yuklab olinib, diskdan
+   sendFile bilan uzatiladi. ---- */
+app.get('/api/avatar/:userId', async (req, res) => {
+  const userId = String(req.params.userId || '').replace(/[^0-9]/g, '');
+  if (!userId) return res.status(400).end();
+  try {
+    let filePath = cachedAvatarPath(userId);
+    const checkedAt = noPhotoCache.get(userId);
+    const staleNoPhoto = checkedAt && (Date.now() - checkedAt) > AVATAR_CACHE_TTL_MS;
+    if (!filePath && (!checkedAt || staleNoPhoto)) {
+      filePath = await downloadAndCacheAvatar(userId);
+    }
+    if (!filePath) return res.status(404).end();
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.sendFile(filePath);
+  } catch (e) {
+    console.error('avatar proksi xatolik:', e.message);
+    res.status(500).end();
   }
 });
 
@@ -4593,32 +4722,36 @@ io.on('connection', (socket) => {
 /* ============================================================
    ISHGA TUSHIRISH
    ============================================================ */
-loadDb();
-resetRetiredStarterNfts();
-// Server o'chib-yonib qolgan bo'lsa: "YUTIB KETISH" o'yini "running"
-// holatida saqlangan bo'lishi mumkin — muddati allaqachon o'tgan bo'lsa
-// darhol yakunlanadi, aks holda qolgan vaqtga moslab taймer qayta tiklanadi.
-if (kothState && kothState.status === 'running') scheduleKothFinalize();
-setInterval(saveDb, 10000);
-// Vaqti tugagan konkurslarni har 15 soniyada tekshirib, avtomatik yakunlaydi.
-setInterval(autoFinishExpiredContests, 15000);
-autoFinishExpiredContests(); // server qayta ishga tushganda, muddati o'tib ketganlarini darhol yakunlash
-setInterval(autoFinishExpiredLeaderboard, 15000);
-autoFinishExpiredLeaderboard();
-process.on('SIGINT', () => { saveDb(); process.exit(0); });
-process.on('SIGTERM', () => { saveDb(); process.exit(0); });
+(async () => {
+  await connectMongo();   // avval MongoDB'ga ulanamiz (agar sozlangan bo'lsa)
+  await loadDb();         // ...keyin saqlangan holatni shu yerdan yuklaymiz
 
-server.listen(PORT, () => {
-  console.log(`GIFT FESTI APP server ${PORT}-portda ishga tushdi`);
-  console.log(`Admin ID'lar: ${ADMIN_IDS.length ? ADMIN_IDS.join(', ') : "(hech biri belgilanmagan — .env dagi ADMIN_IDS ni to'ldiring)"}`);
-  if (!BOT_TOKEN) console.warn("OGOHLANTIRISH: BOT_TOKEN sozlanmagan — initData tekshirilmaydi (faqat dev/test uchun xavfsiz)!");
-  if (!ADMIN_PASSWORD) console.warn("OGOHLANTIRISH: ADMIN_PASSWORD sozlanmagan — admin panelda parol qatlami O'CHIQ! Railway > Variables dan uzun tasodifiy parol qo'ying.");
-  // Raketa (Crash) — barcha foydalanuvchilar uchun umumiy raund tsikli
-  // server ishga tushgan zahoti avtomatik boshlanadi (haqiqiy kazino
-  // o'yinlariga o'xshab, o'yinchi kutib o'tirmasdan ham raundlar davom etadi).
-  startCrashWaiting();
-  // Server birinchi marta ishga tushganda hockey/drum uchun ham
-  // "GIFT FESTI" botining birinchi tikishini rejalashtiramiz.
-  scheduleGiftFestiBot('hockey');
-  scheduleGiftFestiBot('drum');
-});
+  resetRetiredStarterNfts();
+  // Server o'chib-yonib qolgan bo'lsa: "YUTIB KETISH" o'yini "running"
+  // holatida saqlangan bo'lishi mumkin — muddati allaqachon o'tgan bo'lsa
+  // darhol yakunlanadi, aks holda qolgan vaqtga moslab таймер qayta tiklanadi.
+  if (kothState && kothState.status === 'running') scheduleKothFinalize();
+  setInterval(saveDb, 10000);
+  // Vaqti tugagan konkurslarni har 15 soniyada tekshirib, avtomatik yakunlaydi.
+  setInterval(autoFinishExpiredContests, 15000);
+  autoFinishExpiredContests(); // server qayta ishga tushganda, muddati o'tib ketganlarini darhol yakunlash
+  setInterval(autoFinishExpiredLeaderboard, 15000);
+  autoFinishExpiredLeaderboard();
+  process.on('SIGINT', async () => { await saveDb(); process.exit(0); });
+  process.on('SIGTERM', async () => { await saveDb(); process.exit(0); });
+
+  server.listen(PORT, () => {
+    console.log(`GIFT FESTI APP server ${PORT}-portda ishga tushdi`);
+    console.log(`Admin ID'lar: ${ADMIN_IDS.length ? ADMIN_IDS.join(', ') : "(hech biri belgilanmagan — .env dagi ADMIN_IDS ni to'ldiring)"}`);
+    if (!BOT_TOKEN) console.warn("OGOHLANTIRISH: BOT_TOKEN sozlanmagan — initData tekshirilmaydi (faqat dev/test uchun xavfsiz)!");
+    if (!ADMIN_PASSWORD) console.warn("OGOHLANTIRISH: ADMIN_PASSWORD sozlanmagan — admin panelda parol qatlami O'CHIQ! Railway > Variables dan uzun tasodifiy parol qo'ying.");
+    // Raketa (Crash) — barcha foydalanuvchilar uchun umumiy raund tsikli
+    // server ishga tushgan zahoti avtomatik boshlanadi (haqiqiy kazino
+    // o'yinlariga o'xshab, o'yinchi kutib o'tirmasdan ham raundlar davom etadi).
+    startCrashWaiting();
+    // Server birinchi marta ishga tushganda hockey/drum uchun ham
+    // "GIFT FESTI" botining birinchi tikishini rejalashtiramiz.
+    scheduleGiftFestiBot('hockey');
+    scheduleGiftFestiBot('drum');
+  });
+})();
